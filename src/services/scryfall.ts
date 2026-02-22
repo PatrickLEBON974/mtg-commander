@@ -1,5 +1,7 @@
 import type { ScryfallCard, CardSearchResult } from '@/types/card'
 import { getCachedScryfall, setCachedScryfall } from '@/services/persistence'
+import { autocompleteLocal, getCardByNameLocal, searchCardsLocal, type LocalCard } from '@/services/database'
+import { useOfflineStore } from '@/stores/offlineStore'
 
 const BASE_URL = 'https://api.scryfall.com'
 const REQUEST_DELAY_MS = 100
@@ -22,13 +24,66 @@ async function throttledFetch(url: string): Promise<Response> {
   })
 }
 
+function localCardToScryfallCard(local: LocalCard): ScryfallCard {
+  return {
+    id: local.id,
+    name: local.name,
+    mana_cost: local.mana_cost,
+    cmc: local.cmc,
+    type_line: local.type_line,
+    oracle_text: local.oracle_text,
+    colors: JSON.parse(local.colors || '[]'),
+    color_identity: JSON.parse(local.color_identity || '[]'),
+    keywords: JSON.parse(local.keywords || '[]'),
+    power: local.power ?? undefined,
+    toughness: local.toughness ?? undefined,
+    loyalty: local.loyalty ?? undefined,
+    legalities: JSON.parse(local.legalities || '{}'),
+    set: local.set_code,
+    set_name: local.set_name,
+    collector_number: local.collector_number,
+    rarity: local.rarity as ScryfallCard['rarity'],
+    artist: local.artist,
+    image_uris: local.image_normal ? {
+      small: local.image_small ?? '',
+      normal: local.image_normal,
+      large: local.image_normal,
+      png: local.image_normal,
+      art_crop: local.image_art_crop ?? '',
+      border_crop: local.image_normal,
+    } : undefined,
+    prices: {},
+  }
+}
+
+function isOfflineAvailable(): boolean {
+  try {
+    const offlineStore = useOfflineStore()
+    return offlineStore.isDbReady && offlineStore.hasLocalData
+  } catch {
+    return false
+  }
+}
+
 export async function autocompleteCards(query: string): Promise<string[]> {
   if (query.length < 2) return []
 
+  // Try local DB first
+  if (isOfflineAvailable()) {
+    try {
+      const localResults = await autocompleteLocal(query)
+      if (localResults.length > 0) return localResults
+    } catch {
+      // Fall through to API
+    }
+  }
+
+  // Fallback to localStorage cache
   const cacheKey = `autocomplete:${query.toLowerCase()}`
   const cached = getCachedScryfall(cacheKey) as string[] | null
   if (cached) return cached
 
+  // Fallback to API
   const encodedQuery = encodeURIComponent(query)
   const response = await throttledFetch(`${BASE_URL}/cards/autocomplete?q=${encodedQuery}`)
 
@@ -44,6 +99,22 @@ export async function searchCards(
   query: string,
   commanderLegalOnly = true,
 ): Promise<CardSearchResult> {
+  // Try local DB first
+  if (isOfflineAvailable()) {
+    try {
+      const localResults = await searchCardsLocal(query, 50, commanderLegalOnly)
+      if (localResults.length > 0) {
+        return {
+          total_cards: localResults.length,
+          has_more: false,
+          data: localResults.map(localCardToScryfallCard),
+        }
+      }
+    } catch {
+      // Fall through to API
+    }
+  }
+
   const legalityFilter = commanderLegalOnly ? ' legal:commander' : ''
   const fullQuery = `${query}${legalityFilter}`
 
@@ -64,6 +135,16 @@ export async function searchCards(
 }
 
 export async function getCardByName(name: string): Promise<ScryfallCard | null> {
+  // Try local DB first
+  if (isOfflineAvailable()) {
+    try {
+      const localCard = await getCardByNameLocal(name)
+      if (localCard) return localCardToScryfallCard(localCard)
+    } catch {
+      // Fall through to API
+    }
+  }
+
   const cacheKey = `card:${name.toLowerCase()}`
   const cached = getCachedScryfall(cacheKey) as ScryfallCard | null
   if (cached) return cached

@@ -83,6 +83,12 @@
           <ion-icon :icon="searchOutline" class="text-5xl" />
           <p class="mt-2">Tapez pour rechercher une carte MTG</p>
           <p class="text-xs">Filtre automatique : legal en Commander</p>
+          <ion-badge v-if="offlineStore.hasLocalData" color="success" class="mt-2">
+            {{ offlineStore.cardCount.toLocaleString('fr-FR') }} cartes en local
+          </ion-badge>
+          <ion-badge v-else color="medium" class="mt-2">
+            Mode API (telecharger les cartes dans Reglages)
+          </ion-badge>
         </div>
       </div>
 
@@ -114,6 +120,9 @@ import {
 import { searchOutline } from 'ionicons/icons'
 import type { ScryfallCard } from '@/types/card'
 import { autocompleteCards, getCardByName, getCardImageUrl } from '@/services/scryfall'
+import { useOfflineStore } from '@/stores/offlineStore'
+
+const offlineStore = useOfflineStore()
 
 const searchQuery = ref('')
 const suggestions = ref<string[]>([])

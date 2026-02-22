@@ -8,6 +8,71 @@
 
     <ion-content>
       <ion-list>
+        <!-- Offline Data Section -->
+        <ion-list-header>
+          <ion-label>Donnees Offline</ion-label>
+        </ion-list-header>
+
+        <ion-item>
+          <ion-label>
+            <h3>Base de cartes locale</h3>
+            <p v-if="offlineStore.hasLocalData">
+              {{ offlineStore.cardCount.toLocaleString('fr-FR') }} cartes
+              (~{{ offlineStore.estimatedSizeMb }} MB)
+            </p>
+            <p v-else>Non telechargee</p>
+          </ion-label>
+          <ion-badge
+            slot="end"
+            :color="offlineStore.hasLocalData ? 'success' : 'medium'"
+          >
+            {{ offlineStore.hasLocalData ? 'OK' : 'Vide' }}
+          </ion-badge>
+        </ion-item>
+
+        <ion-item>
+          <ion-label>
+            <h3>Derniere mise a jour</h3>
+            <p>{{ offlineStore.formattedLastUpdate }}</p>
+          </ion-label>
+        </ion-item>
+
+        <!-- Download progress -->
+        <ion-item v-if="offlineStore.isDownloading && offlineStore.downloadProgress">
+          <ion-label>
+            <h3>{{ offlineStore.downloadProgress.message }}</h3>
+            <ion-progress-bar
+              v-if="offlineStore.downloadProgress.phase === 'downloading' && offlineStore.downloadProgress.totalMb"
+              :value="(offlineStore.downloadProgress.downloadedMb ?? 0) / offlineStore.downloadProgress.totalMb"
+            />
+            <ion-progress-bar
+              v-else-if="offlineStore.downloadProgress.phase === 'importing' && offlineStore.downloadProgress.importProgress"
+              :value="offlineStore.downloadProgress.importProgress.inserted / offlineStore.downloadProgress.importProgress.total"
+            />
+            <ion-progress-bar v-else type="indeterminate" />
+          </ion-label>
+        </ion-item>
+
+        <!-- Error message -->
+        <ion-item v-if="offlineStore.downloadError">
+          <ion-label color="danger">
+            <h3>Erreur</h3>
+            <p>{{ offlineStore.downloadError }}</p>
+          </ion-label>
+        </ion-item>
+
+        <ion-item>
+          <ion-button
+            expand="block"
+            :disabled="offlineStore.isDownloading"
+            @click="offlineStore.startDownload()"
+          >
+            <ion-spinner v-if="offlineStore.isDownloading" name="crescent" slot="start" />
+            <ion-icon v-else :icon="cloudDownloadOutline" slot="start" />
+            {{ offlineStore.hasLocalData ? 'Mettre a jour' : 'Telecharger' }} (~162 MB)
+          </ion-button>
+        </ion-item>
+
         <ion-list-header>
           <ion-label>Regles</ion-label>
         </ion-list-header>
@@ -98,10 +163,18 @@ import {
   IonSelect,
   IonSelectOption,
   IonToggle,
+  IonButton,
+  IonBadge,
+  IonIcon,
+  IonSpinner,
+  IonProgressBar,
 } from '@ionic/vue'
+import { cloudDownloadOutline } from 'ionicons/icons'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { useOfflineStore } from '@/stores/offlineStore'
 
 const settingsStore = useSettingsStore()
+const offlineStore = useOfflineStore()
 
 function resetSettings() {
   settingsStore.resetToDefaults()
