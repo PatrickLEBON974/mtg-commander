@@ -179,6 +179,7 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function isPlayerDeadByPoison(player: PlayerState): boolean {
+    if (settings.value.poisonThreshold <= 0) return false
     return player.poisonCounters >= settings.value.poisonThreshold
   }
 

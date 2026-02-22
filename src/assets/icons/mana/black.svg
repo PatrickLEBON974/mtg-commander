@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="currentColor">
+  <!-- Swamp — Skull -->
+  <path d="M24 4C15 4 8 12 8 21c0 6 3 11 7 14v5a2 2 0 0 0 2 2h2v-4h2v4h2v-4h2v4h2v-4h2v4h2a2 2 0 0 0 2-2v-5c4-3 7-8 7-14 0-9-7-17-16-17z"/>
+  <circle cx="18" cy="20" r="4" fill="currentColor" opacity="0"/>
+  <circle cx="30" cy="20" r="4" fill="currentColor" opacity="0"/>
+  <ellipse cx="18" cy="20" rx="3.5" ry="4" fill="#1a1a2e"/>
+  <ellipse cx="30" cy="20" rx="3.5" ry="4" fill="#1a1a2e"/>
+  <path d="M21 28 L24 32 L27 28" fill="none" stroke="#1a1a2e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

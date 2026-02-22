@@ -3,10 +3,10 @@
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-button :disabled="!gameStore.canUndo" @click="gameStore.undoLastAction()">
+          <ion-button :disabled="!gameStore.canUndo" @click="handleUndo">
             <ion-icon :icon="arrowUndoOutline" />
           </ion-button>
-          <ion-button :disabled="!gameStore.canRedo" @click="gameStore.redoLastAction()">
+          <ion-button :disabled="!gameStore.canRedo" @click="handleRedo">
             <ion-icon :icon="arrowRedoOutline" />
           </ion-button>
         </ion-buttons>
@@ -15,7 +15,7 @@
           <ion-button @click="showHistory = true">
             <ion-icon :icon="listOutline" />
           </ion-button>
-          <ion-button @click="gameStore.advanceTurn()">
+          <ion-button @click="handleAdvanceTurn">
             <ion-icon :icon="playForwardOutline" />
           </ion-button>
         </ion-buttons>
@@ -33,6 +33,14 @@
       </div>
 
       <div v-else class="flex h-full flex-col">
+        <!-- Multiplayer indicator -->
+        <div v-if="multiplayerStore.isMultiplayer" class="flex items-center justify-center gap-2 bg-mana-blue/20 px-4 py-1">
+          <div class="h-2 w-2 rounded-full bg-life-positive animate-pulse" />
+          <span class="text-xs text-text-secondary">
+            Room {{ multiplayerStore.roomCode }} — {{ multiplayerStore.connectedPlayerCount }} connectes
+          </span>
+        </div>
+
         <!-- Game timer -->
         <GameTimer v-if="gameStore.settings.enableTimer" />
 
@@ -56,6 +64,7 @@
             :key="player.id"
             :player="player"
             :is-current-turn="player.id === gameStore.currentTurnPlayer?.id"
+            @state-changed="onPlayerStateChanged"
           />
         </div>
       </div>
@@ -84,12 +93,14 @@ import {
 } from '@ionic/vue'
 import { arrowUndoOutline, arrowRedoOutline, playForwardOutline, listOutline } from 'ionicons/icons'
 import { useGameStore } from '@/stores/gameStore'
+import { useMultiplayerStore } from '@/stores/multiplayerStore'
 import LifeTracker from '@/components/life-tracker/LifeTracker.vue'
 import GameTimer from '@/components/game-timer/GameTimer.vue'
 import GameHistoryModal from '@/components/life-tracker/GameHistoryModal.vue'
 
 const router = useRouter()
 const gameStore = useGameStore()
+const multiplayerStore = useMultiplayerStore()
 const showHistory = ref(false)
 
 const playerGridClass = computed(() => {
@@ -98,4 +109,31 @@ const playerGridClass = computed(() => {
   if (playerCount <= 4) return 'grid-cols-2 grid-rows-2'
   return 'grid-cols-2 grid-rows-3'
 })
+
+function syncAfterAction() {
+  if (multiplayerStore.isMultiplayer) {
+    multiplayerStore.pushLocalPlayerState()
+  }
+}
+
+function handleUndo() {
+  gameStore.undoLastAction()
+  syncAfterAction()
+}
+
+function handleRedo() {
+  gameStore.redoLastAction()
+  syncAfterAction()
+}
+
+function handleAdvanceTurn() {
+  gameStore.advanceTurn()
+  if (multiplayerStore.isMultiplayer) {
+    multiplayerStore.pushTurnAdvance()
+  }
+}
+
+function onPlayerStateChanged() {
+  syncAfterAction()
+}
 </script>

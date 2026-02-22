@@ -36,6 +36,11 @@ const routes: RouteRecordRaw[] = [
         name: 'settings',
         component: () => import('@/views/SettingsView.vue'),
       },
+      {
+        path: 'multiplayer',
+        name: 'multiplayer',
+        component: () => import('@/views/MultiplayerView.vue'),
+      },
     ],
   },
 ]

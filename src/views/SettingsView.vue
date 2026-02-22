@@ -74,8 +74,25 @@
         </ion-item>
 
         <ion-list-header>
-          <ion-label>Regles</ion-label>
+          <ion-label>Partie</ion-label>
         </ion-list-header>
+
+        <ion-item>
+          <ion-label>
+            <h3>Nombre de joueurs</h3>
+            <p>2 a 6 joueurs</p>
+          </ion-label>
+          <ion-select
+            v-model="settingsStore.gameSettings.playerCount"
+            interface="popover"
+          >
+            <ion-select-option :value="2">2</ion-select-option>
+            <ion-select-option :value="3">3</ion-select-option>
+            <ion-select-option :value="4">4</ion-select-option>
+            <ion-select-option :value="5">5</ion-select-option>
+            <ion-select-option :value="6">6</ion-select-option>
+          </ion-select>
+        </ion-item>
 
         <ion-item>
           <ion-label>
@@ -86,12 +103,16 @@
             v-model="settingsStore.gameSettings.startingLife"
             interface="popover"
           >
-            <ion-select-option :value="40">40</ion-select-option>
-            <ion-select-option :value="30">30</ion-select-option>
-            <ion-select-option :value="25">25</ion-select-option>
-            <ion-select-option :value="20">20</ion-select-option>
+            <ion-select-option :value="40">40 (Commander)</ion-select-option>
+            <ion-select-option :value="30">30 (Brawl)</ion-select-option>
+            <ion-select-option :value="25">25 (Oathbreaker)</ion-select-option>
+            <ion-select-option :value="20">20 (Standard)</ion-select-option>
           </ion-select>
         </ion-item>
+
+        <ion-list-header>
+          <ion-label>Regles</ion-label>
+        </ion-list-header>
 
         <ion-item>
           <ion-label>
@@ -110,15 +131,17 @@
         <ion-item>
           <ion-label>
             <h3>Seuil poison</h3>
-            <p>Defaut : 10 (houserule possible)</p>
+            <p>Nombre de marqueurs poison avant elimination</p>
           </ion-label>
           <ion-select
             v-model="settingsStore.gameSettings.poisonThreshold"
             interface="popover"
           >
+            <ion-select-option :value="5">5 (houserule)</ion-select-option>
             <ion-select-option :value="10">10 (officiel)</ion-select-option>
             <ion-select-option :value="15">15 (houserule)</ion-select-option>
             <ion-select-option :value="20">20 (houserule)</ion-select-option>
+            <ion-select-option :value="0">Desactive</ion-select-option>
           </ion-select>
         </ion-item>
 
@@ -129,6 +152,14 @@
         <ion-item>
           <ion-label>Retour haptique</ion-label>
           <ion-toggle v-model="settingsStore.hapticFeedback" />
+        </ion-item>
+
+        <ion-item>
+          <ion-label>
+            <h3>Sons</h3>
+            <p>Effets sonores en jeu</p>
+          </ion-label>
+          <ion-toggle v-model="settingsStore.soundEnabled" />
         </ion-item>
 
         <ion-item>

@@ -7,6 +7,8 @@ export const useSettingsStore = defineStore('settings', () => {
   const gameSettings = ref<GameSettings>({ ...DEFAULT_GAME_SETTINGS })
   const isDarkMode = ref(true)
   const hapticFeedback = ref(true)
+  const soundEnabled = ref(false)
+  const soundVolume = ref(0.5)
   const keepScreenOn = ref(true)
   const language = ref<'fr' | 'en'>('fr')
 
@@ -22,6 +24,8 @@ export const useSettingsStore = defineStore('settings', () => {
     gameSettings,
     isDarkMode,
     hapticFeedback,
+    soundEnabled,
+    soundVolume,
     keepScreenOn,
     language,
     updateGameSettings,

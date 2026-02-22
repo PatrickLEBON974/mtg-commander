@@ -41,6 +41,14 @@
   --ion-safe-area-bottom: env(safe-area-inset-bottom);
 }
 
+/* Shadows & elevation */
+@theme {
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-glow-accent: 0 0 20px rgba(233, 69, 96, 0.3);
+  --shadow-glow-gold: 0 0 20px rgba(224, 196, 108, 0.3);
+}
+
 /* Dark theme for Ionic */
 body {
   --ion-background-color: var(--color-surface);
@@ -48,4 +56,137 @@ body {
   --ion-toolbar-background: var(--color-surface-light);
   --ion-tab-bar-background: var(--color-surface-light);
   --ion-item-background: var(--color-surface-card);
+}
+
+/* ========================================
+   BUTTON PRESS STATES (tactile feedback)
+   ======================================== */
+
+.btn-press {
+  transition: transform 100ms ease, box-shadow 100ms ease;
+}
+.btn-press:active {
+  transform: scale(0.93);
+}
+
+.life-btn {
+  transition: transform 120ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.life-btn:active {
+  transform: scale(0.82);
+}
+
+/* ========================================
+   LIFE FLASH EFFECTS
+   ======================================== */
+
+@keyframes flash-green {
+  0% { background-color: rgba(34, 197, 94, 0.25); }
+  100% { background-color: transparent; }
+}
+@keyframes flash-red {
+  0% { background-color: rgba(239, 68, 68, 0.25); }
+  100% { background-color: transparent; }
+}
+
+.flash-positive { animation: flash-green 350ms ease-out; }
+.flash-negative { animation: flash-red 350ms ease-out; }
+
+/* ========================================
+   CURRENT TURN GLOW
+   ======================================== */
+
+.current-turn-glow {
+  box-shadow:
+    0 0 0 2px var(--color-accent),
+    0 0 16px rgba(233, 69, 96, 0.2);
+}
+
+/* ========================================
+   DEATH OVERLAY TRANSITION
+   ======================================== */
+
+.death-overlay-enter-active {
+  transition: opacity 400ms ease, backdrop-filter 400ms ease;
+}
+.death-overlay-leave-active {
+  transition: opacity 200ms ease;
+}
+.death-overlay-enter-from,
+.death-overlay-leave-to {
+  opacity: 0;
+  backdrop-filter: blur(0px);
+}
+
+/* ========================================
+   SKELETON SHIMMER
+   ======================================== */
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+/* ========================================
+   GLASSMORPHISM
+   ======================================== */
+
+.glass-panel {
+  background: rgba(26, 26, 46, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-light {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ========================================
+   REDUCED MOTION
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .skeleton-shimmer {
+    animation: none;
+  }
+}
+
+/* ========================================
+   FOCUS VISIBLE (accessibility)
+   ======================================== */
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* ========================================
+   TABULAR NUMBERS (all game numbers)
+   ======================================== */
+
+.font-game-number {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
 }

@@ -29,6 +29,17 @@
             <ion-icon :icon="returnUpForwardOutline" slot="start" />
             Reprendre la Partie
           </ion-button>
+
+          <ion-button
+            expand="block"
+            size="large"
+            fill="outline"
+            color="primary"
+            @click="router.push('/multiplayer')"
+          >
+            <ion-icon :icon="peopleOutline" slot="start" />
+            Multijoueur
+          </ion-button>
         </div>
 
         <div class="mt-8 flex w-full flex-col gap-3 px-4">
@@ -87,7 +98,7 @@ import {
   IonSelectOption,
   IonToggle,
 } from '@ionic/vue'
-import { playOutline, returnUpForwardOutline } from 'ionicons/icons'
+import { playOutline, returnUpForwardOutline, peopleOutline } from 'ionicons/icons'
 import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 

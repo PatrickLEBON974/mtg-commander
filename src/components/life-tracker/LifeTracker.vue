@@ -3,12 +3,21 @@
     class="relative flex flex-col items-center justify-between overflow-hidden rounded-2xl p-2"
     :class="[
       playerBgClass,
-      isCurrentTurn ? 'ring-2 ring-accent' : '',
+      isCurrentTurn ? 'current-turn-glow' : '',
     ]"
   >
+    <!-- Life flash overlay -->
+    <div
+      v-if="flashType"
+      class="pointer-events-none absolute inset-0 z-10"
+      :class="flashType === 'positive' ? 'flash-positive' : 'flash-negative'"
+      @animationend="flashType = null"
+    />
+
     <!-- Player name (tap to open detail) -->
     <button
-      class="w-full text-center"
+      class="min-h-[44px] w-full text-center btn-press"
+      :aria-label="`Details de ${player.name}`"
       @click="showDetail = true"
     >
       <span class="text-[10px] font-medium uppercase tracking-wider text-white/70">
@@ -22,7 +31,8 @@
     <!-- Life total + buttons -->
     <div class="flex items-center gap-2">
       <button
-        class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-xl font-bold text-life-negative active:bg-white/20"
+        class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-white/10 text-xl font-bold text-life-negative life-btn"
+        :aria-label="`Diminuer la vie de ${player.name} de 1`"
         @click="changeLifeBy(-1)"
       >
         -
@@ -31,12 +41,15 @@
       <span
         class="min-w-[3.5rem] text-center text-4xl font-bold tabular-nums"
         :class="lifeColorClass"
+        role="status"
+        :aria-label="`${player.name}: ${player.lifeTotal} points de vie`"
       >
-        {{ player.lifeTotal }}
+        {{ animatedLife }}
       </span>
 
       <button
-        class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-xl font-bold text-life-positive active:bg-white/20"
+        class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-white/10 text-xl font-bold text-life-positive life-btn"
+        :aria-label="`Augmenter la vie de ${player.name} de 1`"
         @click="changeLifeBy(1)"
       >
         +
@@ -48,7 +61,7 @@
       <button
         v-for="amount in [-10, -5, 5, 10]"
         :key="amount"
-        class="rounded px-1.5 py-0.5 text-[10px] font-medium active:bg-white/15"
+        class="min-h-[28px] rounded px-2 py-1 text-[10px] font-medium btn-press"
         :class="amount < 0 ? 'bg-life-negative/15 text-life-negative' : 'bg-life-positive/15 text-life-positive'"
         @click="changeLifeBy(amount)"
       >
@@ -60,10 +73,11 @@
     <div class="flex flex-wrap justify-center gap-1.5">
       <!-- Poison -->
       <button
-        class="flex items-center gap-0.5 rounded-full px-1.5 py-0.5"
+        class="flex min-h-[24px] min-w-[24px] items-center justify-center gap-0.5 rounded-full px-1.5 py-0.5 btn-press"
         :class="player.poisonCounters > 0 ? 'bg-poison/20' : 'bg-white/5'"
-        @click="gameStore.changePoison(player.id, 1)"
-        @contextmenu.prevent="gameStore.changePoison(player.id, -1)"
+        :aria-label="`Poison: ${player.poisonCounters}`"
+        @click="changePoisonBy(1)"
+        @contextmenu.prevent="changePoisonBy(-1)"
       >
         <span class="text-[10px]" :class="player.poisonCounters > 0 ? 'text-poison font-bold' : 'text-white/40'">
           {{ player.poisonCounters }}P
@@ -72,8 +86,9 @@
 
       <!-- Commander damage (tap to open modal) -->
       <button
-        class="flex items-center gap-0.5 rounded-full px-1.5 py-0.5"
+        class="flex min-h-[24px] min-w-[24px] items-center justify-center gap-0.5 rounded-full px-1.5 py-0.5 btn-press"
         :class="totalCommanderDamage > 0 ? 'bg-commander-damage/20' : 'bg-white/5'"
+        :aria-label="`Degats commandant: ${totalCommanderDamage}`"
         @click="showCommanderDamage = true"
       >
         <span class="text-[10px]" :class="totalCommanderDamage > 0 ? 'text-commander-damage font-bold' : 'text-white/40'">
@@ -84,7 +99,7 @@
       <!-- Experience (visible if > 0) -->
       <button
         v-if="player.experienceCounters > 0"
-        class="flex items-center gap-0.5 rounded-full bg-blue-500/20 px-1.5 py-0.5"
+        class="flex min-h-[24px] items-center gap-0.5 rounded-full bg-blue-500/20 px-1.5 py-0.5 btn-press"
         @click="showDetail = true"
       >
         <span class="text-[10px] font-bold text-blue-400">{{ player.experienceCounters }}E</span>
@@ -93,7 +108,7 @@
       <!-- Energy (visible if > 0) -->
       <button
         v-if="player.energyCounters > 0"
-        class="flex items-center gap-0.5 rounded-full bg-yellow-500/20 px-1.5 py-0.5"
+        class="flex min-h-[24px] items-center gap-0.5 rounded-full bg-yellow-500/20 px-1.5 py-0.5 btn-press"
         @click="showDetail = true"
       >
         <span class="text-[10px] font-bold text-yellow-400">{{ player.energyCounters }}N</span>
@@ -119,22 +134,29 @@
       </span>
     </div>
 
-    <!-- Death indicators -->
-    <div v-if="deathReason" class="absolute inset-0 flex items-center justify-center bg-black/60">
-      <span class="text-lg font-bold text-life-negative">{{ deathReason }}</span>
-    </div>
+    <!-- Death overlay (animated) -->
+    <Transition name="death-overlay">
+      <div
+        v-if="deathReason"
+        class="absolute inset-0 z-20 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+        role="alert"
+        :aria-label="`${player.name} elimine: ${deathReason}`"
+      >
+        <span class="text-lg font-bold text-life-negative drop-shadow-lg">{{ deathReason }}</span>
+      </div>
+    </Transition>
 
     <!-- Modals -->
     <PlayerDetailModal
       :is-open="showDetail"
       :player="player"
-      @close="showDetail = false"
+      @close="onDetailClose"
     />
 
     <CommanderDamageModal
       :is-open="showCommanderDamage"
       :target-player="player"
-      @close="showCommanderDamage = false"
+      @close="onCommanderDamageClose"
     />
   </div>
 </template>
@@ -144,7 +166,8 @@ import { ref, computed } from 'vue'
 import type { PlayerState } from '@/types/game'
 import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { lifeFeedback, warningFeedback } from '@/services/haptics'
+import { tapFeedback, lifeFeedback, heavyFeedback, warningFeedback } from '@/services/haptics'
+import { useAnimatedNumber } from '@/composables/useAnimatedNumber'
 import PlayerDetailModal from './PlayerDetailModal.vue'
 import CommanderDamageModal from './CommanderDamageModal.vue'
 
@@ -153,11 +176,18 @@ const props = defineProps<{
   isCurrentTurn: boolean
 }>()
 
+const emit = defineEmits<{
+  stateChanged: []
+}>()
+
 const gameStore = useGameStore()
 const settingsStore = useSettingsStore()
 
 const showDetail = ref(false)
 const showCommanderDamage = ref(false)
+const flashType = ref<'positive' | 'negative' | null>(null)
+
+const animatedLife = useAnimatedNumber(() => props.player.lifeTotal)
 
 const totalCommanderDamage = computed(() =>
   Object.values(props.player.commanderDamageReceived).reduce((sum, damage) => sum + damage, 0),
@@ -191,12 +221,38 @@ const deathReason = computed(() => {
 
 function changeLifeBy(amount: number) {
   gameStore.changeLife(props.player.id, amount)
+
+  // Flash effect
+  flashType.value = amount > 0 ? 'positive' : 'negative'
+
+  // Haptic feedback
   if (settingsStore.hapticFeedback) {
-    if (props.player.lifeTotal + amount <= 0) {
+    const newLife = props.player.lifeTotal
+    if (newLife <= 0) {
       warningFeedback()
+    } else if (Math.abs(amount) >= 5) {
+      heavyFeedback()
     } else {
       lifeFeedback()
     }
   }
+
+  emit('stateChanged')
+}
+
+function changePoisonBy(amount: number) {
+  gameStore.changePoison(props.player.id, amount)
+  if (settingsStore.hapticFeedback) tapFeedback()
+  emit('stateChanged')
+}
+
+function onCommanderDamageClose() {
+  showCommanderDamage.value = false
+  emit('stateChanged')
+}
+
+function onDetailClose() {
+  showDetail.value = false
+  emit('stateChanged')
 }
 </script>

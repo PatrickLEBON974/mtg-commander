@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="currentColor">
+  <!-- Wastes — Faceted diamond -->
+  <polygon points="24,2 38,20 24,46 10,20"/>
+  <polygon points="24,2 18,20 24,46" opacity="0.7"/>
+  <polygon points="24,2 30,20 38,20" opacity="0.85"/>
+  <line x1="10" y1="20" x2="38" y2="20" stroke="currentColor" stroke-width="0.5" opacity="0.4"/>
+</svg>

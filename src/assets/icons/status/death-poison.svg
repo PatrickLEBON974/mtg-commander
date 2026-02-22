@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="currentColor">
+  <!-- Death by poison — Skull with dripping venom -->
+  <path d="M32 8C21 8 14 17 14 27c0 7 4 12 8 16v4a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-4c4-4 8-9 8-16 0-10-7-19-18-19z"/>
+  <ellipse cx="25" cy="25" rx="5" ry="6" fill="#1a1a2e"/>
+  <ellipse cx="39" cy="25" rx="5" ry="6" fill="#1a1a2e"/>
+  <path d="M28 36v5M32 36v5M36 36v5" stroke="#1a1a2e" stroke-width="2" stroke-linecap="round"/>
+  <!-- Dripping venom drops -->
+  <ellipse cx="18" cy="52" rx="2.5" ry="4" opacity="0.7"/>
+  <ellipse cx="26" cy="56" rx="2" ry="3" opacity="0.5"/>
+  <ellipse cx="38" cy="54" rx="2.5" ry="3.5" opacity="0.6"/>
+  <ellipse cx="46" cy="52" rx="2" ry="3" opacity="0.4"/>
+  <!-- Drip lines -->
+  <path d="M18 48v0M26 50v2M38 49v1M46 47v1" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+</svg>

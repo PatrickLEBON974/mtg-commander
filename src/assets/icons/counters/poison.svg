@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="currentColor">
+  <!-- Poison — Dripping venom droplet with skull motif -->
+  <path d="M16 2c0 0-9 12-9 19a9 9 0 0 0 18 0c0-7-9-19-9-19z"/>
+  <!-- Skull face inside drop -->
+  <circle cx="13" cy="19" r="2" fill="#1a1a2e"/>
+  <circle cx="19" cy="19" r="2" fill="#1a1a2e"/>
+  <path d="M14 24h4" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Drip -->
+  <ellipse cx="12" cy="29" rx="1.5" ry="2" opacity="0.6"/>
+</svg>

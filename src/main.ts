@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { IonicVue } from '@ionic/vue'
+import { SplashScreen } from '@capacitor/splash-screen'
 
 import App from './App.vue'
 import router from './router'
@@ -18,9 +19,12 @@ const pinia = createPinia()
 app.use(pinia)
 app.use(router)
 
-// Initialize database in background after mount
-router.isReady().then(() => {
+// Initialize app: mount → hide native splash → init services
+router.isReady().then(async () => {
   app.mount('#app')
+
+  // Hide native splash — web SplashOverlay takes over
+  await SplashScreen.hide({ fadeOutDuration: 300 }).catch(() => {})
 
   // Init offline database (non-blocking)
   const offlineStore = useOfflineStore()

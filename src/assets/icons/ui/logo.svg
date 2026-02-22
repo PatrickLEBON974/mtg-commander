@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- MTG Commander App Logo — Shield with 5 mana colors -->
+  <defs>
+    <linearGradient id="shield-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e2a4a"/>
+      <stop offset="100%" stop-color="#0f1628"/>
+    </linearGradient>
+  </defs>
+  <!-- Shield shape -->
+  <path d="M64 8L16 28v36c0 28 20 44 48 52 28-8 48-24 48-52V28z" fill="url(#shield-grad)" stroke="#CBAC5E" stroke-width="3"/>
+  <!-- Inner border -->
+  <path d="M64 16L24 33v28c0 24 17 38 40 45 23-7 40-21 40-45V33z" fill="none" stroke="#CBAC5E" stroke-width="1" opacity="0.4"/>
+  <!-- Five mana dots in pentagon arrangement -->
+  <circle cx="64" cy="38" r="8" fill="#F9FAF4"/> <!-- White - top -->
+  <circle cx="82" cy="52" r="8" fill="#0E68AB"/> <!-- Blue - top right -->
+  <circle cx="76" cy="74" r="8" fill="#150B00" stroke="#555" stroke-width="0.5"/> <!-- Black - bottom right -->
+  <circle cx="52" cy="74" r="8" fill="#D3202A"/> <!-- Red - bottom left -->
+  <circle cx="46" cy="52" r="8" fill="#00733E"/> <!-- Green - top left -->
+  <!-- Center gold star -->
+  <polygon points="64,56 66,61 72,62 68,66 69,72 64,69 59,72 60,66 56,62 62,61" fill="#CBAC5E"/>
+  <!-- CMD text -->
+  <text x="64" y="100" text-anchor="middle" font-size="18" font-weight="900" font-family="system-ui" fill="#CBAC5E" letter-spacing="4">CMD</text>
+</svg>

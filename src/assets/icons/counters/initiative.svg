@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="currentColor">
+  <!-- Initiative — Shield with sword -->
+  <path d="M16 2L4 8v10c0 8 5 12 12 14 7-2 12-6 12-14V8z"/>
+  <!-- Sword silhouette -->
+  <rect x="14.5" y="8" width="3" height="14" rx="0.5" fill="#1a1a2e" opacity="0.8"/>
+  <rect x="11" y="12" width="10" height="2.5" rx="0.5" fill="#1a1a2e" opacity="0.8"/>
+  <polygon points="14.5,22 16,26 17.5,22" fill="#1a1a2e" opacity="0.8"/>
+</svg>
