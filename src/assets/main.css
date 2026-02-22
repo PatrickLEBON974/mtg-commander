@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+/* Ionic core styles */
+@import "@ionic/vue/css/core.css";
+@import "@ionic/vue/css/normalize.css";
+@import "@ionic/vue/css/structure.css";
+@import "@ionic/vue/css/typography.css";
+@import "@ionic/vue/css/padding.css";
+@import "@ionic/vue/css/float-elements.css";
+@import "@ionic/vue/css/text-alignment.css";
+@import "@ionic/vue/css/text-transformation.css";
+@import "@ionic/vue/css/flex-utils.css";
+@import "@ionic/vue/css/display.css";
+
+/* MTG Mana color tokens */
+@theme {
+  --color-mana-white: #f9faf4;
+  --color-mana-blue: #0e68ab;
+  --color-mana-black: #150b00;
+  --color-mana-red: #d3202a;
+  --color-mana-green: #00733e;
+  --color-mana-colorless: #ccc2c0;
+  --color-mana-gold: #e0c46c;
+
+  --color-surface: #1a1a2e;
+  --color-surface-light: #16213e;
+  --color-surface-card: #0f3460;
+  --color-accent: #e94560;
+  --color-text-primary: #eaeaea;
+  --color-text-secondary: #a0a0b0;
+
+  --color-life-positive: #22c55e;
+  --color-life-negative: #ef4444;
+  --color-poison: #a855f7;
+  --color-commander-damage: #f59e0b;
+}
+
+/* Safe area insets for Android notch/navigation */
+:root {
+  --ion-safe-area-top: env(safe-area-inset-top);
+  --ion-safe-area-bottom: env(safe-area-inset-bottom);
+}
+
+/* Dark theme for Ionic */
+body {
+  --ion-background-color: var(--color-surface);
+  --ion-text-color: var(--color-text-primary);
+  --ion-toolbar-background: var(--color-surface-light);
+  --ion-tab-bar-background: var(--color-surface-light);
+  --ion-item-background: var(--color-surface-card);
+}
