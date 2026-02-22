@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { GameSettings } from '@/types/game'
 import { DEFAULT_GAME_SETTINGS } from '@/types/game'
 
@@ -11,6 +11,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const soundVolume = ref(0.5)
   const keepScreenOn = ref(true)
   const language = ref<'fr' | 'en'>('fr')
+  const cardSecondLanguage = ref<string | null>(null)
 
   function updateGameSettings(partial: Partial<GameSettings>) {
     gameSettings.value = { ...gameSettings.value, ...partial }
@@ -20,6 +21,12 @@ export const useSettingsStore = defineStore('settings', () => {
     gameSettings.value = { ...DEFAULT_GAME_SETTINGS }
   }
 
+  const cardLanguages = computed<string[]>(() => {
+    const langs = ['en']
+    if (cardSecondLanguage.value) langs.push(cardSecondLanguage.value)
+    return langs
+  })
+
   return {
     gameSettings,
     isDarkMode,
@@ -28,6 +35,8 @@ export const useSettingsStore = defineStore('settings', () => {
     soundVolume,
     keepScreenOn,
     language,
+    cardSecondLanguage,
+    cardLanguages,
     updateGameSettings,
     resetToDefaults,
   }

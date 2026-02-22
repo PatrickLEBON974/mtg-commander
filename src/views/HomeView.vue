@@ -7,77 +7,92 @@
     </ion-header>
 
     <ion-content class="ion-padding">
-      <div class="flex flex-col items-center gap-6 pt-8">
-        <div class="text-center">
-          <h1 class="text-3xl font-bold text-text-primary">Commander</h1>
-          <p class="mt-2 text-text-secondary">Tracker de partie EDH</p>
+      <!-- Hero -->
+      <div class="arena-hero-bg flex flex-col items-center gap-3 pb-6 pt-8">
+        <img
+          src="@/assets/icons/ui/logo.svg"
+          alt="MTG Commander"
+          class="h-24 w-24"
+          style="filter: drop-shadow(0 0 16px rgba(212, 168, 67, 0.3))"
+        />
+        <h1 class="arena-heading" style="font-family: var(--font-beleren); font-size: 28px; letter-spacing: 3px;">
+          COMMANDER
+        </h1>
+        <div class="flex items-center gap-2">
+          <i class="ms ms-w ms-cost" />
+          <i class="ms ms-u ms-cost" />
+          <i class="ms ms-b ms-cost" />
+          <i class="ms ms-r ms-cost" />
+          <i class="ms ms-g ms-cost" />
         </div>
-
-        <div class="flex w-full flex-col gap-4 px-4">
-          <ion-button expand="block" size="large" color="danger" @click="startNewGame">
-            <ion-icon :icon="playOutline" slot="start" />
-            Nouvelle Partie
-          </ion-button>
-
-          <ion-button
-            v-if="gameStore.isGameActive"
-            expand="block"
-            size="large"
-            fill="outline"
-            @click="resumeGame"
-          >
-            <ion-icon :icon="returnUpForwardOutline" slot="start" />
-            Reprendre la Partie
-          </ion-button>
-
-          <ion-button
-            expand="block"
-            size="large"
-            fill="outline"
-            color="primary"
-            @click="router.push('/multiplayer')"
-          >
-            <ion-icon :icon="peopleOutline" slot="start" />
-            Multijoueur
-          </ion-button>
-        </div>
-
-        <div class="mt-8 flex w-full flex-col gap-3 px-4">
-          <h2 class="text-lg font-semibold text-text-primary">Configuration Rapide</h2>
-
-          <ion-item>
-            <ion-label>Nombre de joueurs</ion-label>
-            <ion-select
-              v-model="settingsStore.gameSettings.playerCount"
-              interface="popover"
-            >
-              <ion-select-option :value="2">2 joueurs</ion-select-option>
-              <ion-select-option :value="3">3 joueurs</ion-select-option>
-              <ion-select-option :value="4">4 joueurs</ion-select-option>
-              <ion-select-option :value="5">5 joueurs</ion-select-option>
-              <ion-select-option :value="6">6 joueurs</ion-select-option>
-            </ion-select>
-          </ion-item>
-
-          <ion-item>
-            <ion-label>Points de vie</ion-label>
-            <ion-select
-              v-model="settingsStore.gameSettings.startingLife"
-              interface="popover"
-            >
-              <ion-select-option :value="40">40 (Commander)</ion-select-option>
-              <ion-select-option :value="30">30 (Brawl)</ion-select-option>
-              <ion-select-option :value="25">25 (Oathbreaker)</ion-select-option>
-              <ion-select-option :value="20">20 (Standard)</ion-select-option>
-            </ion-select>
-          </ion-item>
-
-          <ion-item>
-            <ion-label>Timer de partie</ion-label>
-            <ion-toggle v-model="settingsStore.gameSettings.enableTimer" />
-          </ion-item>
-        </div>
+        <p class="text-xs" style="color: var(--ion-color-medium)">Tracker de partie EDH</p>
       </div>
+
+      <!-- Actions -->
+      <div class="flex flex-col gap-3 px-4">
+        <ion-button expand="block" size="large" color="primary" @click="startNewGame">
+          <ion-icon :icon="playOutline" slot="start" />
+          Nouvelle Partie
+        </ion-button>
+
+        <ion-button
+          v-if="gameStore.isGameActive"
+          expand="block"
+          size="large"
+          fill="outline"
+          color="primary"
+          @click="resumeGame"
+        >
+          <ion-icon :icon="returnUpForwardOutline" slot="start" />
+          Reprendre la Partie
+        </ion-button>
+
+        <ion-button
+          expand="block"
+          size="large"
+          fill="outline"
+          color="secondary"
+          @click="router.push('/multiplayer')"
+        >
+          <ion-icon :icon="peopleOutline" slot="start" />
+          Multijoueur
+        </ion-button>
+      </div>
+
+      <!-- Quick settings -->
+      <ion-list :inset="true" class="ion-margin-top">
+        <ion-list-header>
+          <ion-label>Configuration rapide</ion-label>
+        </ion-list-header>
+
+        <ion-item lines="inset">
+          <ion-icon :icon="peopleOutline" slot="start" color="tertiary" />
+          <ion-label>Joueurs</ion-label>
+          <SettingStepper
+            slot="end"
+            v-model="settingsStore.gameSettings.playerCount"
+            :options="playerCountOptions"
+            label="joueurs"
+          />
+        </ion-item>
+
+        <ion-item lines="inset">
+          <ion-icon :icon="heartOutline" slot="start" color="danger" />
+          <ion-label>Vie</ion-label>
+          <SettingStepper
+            slot="end"
+            v-model="settingsStore.gameSettings.startingLife"
+            :options="startingLifeOptions"
+            label="vie"
+          />
+        </ion-item>
+
+        <ion-item lines="none">
+          <ion-icon :icon="timerOutline" slot="start" color="medium" />
+          <ion-label>Timer de partie</ion-label>
+          <ion-toggle slot="end" v-model="settingsStore.gameSettings.enableTimer" />
+        </ion-item>
+      </ion-list>
     </ion-content>
   </ion-page>
 </template>
@@ -92,15 +107,30 @@ import {
   IonContent,
   IonButton,
   IonIcon,
+  IonList,
+  IonListHeader,
   IonItem,
   IonLabel,
-  IonSelect,
-  IonSelectOption,
   IonToggle,
 } from '@ionic/vue'
-import { playOutline, returnUpForwardOutline, peopleOutline } from 'ionicons/icons'
+import {
+  playOutline,
+  returnUpForwardOutline,
+  peopleOutline,
+  heartOutline,
+  timerOutline,
+} from 'ionicons/icons'
 import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import SettingStepper from '@/components/ui/SettingStepper.vue'
+
+const playerCountOptions = [2, 3, 4, 5, 6].map((v) => ({ value: v, label: String(v) }))
+const startingLifeOptions = [
+  { value: 20, label: '20' },
+  { value: 25, label: '25' },
+  { value: 30, label: '30' },
+  { value: 40, label: '40' },
+]
 
 const router = useRouter()
 const gameStore = useGameStore()

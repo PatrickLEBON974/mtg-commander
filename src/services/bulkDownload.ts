@@ -21,7 +21,10 @@ export interface DownloadProgress {
 
 export type ProgressCallback = (progress: DownloadProgress) => void
 
-export async function downloadBulkData(onProgress: ProgressCallback): Promise<number> {
+export async function downloadBulkData(
+  onProgress: ProgressCallback,
+  languages: string[] = ['en'],
+): Promise<number> {
   try {
     // Phase 1: Fetch bulk data manifest
     onProgress({
@@ -38,31 +41,34 @@ export async function downloadBulkData(onProgress: ProgressCallback): Promise<nu
     }
 
     const manifest = await manifestResponse.json()
-    const oracleData = manifest.data?.find(
-      (entry: { type: string }) => entry.type === 'oracle_cards',
+
+    // Use all_cards when a second language is selected (contains every language)
+    // Use oracle_cards for English-only (much smaller, ~170MB vs ~1.5GB)
+    const needsMultiLang = languages.length > 1
+    const bulkType = needsMultiLang ? 'all_cards' : 'oracle_cards'
+    const bulkData = manifest.data?.find(
+      (entry: { type: string }) => entry.type === bulkType,
     )
 
-    if (!oracleData?.download_uri) {
-      throw new Error('Oracle Cards introuvable dans le manifest')
+    if (!bulkData?.download_uri) {
+      throw new Error(`${bulkType} introuvable dans le manifest`)
     }
 
-    const downloadUrl: string = oracleData.download_uri
-    const estimatedSizeMb = Math.round((oracleData.size ?? 170_000_000) / 1_000_000)
+    const downloadUrl: string = bulkData.download_uri
+    const totalSizeBytes: number = bulkData.size ?? 0
 
     await safeSaveMeta('bulk_download_url', downloadUrl)
 
     // Phase 2: Download the JSON file
-    onProgress({
-      phase: 'downloading',
-      downloadedMb: 0,
-      totalMb: estimatedSizeMb,
-      message: `Telechargement (0 / ~${estimatedSizeMb} MB)...`,
-    })
-
     const dataResponse = await fetch(downloadUrl)
     if (!dataResponse.ok) {
       throw new Error(`Erreur telechargement: ${dataResponse.status}`)
     }
+
+    // Use Content-Length if available, otherwise fall back to manifest size
+    const contentLength = dataResponse.headers.get('Content-Length')
+    const totalBytes = contentLength ? parseInt(contentLength, 10) : totalSizeBytes
+    const totalMb = totalBytes > 0 ? Math.round(totalBytes / 1_000_000) : 170
 
     const reader = dataResponse.body?.getReader()
     if (!reader) {
@@ -83,16 +89,18 @@ export async function downloadBulkData(onProgress: ProgressCallback): Promise<nu
       onProgress({
         phase: 'downloading',
         downloadedMb,
-        totalMb: estimatedSizeMb,
-        message: `Telechargement (${downloadedMb} / ~${estimatedSizeMb} MB)...`,
+        totalMb,
+        message: `Telechargement (${downloadedMb} / ${totalMb} MB)...`,
       })
     }
 
     // Phase 3: Parse JSON
+    // Yield to let the UI repaint before heavy synchronous work
     onProgress({
       phase: 'parsing',
-      message: 'Analyse des donnees...',
+      message: 'Assemblage des donnees...',
     })
+    await new Promise((resolve) => setTimeout(resolve, 50))
 
     const combinedLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0)
     const combined = new Uint8Array(combinedLength)
@@ -102,12 +110,28 @@ export async function downloadBulkData(onProgress: ProgressCallback): Promise<nu
       offset += chunk.length
     }
 
+    onProgress({
+      phase: 'parsing',
+      message: 'Decodage du JSON (~170 MB)...',
+    })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
     const jsonText = new TextDecoder().decode(combined)
     const allCards: RawScryfallBulkCard[] = JSON.parse(jsonText)
 
-    // Filter: keep only cards with at least a name and an image
+    // Filter: keep only cards with a name, an image, and matching selected languages
+    const langSet = new Set(languages)
+    onProgress({
+      phase: 'parsing',
+      message: `Filtrage de ${allCards.length} cartes (langues: ${languages.join(', ')})...`,
+    })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
     const validCards = allCards.filter(
-      (card) => card.name && (card.image_uris || card.card_faces?.[0]?.image_uris),
+      (card) =>
+        card.name &&
+        (card.image_uris || card.card_faces?.[0]?.image_uris) &&
+        langSet.has(card.lang ?? 'en'),
     )
 
     onProgress({

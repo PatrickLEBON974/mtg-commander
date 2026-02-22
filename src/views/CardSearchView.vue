@@ -10,6 +10,7 @@
           placeholder="Rechercher une carte..."
           :debounce="300"
           show-clear-button="focus"
+          animated
           @ionInput="onSearchInput"
         />
       </ion-toolbar>
@@ -17,79 +18,84 @@
 
     <ion-content>
       <!-- Autocomplete suggestions -->
-      <ion-list v-if="suggestions.length > 0 && !selectedCard">
+      <ion-list v-if="suggestions.length > 0 && !selectedCard" :inset="true">
         <ion-item
-          v-for="suggestion in suggestions"
+          v-for="(suggestion, index) in suggestions"
           :key="suggestion"
           button
+          detail
+          :lines="index === suggestions.length - 1 ? 'none' : 'inset'"
           @click="selectSuggestion(suggestion)"
         >
+          <ion-icon :icon="documentTextOutline" slot="start" color="medium" />
           <ion-label>{{ suggestion }}</ion-label>
         </ion-item>
       </ion-list>
 
       <!-- Selected card detail -->
-      <div v-if="selectedCard" class="p-4">
-        <div class="flex flex-col items-center gap-4">
+      <div v-if="selectedCard" class="ion-padding">
+        <ion-card>
           <img
             :src="cardImageUrl"
             :alt="selectedCard.name"
-            class="w-64 rounded-xl shadow-lg"
+            class="w-full"
             loading="lazy"
           />
+          <ion-card-header>
+            <ion-card-title>{{ selectedCard.name }}</ion-card-title>
+            <ion-card-subtitle>
+              {{ selectedCard.type_line }}
+              <span v-if="selectedCard.mana_cost"> — {{ selectedCard.mana_cost }}</span>
+            </ion-card-subtitle>
+          </ion-card-header>
 
-          <div class="w-full space-y-3">
-            <h2 class="text-xl font-bold text-text-primary">{{ selectedCard.name }}</h2>
-
-            <div class="flex items-center gap-2">
-              <span class="text-sm text-text-secondary">{{ selectedCard.type_line }}</span>
-              <span v-if="selectedCard.mana_cost" class="text-sm text-text-secondary">
-                {{ selectedCard.mana_cost }}
-              </span>
-            </div>
-
-            <p v-if="selectedCard.oracle_text" class="text-sm text-text-primary whitespace-pre-line">
+          <ion-card-content>
+            <p v-if="selectedCard.oracle_text" class="whitespace-pre-line" style="color: var(--ion-text-color); line-height: 1.6">
               {{ selectedCard.oracle_text }}
             </p>
 
-            <div v-if="selectedCard.power" class="text-sm text-text-secondary">
-              {{ selectedCard.power }}/{{ selectedCard.toughness }}
-            </div>
+            <p v-if="selectedCard.power" class="ion-margin-top" style="color: var(--ion-color-medium)">
+              Force / Endurance : {{ selectedCard.power }}/{{ selectedCard.toughness }}
+            </p>
 
-            <div class="flex flex-wrap gap-2 pt-2">
+            <div class="flex flex-wrap gap-2 ion-margin-top">
               <ion-badge
                 :color="selectedCard.legalities.commander === 'legal' ? 'success' : 'danger'"
               >
                 Commander: {{ selectedCard.legalities.commander }}
               </ion-badge>
-              <ion-badge color="medium">
+              <ion-badge color="tertiary">
                 {{ selectedCard.set_name }}
               </ion-badge>
               <ion-badge color="medium">
                 {{ selectedCard.rarity }}
               </ion-badge>
             </div>
-          </div>
+          </ion-card-content>
+        </ion-card>
 
-          <ion-button expand="block" fill="outline" @click="clearSelection">
-            Nouvelle recherche
-          </ion-button>
-        </div>
+        <ion-button expand="block" fill="outline" class="ion-margin" @click="clearSelection">
+          <ion-icon :icon="searchOutline" slot="start" />
+          Nouvelle recherche
+        </ion-button>
       </div>
 
       <!-- Empty state -->
-      <div v-if="!selectedCard && suggestions.length === 0 && searchQuery.length === 0" class="flex h-full items-center justify-center">
-        <div class="text-center text-text-secondary">
-          <ion-icon :icon="searchOutline" class="text-5xl" />
-          <p class="mt-2">Tapez pour rechercher une carte MTG</p>
-          <p class="text-xs">Filtre automatique : legal en Commander</p>
-          <ion-badge v-if="offlineStore.hasLocalData" color="success" class="mt-2">
-            {{ offlineStore.cardCount.toLocaleString('fr-FR') }} cartes en local
-          </ion-badge>
-          <ion-badge v-else color="medium" class="mt-2">
-            Mode API (telecharger les cartes dans Reglages)
-          </ion-badge>
-        </div>
+      <div
+        v-if="!selectedCard && suggestions.length === 0 && searchQuery.length === 0"
+        class="flex h-full flex-col items-center justify-center gap-3"
+      >
+        <ion-icon :icon="searchOutline" style="font-size: 56px; color: var(--ion-color-medium)" />
+        <p style="color: var(--ion-color-medium)">Tapez pour rechercher une carte MTG</p>
+        <p class="text-xs" style="color: var(--ion-color-medium)">Filtre automatique : legal en Commander</p>
+        <ion-chip v-if="offlineStore.hasLocalData" color="success" outline>
+          <ion-icon :icon="checkmarkCircleOutline" />
+          <ion-label>{{ offlineStore.cardCount.toLocaleString('fr-FR') }} cartes en local</ion-label>
+        </ion-chip>
+        <ion-chip v-else color="medium" outline>
+          <ion-icon :icon="cloudOutline" />
+          <ion-label>Mode API (telecharger dans Reglages)</ion-label>
+        </ion-chip>
       </div>
 
       <!-- Loading -->
@@ -112,12 +118,23 @@ import {
   IonList,
   IonItem,
   IonLabel,
-  IonBadge,
-  IonButton,
   IonIcon,
+  IonCard,
+  IonCardHeader,
+  IonCardTitle,
+  IonCardSubtitle,
+  IonCardContent,
+  IonBadge,
+  IonChip,
+  IonButton,
   IonSpinner,
 } from '@ionic/vue'
-import { searchOutline } from 'ionicons/icons'
+import {
+  searchOutline,
+  documentTextOutline,
+  checkmarkCircleOutline,
+  cloudOutline,
+} from 'ionicons/icons'
 import type { ScryfallCard } from '@/types/card'
 import { autocompleteCards, getCardByName, getCardImageUrl } from '@/services/scryfall'
 import { useOfflineStore } from '@/stores/offlineStore'

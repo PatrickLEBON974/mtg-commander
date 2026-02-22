@@ -6,176 +6,232 @@
       </ion-toolbar>
     </ion-header>
 
-    <ion-content>
-      <ion-list>
-        <!-- Offline Data Section -->
+    <ion-content class="ion-padding">
+      <!-- Offline Data Section -->
+      <ion-list :inset="true">
         <ion-list-header>
-          <ion-label>Donnees Offline</ion-label>
+          <ion-label>Donnees hors-ligne</ion-label>
         </ion-list-header>
 
-        <ion-item>
+        <ion-item lines="inset">
+          <ion-icon :icon="serverOutline" slot="start" color="secondary" />
           <ion-label>
-            <h3>Base de cartes locale</h3>
+            <h2>Base de cartes locale</h2>
             <p v-if="offlineStore.hasLocalData">
               {{ offlineStore.cardCount.toLocaleString('fr-FR') }} cartes
               (~{{ offlineStore.estimatedSizeMb }} MB)
             </p>
             <p v-else>Non telechargee</p>
           </ion-label>
-          <ion-badge
-            slot="end"
-            :color="offlineStore.hasLocalData ? 'success' : 'medium'"
-          >
-            {{ offlineStore.hasLocalData ? 'OK' : 'Vide' }}
-          </ion-badge>
+          <ion-note slot="end" :color="offlineStore.hasLocalData ? 'success' : 'medium'">
+            {{ offlineStore.hasLocalData ? 'Pret' : 'Vide' }}
+          </ion-note>
         </ion-item>
 
-        <ion-item>
+        <ion-item lines="inset">
+          <ion-icon :icon="timeOutline" slot="start" color="medium" />
           <ion-label>
-            <h3>Derniere mise a jour</h3>
+            <h2>Derniere mise a jour</h2>
             <p>{{ offlineStore.formattedLastUpdate }}</p>
           </ion-label>
         </ion-item>
 
-        <!-- Download progress -->
-        <ion-item v-if="offlineStore.isDownloading && offlineStore.downloadProgress">
+        <ion-item lines="inset">
+          <ion-icon :icon="languageOutline" slot="start" color="tertiary" />
           <ion-label>
-            <h3>{{ offlineStore.downloadProgress.message }}</h3>
+            <h2>Langue supplementaire</h2>
+            <p>Anglais toujours inclus{{ settingsStore.cardSecondLanguage ? ' + ' + languageLabel(settingsStore.cardSecondLanguage) : '' }}</p>
+          </ion-label>
+          <ion-select
+            v-model="settingsStore.cardSecondLanguage"
+            interface="action-sheet"
+            :interface-options="{ header: 'Langue des cartes' }"
+            placeholder="Anglais seul"
+          >
+            <ion-select-option :value="null">Anglais seul (~170 MB)</ion-select-option>
+            <ion-select-option value="fr">Francais (~1.5 GB)</ion-select-option>
+            <ion-select-option value="de">Deutsch (~1.5 GB)</ion-select-option>
+            <ion-select-option value="es">Espanol (~1.5 GB)</ion-select-option>
+            <ion-select-option value="it">Italiano (~1.5 GB)</ion-select-option>
+            <ion-select-option value="pt">Portugues (~1.5 GB)</ion-select-option>
+            <ion-select-option value="ja">日本語 (~1.5 GB)</ion-select-option>
+            <ion-select-option value="ko">한국어 (~1.5 GB)</ion-select-option>
+            <ion-select-option value="zhs">中文简体 (~1.5 GB)</ion-select-option>
+            <ion-select-option value="zht">中文繁體 (~1.5 GB)</ion-select-option>
+            <ion-select-option value="ru">Русский (~1.5 GB)</ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <!-- Download progress -->
+        <ion-item v-if="offlineStore.isDownloading && offlineStore.downloadProgress" lines="inset">
+          <ion-spinner name="crescent" slot="start" />
+          <ion-label>
+            <h2>{{ offlineStore.downloadProgress.message }}</h2>
             <ion-progress-bar
               v-if="offlineStore.downloadProgress.phase === 'downloading' && offlineStore.downloadProgress.totalMb"
               :value="(offlineStore.downloadProgress.downloadedMb ?? 0) / offlineStore.downloadProgress.totalMb"
+              class="ion-margin-top"
             />
             <ion-progress-bar
               v-else-if="offlineStore.downloadProgress.phase === 'importing' && offlineStore.downloadProgress.importProgress"
               :value="offlineStore.downloadProgress.importProgress.inserted / offlineStore.downloadProgress.importProgress.total"
+              class="ion-margin-top"
             />
-            <ion-progress-bar v-else type="indeterminate" />
+            <ion-progress-bar v-else type="indeterminate" class="ion-margin-top" />
           </ion-label>
         </ion-item>
 
         <!-- Error message -->
-        <ion-item v-if="offlineStore.downloadError">
+        <ion-item v-if="offlineStore.downloadError" lines="inset">
+          <ion-icon :icon="alertCircleOutline" slot="start" color="danger" />
           <ion-label color="danger">
-            <h3>Erreur</h3>
+            <h2>Erreur</h2>
             <p>{{ offlineStore.downloadError }}</p>
           </ion-label>
         </ion-item>
 
-        <ion-item>
+        <ion-item lines="inset">
           <ion-button
             expand="block"
             :disabled="offlineStore.isDownloading"
             @click="offlineStore.startDownload()"
+            class="ion-margin-vertical"
           >
             <ion-spinner v-if="offlineStore.isDownloading" name="crescent" slot="start" />
             <ion-icon v-else :icon="cloudDownloadOutline" slot="start" />
-            {{ offlineStore.hasLocalData ? 'Mettre a jour' : 'Telecharger' }} (~162 MB)
+            {{ offlineStore.hasLocalData ? 'Mettre a jour' : 'Telecharger' }} ({{ downloadSizeLabel }})
           </ion-button>
         </ion-item>
 
+        <ion-item v-if="offlineStore.hasLocalData" lines="none">
+          <ion-button
+            expand="block"
+            fill="outline"
+            color="danger"
+            :disabled="offlineStore.isDownloading"
+            @click="confirmClearCache"
+            class="ion-margin-vertical"
+          >
+            <ion-icon :icon="trashOutline" slot="start" />
+            Vider le cache des cartes
+          </ion-button>
+        </ion-item>
+      </ion-list>
+
+      <!-- Game Section -->
+      <ion-list :inset="true">
         <ion-list-header>
           <ion-label>Partie</ion-label>
         </ion-list-header>
 
-        <ion-item>
+        <ion-item lines="inset">
+          <ion-icon :icon="peopleOutline" slot="start" color="tertiary" />
           <ion-label>
-            <h3>Nombre de joueurs</h3>
-            <p>2 a 6 joueurs</p>
+            <h2>Nombre de joueurs</h2>
           </ion-label>
-          <ion-select
+          <SettingStepper
+            slot="end"
             v-model="settingsStore.gameSettings.playerCount"
-            interface="popover"
-          >
-            <ion-select-option :value="2">2</ion-select-option>
-            <ion-select-option :value="3">3</ion-select-option>
-            <ion-select-option :value="4">4</ion-select-option>
-            <ion-select-option :value="5">5</ion-select-option>
-            <ion-select-option :value="6">6</ion-select-option>
-          </ion-select>
+            :options="playerCountOptions"
+            label="joueurs"
+          />
         </ion-item>
 
-        <ion-item>
+        <ion-item lines="none">
+          <ion-icon :icon="heartOutline" slot="start" color="danger" />
           <ion-label>
-            <h3>Points de vie de depart</h3>
-            <p>Standard Commander : 40</p>
+            <h2>Points de vie</h2>
           </ion-label>
-          <ion-select
+          <SettingStepper
+            slot="end"
             v-model="settingsStore.gameSettings.startingLife"
-            interface="popover"
-          >
-            <ion-select-option :value="40">40 (Commander)</ion-select-option>
-            <ion-select-option :value="30">30 (Brawl)</ion-select-option>
-            <ion-select-option :value="25">25 (Oathbreaker)</ion-select-option>
-            <ion-select-option :value="20">20 (Standard)</ion-select-option>
-          </ion-select>
+            :options="startingLifeOptions"
+            label="vie"
+          />
         </ion-item>
+      </ion-list>
 
+      <!-- Rules Section -->
+      <ion-list :inset="true">
         <ion-list-header>
           <ion-label>Regles</ion-label>
         </ion-list-header>
 
-        <ion-item>
+        <ion-item lines="inset">
+          <ion-icon :icon="shieldOutline" slot="start" color="warning" />
           <ion-label>
-            <h3>Seuil degats commandant</h3>
-            <p>Defaut : 21</p>
+            <h2>Degats commandant</h2>
           </ion-label>
-          <ion-select
+          <SettingStepper
+            slot="end"
             v-model="settingsStore.gameSettings.commanderDamageThreshold"
-            interface="popover"
-          >
-            <ion-select-option :value="21">21 (officiel)</ion-select-option>
-            <ion-select-option :value="0">Desactive</ion-select-option>
-          </ion-select>
+            :options="commanderDamageOptions"
+            label="degats commandant"
+          />
         </ion-item>
 
-        <ion-item>
+        <ion-item lines="none">
+          <ion-icon :icon="skullOutline" slot="start" color="primary" />
           <ion-label>
-            <h3>Seuil poison</h3>
-            <p>Nombre de marqueurs poison avant elimination</p>
+            <h2>Seuil poison</h2>
           </ion-label>
-          <ion-select
+          <SettingStepper
+            slot="end"
             v-model="settingsStore.gameSettings.poisonThreshold"
-            interface="popover"
-          >
-            <ion-select-option :value="5">5 (houserule)</ion-select-option>
-            <ion-select-option :value="10">10 (officiel)</ion-select-option>
-            <ion-select-option :value="15">15 (houserule)</ion-select-option>
-            <ion-select-option :value="20">20 (houserule)</ion-select-option>
-            <ion-select-option :value="0">Desactive</ion-select-option>
-          </ion-select>
+            :options="poisonOptions"
+            label="poison"
+          />
         </ion-item>
+      </ion-list>
 
+      <!-- App Section -->
+      <ion-list :inset="true">
         <ion-list-header>
           <ion-label>Application</ion-label>
         </ion-list-header>
 
-        <ion-item>
+        <ion-item lines="inset">
+          <ion-icon :icon="phonePortraitOutline" slot="start" color="medium" />
           <ion-label>Retour haptique</ion-label>
-          <ion-toggle v-model="settingsStore.hapticFeedback" />
+          <ion-toggle slot="end" v-model="settingsStore.hapticFeedback" />
         </ion-item>
 
-        <ion-item>
+        <ion-item lines="inset">
+          <ion-icon :icon="volumeHighOutline" slot="start" color="medium" />
           <ion-label>
-            <h3>Sons</h3>
+            <h2>Sons</h2>
             <p>Effets sonores en jeu</p>
           </ion-label>
-          <ion-toggle v-model="settingsStore.soundEnabled" />
+          <ion-toggle slot="end" v-model="settingsStore.soundEnabled" />
         </ion-item>
 
-        <ion-item>
+        <ion-item lines="inset">
+          <ion-icon :icon="sunnyOutline" slot="start" color="medium" />
           <ion-label>Ecran toujours allume</ion-label>
-          <ion-toggle v-model="settingsStore.keepScreenOn" />
+          <ion-toggle slot="end" v-model="settingsStore.keepScreenOn" />
         </ion-item>
 
-        <ion-item>
+        <ion-item lines="inset">
+          <ion-icon :icon="timerOutline" slot="start" color="medium" />
           <ion-label>Timer de partie</ion-label>
-          <ion-toggle v-model="settingsStore.gameSettings.enableTimer" />
+          <ion-toggle slot="end" v-model="settingsStore.gameSettings.enableTimer" />
         </ion-item>
 
-        <ion-item button @click="resetSettings">
+        <ion-item button lines="none" @click="resetSettings" detail>
+          <ion-icon :icon="refreshOutline" slot="start" color="danger" />
           <ion-label color="danger">Reinitialiser les reglages</ion-label>
         </ion-item>
       </ion-list>
+
+      <!-- Wizards of the Coast fan content disclaimer -->
+      <div class="ion-padding ion-text-center" style="opacity: 0.55; font-size: 12px; line-height: 1.5; color: var(--ion-color-medium)">
+        <p>
+          MTG Commander est un contenu de fan non officiel autorise par la
+          Fan Content Policy de Wizards of the Coast. Non approuve ni
+          endosse par Wizards. Certains elements utilises sont la propriete
+          de Wizards of the Coast. &copy;Wizards of the Coast LLC.
+        </p>
+      </div>
     </ion-content>
   </ion-page>
 </template>
@@ -191,23 +247,91 @@ import {
   IonListHeader,
   IonItem,
   IonLabel,
+  IonNote,
   IonSelect,
   IonSelectOption,
   IonToggle,
   IonButton,
-  IonBadge,
   IonIcon,
+  alertController,
   IonSpinner,
   IonProgressBar,
 } from '@ionic/vue'
-import { cloudDownloadOutline } from 'ionicons/icons'
+import {
+  cloudDownloadOutline,
+  serverOutline,
+  timeOutline,
+  alertCircleOutline,
+  peopleOutline,
+  heartOutline,
+  shieldOutline,
+  skullOutline,
+  phonePortraitOutline,
+  volumeHighOutline,
+  sunnyOutline,
+  timerOutline,
+  refreshOutline,
+  trashOutline,
+  languageOutline,
+} from 'ionicons/icons'
+import { computed } from 'vue'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useOfflineStore } from '@/stores/offlineStore'
+import SettingStepper from '@/components/ui/SettingStepper.vue'
 
 const settingsStore = useSettingsStore()
 const offlineStore = useOfflineStore()
 
+const playerCountOptions = [2, 3, 4, 5, 6].map((v) => ({ value: v, label: String(v) }))
+const startingLifeOptions = [
+  { value: 20, label: '20' },
+  { value: 25, label: '25' },
+  { value: 30, label: '30' },
+  { value: 40, label: '40' },
+]
+const commanderDamageOptions = [
+  { value: 0, label: 'Off' },
+  { value: 21, label: '21' },
+]
+const poisonOptions = [
+  { value: 0, label: 'Off' },
+  { value: 5, label: '5' },
+  { value: 10, label: '10' },
+  { value: 15, label: '15' },
+  { value: 20, label: '20' },
+]
+
+const LANGUAGE_LABELS: Record<string, string> = {
+  fr: 'Francais', de: 'Deutsch', es: 'Espanol', it: 'Italiano',
+  pt: 'Portugues', ja: '日本語', ko: '한국어',
+  zhs: '中文简体', zht: '中文繁體', ru: 'Русский',
+}
+
+function languageLabel(code: string): string {
+  return LANGUAGE_LABELS[code] ?? code
+}
+
+const downloadSizeLabel = computed(() =>
+  settingsStore.cardSecondLanguage ? '~1.5 GB' : '~162 MB',
+)
+
 function resetSettings() {
   settingsStore.resetToDefaults()
+}
+
+async function confirmClearCache() {
+  const alert = await alertController.create({
+    header: 'Vider le cache',
+    message: `Supprimer les ${offlineStore.cardCount.toLocaleString('fr-FR')} cartes stockees localement ?`,
+    buttons: [
+      { text: 'Annuler', role: 'cancel' },
+      {
+        text: 'Supprimer',
+        role: 'destructive',
+        handler: () => offlineStore.clearCache(),
+      },
+    ],
+  })
+  await alert.present()
 }
 </script>

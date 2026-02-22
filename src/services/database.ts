@@ -7,11 +7,15 @@ const DB_VERSION = 1
 let sqliteConnection: SQLiteConnection | null = null
 let database: SQLiteDBConnection | null = null
 let initialized = false
+let ftsAvailable = false
 
 const CREATE_CARDS_TABLE = `
   CREATE TABLE IF NOT EXISTS cards (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
+    printed_name TEXT,
+    lang TEXT DEFAULT 'en',
+    oracle_id TEXT,
     mana_cost TEXT,
     cmc REAL,
     type_line TEXT,
@@ -39,6 +43,7 @@ const CREATE_CARDS_TABLE = `
 const CREATE_FTS_TABLE = `
   CREATE VIRTUAL TABLE IF NOT EXISTS cards_fts USING fts5(
     name,
+    printed_name,
     type_line,
     oracle_text,
     content=cards,
@@ -48,6 +53,9 @@ const CREATE_FTS_TABLE = `
 
 const CREATE_INDEXES = `
   CREATE INDEX IF NOT EXISTS idx_cards_name ON cards(name);
+  CREATE INDEX IF NOT EXISTS idx_cards_printed_name ON cards(printed_name);
+  CREATE INDEX IF NOT EXISTS idx_cards_lang ON cards(lang);
+  CREATE INDEX IF NOT EXISTS idx_cards_oracle_id ON cards(oracle_id);
   CREATE INDEX IF NOT EXISTS idx_cards_commander_legal ON cards(commander_legal);
   CREATE INDEX IF NOT EXISTS idx_cards_is_commander ON cards(is_commander);
 `
@@ -66,14 +74,17 @@ export async function initDatabase(): Promise<void> {
   sqliteConnection = new SQLiteConnection(CapacitorSQLite)
 
   if (platform === 'web') {
+    // Register jeep-sqlite web component (required for SQLite on web)
+    const { defineCustomElements } = await import('jeep-sqlite/loader')
+    defineCustomElements(window)
+
     const jeepSqliteEl = document.createElement('jeep-sqlite')
     document.body.appendChild(jeepSqliteEl)
 
-    // Timeout: jeep-sqlite may never register on web without proper setup
     await Promise.race([
       customElements.whenDefined('jeep-sqlite'),
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('jeep-sqlite web component timeout (3s)')), 3000),
+        setTimeout(() => reject(new Error('jeep-sqlite web component timeout (5s)')), 5000),
       ),
     ])
     await sqliteConnection.initWebStore()
@@ -90,13 +101,29 @@ export async function initDatabase(): Promise<void> {
 
   await database.execute(CREATE_CARDS_TABLE)
   await database.execute(CREATE_META_TABLE)
+
+  // Migrate: add columns introduced after initial schema
+  for (const col of [
+    { name: 'printed_name', def: 'TEXT' },
+    { name: 'lang', def: "TEXT DEFAULT 'en'" },
+    { name: 'oracle_id', def: 'TEXT' },
+  ]) {
+    try {
+      await database.execute(`ALTER TABLE cards ADD COLUMN ${col.name} ${col.def};`)
+    } catch {
+      // Column already exists — expected after first migration
+    }
+  }
+
   await database.execute(CREATE_INDEXES)
 
-  // FTS table creation - separate execute since virtual tables can fail if already exists
+  // FTS5 table creation — log actual error if it fails
   try {
     await database.execute(CREATE_FTS_TABLE)
-  } catch {
-    // FTS table already exists, ignore
+    ftsAvailable = true
+  } catch (ftsError) {
+    console.warn('FTS5 table creation failed:', ftsError)
+    ftsAvailable = false
   }
 
   initialized = true
@@ -135,12 +162,12 @@ export async function searchCardsLocal(
   limit = 20,
   commanderOnly = true,
 ): Promise<LocalCard[]> {
-  const db = await getDb()
+  if (query.length < 2) return []
 
+  const db = await getDb()
   const legalityFilter = commanderOnly ? 'AND c.commander_legal = 1' : ''
 
-  // Use FTS for search if query is long enough
-  if (query.length >= 2) {
+  if (ftsAvailable) {
     const ftsQuery = query.replace(/[^\w\s]/g, '') + '*'
     const result = await db.query(
       `SELECT c.* FROM cards c
@@ -155,27 +182,50 @@ export async function searchCardsLocal(
     return (result.values ?? []) as LocalCard[]
   }
 
-  return []
+  // LIKE fallback when FTS5 is not available (web/sql.js)
+  const likePattern = `%${query}%`
+  const result = await db.query(
+    `SELECT * FROM cards c
+     WHERE (c.name LIKE ? OR c.printed_name LIKE ? OR c.type_line LIKE ? OR c.oracle_text LIKE ?)
+     ${legalityFilter}
+     ORDER BY c.name
+     LIMIT ?;`,
+    [likePattern, likePattern, likePattern, likePattern, limit],
+  )
+  return (result.values ?? []) as LocalCard[]
 }
 
 export async function autocompleteLocal(query: string, limit = 20): Promise<string[]> {
   if (query.length < 2) return []
 
   const db = await getDb()
-  const ftsQuery = query.replace(/[^\w\s]/g, '') + '*'
 
+  if (ftsAvailable) {
+    const ftsQuery = query.replace(/[^\w\s]/g, '') + '*'
+    const result = await db.query(
+      `SELECT DISTINCT c.name FROM cards c
+       WHERE c.rowid IN (
+         SELECT rowid FROM cards_fts WHERE cards_fts MATCH ?
+       )
+       AND c.commander_legal = 1
+       ORDER BY c.name
+       LIMIT ?;`,
+      [ftsQuery, limit],
+    )
+    return (result.values ?? []).map((row: Record<string, unknown>) => row.name as string)
+  }
+
+  // LIKE fallback
+  const likePattern = `%${query}%`
   const result = await db.query(
-    `SELECT DISTINCT c.name FROM cards c
-     WHERE c.rowid IN (
-       SELECT rowid FROM cards_fts WHERE cards_fts MATCH ?
-     )
-     AND c.commander_legal = 1
-     ORDER BY c.name
+    `SELECT DISTINCT COALESCE(printed_name, name) as display_name FROM cards
+     WHERE (name LIKE ? OR printed_name LIKE ?)
+     AND commander_legal = 1
+     ORDER BY display_name
      LIMIT ?;`,
-    [ftsQuery, limit],
+    [likePattern, likePattern, limit],
   )
-
-  return (result.values ?? []).map((row: Record<string, unknown>) => row.name as string)
+  return (result.values ?? []).map((row: Record<string, unknown>) => row.display_name as string)
 }
 
 export async function getCardByNameLocal(name: string): Promise<LocalCard | null> {
@@ -189,7 +239,9 @@ export async function getCardByNameLocal(name: string): Promise<LocalCard | null
 
 export async function clearCards(): Promise<void> {
   const db = await getDb()
-  await db.execute('DELETE FROM cards_fts;')
+  if (ftsAvailable) {
+    await db.execute('DELETE FROM cards_fts;')
+  }
   await db.execute('DELETE FROM cards;')
   await saveIfWeb()
 }
@@ -206,7 +258,9 @@ export async function bulkInsertCards(
   const db = await getDb()
 
   // Clear existing data
-  await db.execute('DELETE FROM cards_fts;')
+  if (ftsAvailable) {
+    await db.execute('DELETE FROM cards_fts;')
+  }
   await db.execute('DELETE FROM cards;')
 
   const BATCH_SIZE = 500
@@ -222,16 +276,20 @@ export async function bulkInsertCards(
 
       return {
         statement: `INSERT OR REPLACE INTO cards (
-          id, name, mana_cost, cmc, type_line, oracle_text,
+          id, name, printed_name, lang, oracle_id,
+          mana_cost, cmc, type_line, oracle_text,
           colors, color_identity, keywords,
           power, toughness, loyalty, legalities,
           set_code, set_name, collector_number, rarity, artist,
           image_small, image_normal, image_art_crop,
           is_commander, commander_legal
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         values: [
           card.id,
           card.name,
+          card.printed_name ?? null,
+          card.lang ?? 'en',
+          card.oracle_id ?? null,
           card.mana_cost ?? '',
           card.cmc ?? 0,
           card.type_line ?? '',
@@ -263,11 +321,13 @@ export async function bulkInsertCards(
     onProgress?.({ inserted: totalInserted, total: cards.length })
   }
 
-  // Rebuild FTS index
-  await db.execute(`
-    INSERT INTO cards_fts(rowid, name, type_line, oracle_text)
-    SELECT rowid, name, type_line, oracle_text FROM cards;
-  `)
+  // Rebuild FTS index (skip on web where FTS5 is unavailable)
+  if (ftsAvailable) {
+    await db.execute(`
+      INSERT INTO cards_fts(rowid, name, printed_name, type_line, oracle_text)
+      SELECT rowid, name, COALESCE(printed_name, ''), type_line, oracle_text FROM cards;
+    `)
+  }
 
   await setMeta('last_bulk_update', new Date().toISOString())
   await setMeta('card_count', String(totalInserted))
@@ -285,6 +345,9 @@ async function saveIfWeb(): Promise<void> {
 export interface LocalCard {
   id: string
   name: string
+  printed_name: string | null
+  lang: string
+  oracle_id: string | null
   mana_cost: string
   cmc: number
   type_line: string
@@ -311,6 +374,9 @@ export interface LocalCard {
 export interface RawScryfallBulkCard {
   id: string
   name: string
+  printed_name?: string
+  lang?: string
+  oracle_id?: string
   mana_cost?: string
   cmc?: number
   type_line?: string

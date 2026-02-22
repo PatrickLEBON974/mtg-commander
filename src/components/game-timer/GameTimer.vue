@@ -1,7 +1,8 @@
 <template>
   <div class="flex items-center justify-center gap-3 bg-surface-light px-4 py-1.5">
     <button
-      class="rounded-full p-1 text-text-secondary active:text-text-primary"
+      class="flex h-10 w-10 items-center justify-center rounded-full text-text-secondary active:text-text-primary"
+      :aria-label="isRunning ? 'Pause' : 'Reprendre'"
       @click="toggleTimer"
     >
       <ion-icon :icon="isRunning ? pauseOutline : playOutline" class="text-lg" />

@@ -3,19 +3,19 @@
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-button :disabled="!gameStore.canUndo" @click="handleUndo">
+          <ion-button :disabled="!gameStore.canUndo" aria-label="Annuler" @click="handleUndo">
             <ion-icon :icon="arrowUndoOutline" />
           </ion-button>
-          <ion-button :disabled="!gameStore.canRedo" @click="handleRedo">
+          <ion-button :disabled="!gameStore.canRedo" aria-label="Refaire" @click="handleRedo">
             <ion-icon :icon="arrowRedoOutline" />
           </ion-button>
         </ion-buttons>
         <ion-title>Partie</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="showHistory = true">
+          <ion-button aria-label="Historique" @click="showHistory = true">
             <ion-icon :icon="listOutline" />
           </ion-button>
-          <ion-button @click="handleAdvanceTurn">
+          <ion-button aria-label="Tour suivant" @click="handleAdvanceTurn">
             <ion-icon :icon="playForwardOutline" />
           </ion-button>
         </ion-buttons>
@@ -45,7 +45,7 @@
         <GameTimer v-if="gameStore.settings.enableTimer" />
 
         <!-- Turn indicator -->
-        <div class="flex items-center justify-between px-4 py-1.5">
+        <div class="flex items-center justify-between px-4 py-1.5" role="status">
           <span class="text-xs text-text-secondary">
             Tour {{ gameStore.currentGame?.turnNumber }}
           </span>

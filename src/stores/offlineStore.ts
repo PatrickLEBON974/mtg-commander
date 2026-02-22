@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getCardCount, getMeta, initDatabase } from '@/services/database'
+import { getCardCount, getMeta, initDatabase, clearCards } from '@/services/database'
 import { downloadBulkData, type DownloadProgress } from '@/services/bulkDownload'
+import { useSettingsStore } from './settingsStore'
 
 export const useOfflineStore = defineStore('offline', () => {
   const isDbReady = ref(false)
@@ -56,15 +57,26 @@ export const useOfflineStore = defineStore('offline', () => {
     downloadProgress.value = null
 
     try {
+      const settingsStore = useSettingsStore()
       const count = await downloadBulkData((progress) => {
         downloadProgress.value = progress
-      })
+      }, settingsStore.cardLanguages)
       cardCount.value = count
       await refreshStats()
     } catch (error) {
       downloadError.value = error instanceof Error ? error.message : 'Erreur inconnue'
     } finally {
       isDownloading.value = false
+    }
+  }
+
+  async function clearCache() {
+    try {
+      await clearCards()
+      cardCount.value = 0
+      lastUpdateDate.value = null
+    } catch (error) {
+      console.error('Clear cache failed:', error)
     }
   }
 
@@ -81,5 +93,6 @@ export const useOfflineStore = defineStore('offline', () => {
     initialize,
     refreshStats,
     startDownload,
+    clearCache,
   }
 })

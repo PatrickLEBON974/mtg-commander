@@ -1,23 +1,48 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <!-- MTG Commander App Logo — Shield with 5 mana colors -->
+  <!-- MTG Commander Logo — Arena-style shield -->
   <defs>
-    <linearGradient id="shield-grad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#1e2a4a"/>
-      <stop offset="100%" stop-color="#0f1628"/>
+    <linearGradient id="shield-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a1f35"/>
+      <stop offset="100%" stop-color="#0a0e17"/>
+    </linearGradient>
+    <linearGradient id="gold-border" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f0d078"/>
+      <stop offset="50%" stop-color="#d4a843"/>
+      <stop offset="100%" stop-color="#a07828"/>
+    </linearGradient>
+    <linearGradient id="gold-fill" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#f0d078"/>
+      <stop offset="100%" stop-color="#c89830"/>
     </linearGradient>
   </defs>
-  <!-- Shield shape -->
-  <path d="M64 8L16 28v36c0 28 20 44 48 52 28-8 48-24 48-52V28z" fill="url(#shield-grad)" stroke="#CBAC5E" stroke-width="3"/>
-  <!-- Inner border -->
-  <path d="M64 16L24 33v28c0 24 17 38 40 45 23-7 40-21 40-45V33z" fill="none" stroke="#CBAC5E" stroke-width="1" opacity="0.4"/>
-  <!-- Five mana dots in pentagon arrangement -->
-  <circle cx="64" cy="38" r="8" fill="#F9FAF4"/> <!-- White - top -->
-  <circle cx="82" cy="52" r="8" fill="#0E68AB"/> <!-- Blue - top right -->
-  <circle cx="76" cy="74" r="8" fill="#150B00" stroke="#555" stroke-width="0.5"/> <!-- Black - bottom right -->
-  <circle cx="52" cy="74" r="8" fill="#D3202A"/> <!-- Red - bottom left -->
-  <circle cx="46" cy="52" r="8" fill="#00733E"/> <!-- Green - top left -->
-  <!-- Center gold star -->
-  <polygon points="64,56 66,61 72,62 68,66 69,72 64,69 59,72 60,66 56,62 62,61" fill="#CBAC5E"/>
-  <!-- CMD text -->
-  <text x="64" y="100" text-anchor="middle" font-size="18" font-weight="900" font-family="system-ui" fill="#CBAC5E" letter-spacing="4">CMD</text>
+
+  <!-- Outer glow -->
+  <path d="M64 6L14 27v38c0 30 21 46 50 54 29-8 50-24 50-54V27z" fill="none" stroke="url(#gold-border)" stroke-width="1" opacity="0.2"/>
+
+  <!-- Shield body -->
+  <path d="M64 10L18 29v35c0 27 19 43 46 51 27-8 46-24 46-51V29z" fill="url(#shield-bg)" stroke="url(#gold-border)" stroke-width="2.5"/>
+
+  <!-- Inner border ornament -->
+  <path d="M64 18L26 34v28c0 23 16 37 38 44 22-7 38-21 38-44V34z" fill="none" stroke="url(#gold-border)" stroke-width="0.8" opacity="0.3"/>
+
+  <!-- Five mana circles — perfect pentagon centered at (64, 54), radius 20 -->
+  <!-- Top: W -->
+  <circle cx="64" cy="34" r="9" fill="#F9FAF4" stroke="#d4a843" stroke-width="1"/>
+  <!-- Top-right: U -->
+  <circle cx="83" cy="47" r="9" fill="#0E68AB" stroke="#d4a843" stroke-width="1"/>
+  <!-- Bottom-right: B -->
+  <circle cx="76" cy="70" r="9" fill="#150B00" stroke="#d4a843" stroke-width="1"/>
+  <!-- Bottom-left: R -->
+  <circle cx="52" cy="70" r="9" fill="#D3202A" stroke="#d4a843" stroke-width="1"/>
+  <!-- Top-left: G -->
+  <circle cx="45" cy="47" r="9" fill="#00733E" stroke="#d4a843" stroke-width="1"/>
+
+  <!-- Center star — at centroid of pentagon (64, 53.6) -->
+  <polygon
+    points="64,45.6 66.8,51.2 73,52 68,56.6 69.2,63 64,59.8 58.8,63 60,56.6 55,52 61.2,51.2"
+    fill="url(#gold-fill)"
+  />
+
+  <!-- MTG text -->
+  <text x="64" y="100" text-anchor="middle" font-size="17" font-weight="900" font-family="'Beleren', Georgia, serif" fill="url(#gold-fill)" letter-spacing="5">MTG</text>
 </svg>

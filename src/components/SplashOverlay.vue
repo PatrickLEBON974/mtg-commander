@@ -3,31 +3,44 @@
     <div
       v-if="isVisible"
       class="fixed inset-0 z-[9999] flex flex-col items-center justify-center"
-      style="background: #1a1a2e"
+      style="background: radial-gradient(ellipse at 50% 40%, #111827 0%, #0a0e17 60%, #050810 100%)"
     >
-      <!-- Animated logo: pulsing shield with mana dots -->
+      <!-- Animated logo with Arena gold glow -->
       <div class="splash-logo" :class="{ 'animate-pulse-glow': !isReady }">
         <img
           src="@/assets/icons/ui/logo.svg"
           alt="MTG Commander"
-          class="h-32 w-32"
+          class="h-36 w-36"
         />
       </div>
 
-      <!-- App name -->
-      <h1 class="mt-6 text-2xl font-bold tracking-wider text-mana-gold">
+      <!-- App name in Beleren -->
+      <h1
+        class="mt-6 arena-heading"
+        style="font-family: var(--font-beleren); font-size: 32px; letter-spacing: 4px;"
+      >
         COMMANDER
       </h1>
 
-      <!-- Loading bar -->
-      <div class="mt-8 h-1 w-48 overflow-hidden rounded-full bg-white/10">
+      <!-- Mana color dots -->
+      <div class="mt-3 flex items-center gap-3">
+        <i class="ms ms-w ms-cost" style="font-size: 16px" />
+        <i class="ms ms-u ms-cost" style="font-size: 16px" />
+        <i class="ms ms-b ms-cost" style="font-size: 16px" />
+        <i class="ms ms-r ms-cost" style="font-size: 16px" />
+        <i class="ms ms-g ms-cost" style="font-size: 16px" />
+      </div>
+
+      <!-- Loading bar — Arena gold gradient -->
+      <div class="mt-8 h-1.5 w-52 overflow-hidden rounded-full" style="background: rgba(212, 168, 67, 0.1)">
         <div
-          class="h-full rounded-full bg-accent transition-all duration-500 ease-out"
+          class="h-full rounded-full transition-all duration-500 ease-out"
+          style="background: linear-gradient(90deg, #e8600a, #d4a843)"
           :style="{ width: `${loadProgress}%` }"
         />
       </div>
 
-      <p class="mt-3 text-xs text-white/40">{{ loadingMessage }}</p>
+      <p class="mt-3 text-xs" style="color: rgba(212, 168, 67, 0.4)">{{ loadingMessage }}</p>
     </div>
   </Transition>
 </template>
@@ -41,7 +54,6 @@ const loadProgress = ref(0)
 const loadingMessage = ref('Initialisation...')
 
 onMounted(async () => {
-  // Simulate progressive loading
   loadProgress.value = 30
   loadingMessage.value = 'Chargement des stores...'
 
@@ -54,7 +66,6 @@ onMounted(async () => {
   loadingMessage.value = 'Pret !'
   isReady.value = true
 
-  // Fade out after a brief moment
   await new Promise((resolve) => setTimeout(resolve, 400))
   isVisible.value = false
 })
@@ -74,11 +85,11 @@ onMounted(async () => {
 
 @keyframes pulse-glow {
   0%, 100% {
-    filter: drop-shadow(0 0 8px rgba(203, 172, 94, 0.2));
+    filter: drop-shadow(0 0 12px rgba(212, 168, 67, 0.2));
     transform: scale(1);
   }
   50% {
-    filter: drop-shadow(0 0 24px rgba(203, 172, 94, 0.5));
+    filter: drop-shadow(0 0 32px rgba(212, 168, 67, 0.5));
     transform: scale(1.03);
   }
 }

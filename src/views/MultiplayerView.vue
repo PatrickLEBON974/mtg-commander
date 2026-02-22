@@ -11,20 +11,25 @@
 
     <ion-content class="ion-padding">
       <!-- Not in a room: show create/join -->
-      <div v-if="!multiplayerStore.isMultiplayer" class="flex flex-col gap-6 pt-4">
-        <!-- Local player count -->
-        <ion-item>
-          <ion-label>Joueurs sur cet appareil</ion-label>
-          <ion-select v-model="localPlayerCount" interface="popover">
-            <ion-select-option :value="1">1</ion-select-option>
-            <ion-select-option :value="2">2</ion-select-option>
-            <ion-select-option :value="3">3</ion-select-option>
-          </ion-select>
-        </ion-item>
+      <div v-if="!multiplayerStore.isMultiplayer">
+        <!-- Local player setup -->
+        <ion-list :inset="true">
+          <ion-list-header>
+            <ion-label>Joueurs sur cet appareil</ion-label>
+          </ion-list-header>
 
-        <!-- Player names -->
-        <div class="space-y-2">
-          <ion-item v-for="(_, index) in localPlayerCount" :key="index">
+          <ion-item lines="inset">
+            <ion-icon :icon="phonePortraitOutline" slot="start" color="medium" />
+            <ion-label>Nombre</ion-label>
+            <ion-select v-model="localPlayerCount" interface="action-sheet">
+              <ion-select-option :value="1">1</ion-select-option>
+              <ion-select-option :value="2">2</ion-select-option>
+              <ion-select-option :value="3">3</ion-select-option>
+            </ion-select>
+          </ion-item>
+
+          <ion-item v-for="(_, index) in localPlayerCount" :key="index" :lines="index === localPlayerCount - 1 ? 'none' : 'inset'">
+            <ion-icon :icon="personOutline" slot="start" color="tertiary" />
             <ion-input
               v-model="localPlayerNames[index]"
               :label="localPlayerCount > 1 ? `Joueur ${index + 1}` : 'Votre nom'"
@@ -32,15 +37,18 @@
               :placeholder="`Joueur ${index + 1}`"
             />
           </ion-item>
-        </div>
+        </ion-list>
 
         <!-- Create room -->
-        <div class="space-y-3">
-          <h2 class="text-lg font-semibold text-text-primary">Creer une partie</h2>
+        <ion-list :inset="true">
+          <ion-list-header>
+            <ion-label>Creer une partie</ion-label>
+          </ion-list-header>
 
-          <ion-item>
+          <ion-item lines="inset">
+            <ion-icon :icon="peopleOutline" slot="start" color="tertiary" />
             <ion-label>Joueurs total</ion-label>
-            <ion-select v-model="totalPlayerCount" interface="popover">
+            <ion-select v-model="totalPlayerCount" interface="action-sheet">
               <ion-select-option :value="2">2</ion-select-option>
               <ion-select-option :value="3">3</ion-select-option>
               <ion-select-option :value="4">4</ion-select-option>
@@ -49,21 +57,29 @@
             </ion-select>
           </ion-item>
 
-          <ion-button
-            expand="block"
-            :disabled="!canSubmit || multiplayerStore.isConnecting"
-            @click="createNewRoom"
-          >
-            <ion-spinner v-if="multiplayerStore.isConnecting" name="crescent" slot="start" />
-            Creer la room
-          </ion-button>
-        </div>
+          <ion-item lines="none">
+            <ion-button
+              expand="block"
+              :disabled="!canSubmit || multiplayerStore.isConnecting"
+              @click="createNewRoom"
+              class="ion-margin-vertical"
+              style="width: 100%"
+            >
+              <ion-spinner v-if="multiplayerStore.isConnecting" name="crescent" slot="start" />
+              <ion-icon v-else :icon="addCircleOutline" slot="start" />
+              Creer la room
+            </ion-button>
+          </ion-item>
+        </ion-list>
 
         <!-- Join room -->
-        <div class="space-y-3">
-          <h2 class="text-lg font-semibold text-text-primary">Rejoindre une partie</h2>
+        <ion-list :inset="true">
+          <ion-list-header>
+            <ion-label>Rejoindre une partie</ion-label>
+          </ion-list-header>
 
-          <ion-item>
+          <ion-item lines="inset">
+            <ion-icon :icon="keyOutline" slot="start" color="warning" />
             <ion-input
               v-model="joinCode"
               label="Code de la room"
@@ -75,82 +91,99 @@
             />
           </ion-item>
 
-          <ion-button
-            expand="block"
-            fill="outline"
-            :disabled="joinCode.length !== 4 || !canSubmit || multiplayerStore.isConnecting"
-            @click="joinExisting"
-          >
-            <ion-spinner v-if="multiplayerStore.isConnecting" name="crescent" slot="start" />
-            Rejoindre
-          </ion-button>
-        </div>
+          <ion-item lines="none">
+            <ion-button
+              expand="block"
+              fill="outline"
+              :disabled="joinCode.length !== 4 || !canSubmit || multiplayerStore.isConnecting"
+              @click="joinExisting"
+              class="ion-margin-vertical"
+              style="width: 100%"
+            >
+              <ion-spinner v-if="multiplayerStore.isConnecting" name="crescent" slot="start" />
+              <ion-icon v-else :icon="enterOutline" slot="start" />
+              Rejoindre
+            </ion-button>
+          </ion-item>
+        </ion-list>
 
         <!-- Error -->
-        <ion-text v-if="multiplayerStore.connectionError" color="danger" class="text-center text-sm">
-          {{ multiplayerStore.connectionError }}
-        </ion-text>
+        <ion-item v-if="multiplayerStore.connectionError" lines="none" class="ion-margin-horizontal">
+          <ion-icon :icon="alertCircleOutline" slot="start" color="danger" />
+          <ion-label color="danger" class="ion-text-wrap">
+            {{ multiplayerStore.connectionError }}
+          </ion-label>
+        </ion-item>
       </div>
 
       <!-- In a room: show lobby -->
-      <div v-else class="flex flex-col items-center gap-6 pt-4">
+      <div v-else>
         <!-- Room code display -->
-        <div class="text-center">
-          <p class="text-sm text-text-secondary">Code de la room</p>
-          <p class="mt-1 text-5xl font-bold tracking-[0.3em] text-accent">
+        <div class="flex flex-col items-center gap-2 py-6">
+          <ion-icon :icon="qrCodeOutline" size="large" color="medium" />
+          <p class="text-sm" style="color: var(--ion-color-medium)">Code de la room</p>
+          <p class="text-5xl font-bold tracking-[0.3em]" style="color: var(--ion-color-primary)">
             {{ multiplayerStore.roomCode }}
           </p>
-          <p class="mt-2 text-xs text-text-secondary">
+          <p class="text-xs" style="color: var(--ion-color-medium)">
             Partagez ce code aux autres joueurs
           </p>
         </div>
 
         <!-- Connected players -->
-        <div class="w-full space-y-2">
-          <h3 class="text-base font-semibold text-text-primary">
-            Joueurs ({{ multiplayerStore.connectedPlayerCount }} / {{ multiplayerStore.roomData?.settings.playerCount }})
-          </h3>
+        <ion-list :inset="true">
+          <ion-list-header>
+            <ion-label>
+              Joueurs ({{ multiplayerStore.connectedPlayerCount }} / {{ multiplayerStore.roomData?.settings.playerCount }})
+            </ion-label>
+          </ion-list-header>
 
-          <div
-            v-for="player in multiplayerStore.allPlayers"
+          <ion-item
+            v-for="(player, index) in multiplayerStore.allPlayers"
             :key="player.id"
-            class="flex items-center gap-3 rounded-xl bg-surface-card p-3"
+            :lines="index === multiplayerStore.allPlayers.length - 1 ? 'none' : 'inset'"
           >
-            <div
-              class="h-3 w-3 rounded-full"
-              :class="player.connected ? 'bg-life-positive' : 'bg-life-negative'"
+            <ion-icon
+              :icon="player.connected ? radioButtonOnOutline : radioButtonOffOutline"
+              slot="start"
+              :color="player.connected ? 'success' : 'danger'"
             />
-            <span class="flex-1 text-text-primary">
-              {{ player.name }}
-              <span v-if="multiplayerStore.isLocalPlayer(player.id)" class="text-xs text-text-secondary">(vous)</span>
-              <span v-if="player.deviceId === multiplayerStore.roomData?.hostId" class="text-xs text-accent"> (host)</span>
-            </span>
-            <span class="text-xs text-text-secondary">
+            <ion-label>
+              <h2>
+                {{ player.name }}
+                <ion-text v-if="multiplayerStore.isLocalPlayer(player.id)" color="medium"> (vous)</ion-text>
+              </h2>
+              <p v-if="player.deviceId === multiplayerStore.roomData?.hostId">Host</p>
+            </ion-label>
+            <ion-note slot="end" :color="player.connected ? 'success' : 'danger'">
               {{ player.connected ? 'Connecte' : 'Deconnecte' }}
-            </span>
-          </div>
-        </div>
+            </ion-note>
+          </ion-item>
+        </ion-list>
 
         <!-- Start game (host only) -->
-        <ion-button
-          v-if="multiplayerStore.isHost"
-          expand="block"
-          color="danger"
-          size="large"
-          :disabled="!multiplayerStore.isRoomReady"
-          @click="startMultiplayerGame"
-        >
-          Lancer la partie ({{ multiplayerStore.connectedPlayerCount }} joueurs)
-        </ion-button>
+        <div class="ion-padding-horizontal">
+          <ion-button
+            v-if="multiplayerStore.isHost"
+            expand="block"
+            color="primary"
+            size="large"
+            :disabled="!multiplayerStore.isRoomReady"
+            @click="startMultiplayerGame"
+          >
+            <ion-icon :icon="playOutline" slot="start" />
+            Lancer la partie ({{ multiplayerStore.connectedPlayerCount }} joueurs)
+          </ion-button>
 
-        <p v-if="!multiplayerStore.isHost" class="text-center text-sm text-text-secondary">
-          En attente que le host lance la partie...
-        </p>
+          <p v-if="!multiplayerStore.isHost" class="ion-text-center ion-padding" style="color: var(--ion-color-medium); font-size: 14px;">
+            En attente que le host lance la partie...
+          </p>
 
-        <!-- Leave -->
-        <ion-button expand="block" fill="clear" color="medium" @click="leave">
-          Quitter la room
-        </ion-button>
+          <ion-button expand="block" fill="clear" color="medium" @click="leave" class="ion-margin-top">
+            <ion-icon :icon="exitOutline" slot="start" />
+            Quitter la room
+          </ion-button>
+        </div>
       </div>
     </ion-content>
   </ion-page>
@@ -167,15 +200,33 @@ import {
   IonButtons,
   IonBackButton,
   IonContent,
+  IonList,
+  IonListHeader,
   IonItem,
   IonInput,
   IonLabel,
+  IonNote,
+  IonText,
+  IonIcon,
   IonSelect,
   IonSelectOption,
   IonButton,
   IonSpinner,
-  IonText,
 } from '@ionic/vue'
+import {
+  phonePortraitOutline,
+  personOutline,
+  peopleOutline,
+  addCircleOutline,
+  keyOutline,
+  enterOutline,
+  alertCircleOutline,
+  qrCodeOutline,
+  radioButtonOnOutline,
+  radioButtonOffOutline,
+  playOutline,
+  exitOutline,
+} from 'ionicons/icons'
 import { useMultiplayerStore } from '@/stores/multiplayerStore'
 import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'

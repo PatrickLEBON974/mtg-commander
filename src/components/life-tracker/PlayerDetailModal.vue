@@ -71,9 +71,9 @@
         <div class="flex items-center justify-between rounded-xl bg-surface-card p-3">
           <span class="text-sm text-text-primary">Experience</span>
           <div class="flex items-center gap-3">
-            <button class="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-lg active:bg-white/20" @click="gameStore.changeExperience(player.id, -1)">-</button>
+            <button class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-lg active:bg-white/20" @click="gameStore.changeExperience(player.id, -1)">-</button>
             <span class="min-w-[2rem] text-center text-lg font-bold tabular-nums text-text-primary">{{ player.experienceCounters }}</span>
-            <button class="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-lg active:bg-white/20" @click="gameStore.changeExperience(player.id, 1)">+</button>
+            <button class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-lg active:bg-white/20" @click="gameStore.changeExperience(player.id, 1)">+</button>
           </div>
         </div>
 
@@ -81,9 +81,9 @@
         <div class="flex items-center justify-between rounded-xl bg-surface-card p-3">
           <span class="text-sm text-text-primary">Energie</span>
           <div class="flex items-center gap-3">
-            <button class="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-lg active:bg-white/20" @click="gameStore.changeEnergy(player.id, -1)">-</button>
+            <button class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-lg active:bg-white/20" @click="gameStore.changeEnergy(player.id, -1)">-</button>
             <span class="min-w-[2rem] text-center text-lg font-bold tabular-nums text-text-primary">{{ player.energyCounters }}</span>
-            <button class="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-lg active:bg-white/20" @click="gameStore.changeEnergy(player.id, 1)">+</button>
+            <button class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-lg active:bg-white/20" @click="gameStore.changeEnergy(player.id, 1)">+</button>
           </div>
         </div>
 

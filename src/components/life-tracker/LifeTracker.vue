@@ -23,7 +23,7 @@
       <span class="text-[10px] font-medium uppercase tracking-wider text-white/70">
         {{ player.name }}
       </span>
-      <span v-if="player.commanders.length > 0" class="block truncate text-[9px] text-white/40">
+      <span v-if="player.commanders.length > 0" class="block truncate text-[11px] text-white/60">
         {{ player.commanders.map(c => c.cardName).join(' / ') }}
       </span>
     </button>
@@ -61,7 +61,7 @@
       <button
         v-for="amount in [-10, -5, 5, 10]"
         :key="amount"
-        class="min-h-[28px] rounded px-2 py-1 text-[10px] font-medium btn-press"
+        class="min-h-[36px] min-w-[40px] rounded px-2 py-1 text-[11px] font-medium btn-press"
         :class="amount < 0 ? 'bg-life-negative/15 text-life-negative' : 'bg-life-positive/15 text-life-positive'"
         @click="changeLifeBy(amount)"
       >
@@ -73,25 +73,28 @@
     <div class="flex flex-wrap justify-center gap-1.5">
       <!-- Poison -->
       <button
-        class="flex min-h-[24px] min-w-[24px] items-center justify-center gap-0.5 rounded-full px-1.5 py-0.5 btn-press"
+        class="flex min-h-[32px] min-w-[32px] items-center justify-center gap-0.5 rounded-full px-2 py-1 btn-press"
         :class="player.poisonCounters > 0 ? 'bg-poison/20' : 'bg-white/5'"
-        :aria-label="`Poison: ${player.poisonCounters}`"
+        :aria-label="`Poison: ${player.poisonCounters}. Tap +1, appui long -1`"
         @click="changePoisonBy(1)"
         @contextmenu.prevent="changePoisonBy(-1)"
+        @touchstart.passive="startPoisonLongPress"
+        @touchend.passive="cancelPoisonLongPress"
+        @touchcancel.passive="cancelPoisonLongPress"
       >
-        <span class="text-[10px]" :class="player.poisonCounters > 0 ? 'text-poison font-bold' : 'text-white/40'">
+        <span class="text-[11px]" :class="player.poisonCounters > 0 ? 'text-poison font-bold' : 'text-white/50'">
           {{ player.poisonCounters }}P
         </span>
       </button>
 
       <!-- Commander damage (tap to open modal) -->
       <button
-        class="flex min-h-[24px] min-w-[24px] items-center justify-center gap-0.5 rounded-full px-1.5 py-0.5 btn-press"
+        class="flex min-h-[32px] min-w-[32px] items-center justify-center gap-0.5 rounded-full px-2 py-1 btn-press"
         :class="totalCommanderDamage > 0 ? 'bg-commander-damage/20' : 'bg-white/5'"
         :aria-label="`Degats commandant: ${totalCommanderDamage}`"
         @click="showCommanderDamage = true"
       >
-        <span class="text-[10px]" :class="totalCommanderDamage > 0 ? 'text-commander-damage font-bold' : 'text-white/40'">
+        <span class="text-[11px]" :class="totalCommanderDamage > 0 ? 'text-commander-damage font-bold' : 'text-white/50'">
           {{ totalCommanderDamage }}C
         </span>
       </button>
@@ -99,19 +102,19 @@
       <!-- Experience (visible if > 0) -->
       <button
         v-if="player.experienceCounters > 0"
-        class="flex min-h-[24px] items-center gap-0.5 rounded-full bg-blue-500/20 px-1.5 py-0.5 btn-press"
+        class="flex min-h-[32px] items-center gap-0.5 rounded-full bg-blue-500/20 px-2 py-1 btn-press"
         @click="showDetail = true"
       >
-        <span class="text-[10px] font-bold text-blue-400">{{ player.experienceCounters }}E</span>
+        <span class="text-[11px] font-bold text-blue-400">{{ player.experienceCounters }}E</span>
       </button>
 
       <!-- Energy (visible if > 0) -->
       <button
         v-if="player.energyCounters > 0"
-        class="flex min-h-[24px] items-center gap-0.5 rounded-full bg-yellow-500/20 px-1.5 py-0.5 btn-press"
+        class="flex min-h-[32px] items-center gap-0.5 rounded-full bg-yellow-500/20 px-2 py-1 btn-press"
         @click="showDetail = true"
       >
-        <span class="text-[10px] font-bold text-yellow-400">{{ player.energyCounters }}N</span>
+        <span class="text-[11px] font-bold text-yellow-400">{{ player.energyCounters }}N</span>
       </button>
 
       <!-- Monarch indicator -->
@@ -244,6 +247,22 @@ function changePoisonBy(amount: number) {
   gameStore.changePoison(props.player.id, amount)
   if (settingsStore.hapticFeedback) tapFeedback()
   emit('stateChanged')
+}
+
+// Long-press to decrement poison on mobile (no right-click on touch)
+let poisonLongPressTimer: ReturnType<typeof setTimeout> | null = null
+function startPoisonLongPress() {
+  poisonLongPressTimer = setTimeout(() => {
+    changePoisonBy(-1)
+    if (settingsStore.hapticFeedback) heavyFeedback()
+    poisonLongPressTimer = null
+  }, 500)
+}
+function cancelPoisonLongPress() {
+  if (poisonLongPressTimer) {
+    clearTimeout(poisonLongPressTimer)
+    poisonLongPressTimer = null
+  }
 }
 
 function onCommanderDamageClose() {
