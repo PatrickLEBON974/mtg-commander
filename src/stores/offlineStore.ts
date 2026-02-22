@@ -46,6 +46,11 @@ export const useOfflineStore = defineStore('offline', () => {
   async function startDownload() {
     if (isDownloading.value) return
 
+    if (!isDbReady.value) {
+      downloadError.value = 'Base de donnees non disponible (SQLite requis sur appareil natif)'
+      return
+    }
+
     isDownloading.value = true
     downloadError.value = null
     downloadProgress.value = null

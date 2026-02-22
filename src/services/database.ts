@@ -68,7 +68,14 @@ export async function initDatabase(): Promise<void> {
   if (platform === 'web') {
     const jeepSqliteEl = document.createElement('jeep-sqlite')
     document.body.appendChild(jeepSqliteEl)
-    await customElements.whenDefined('jeep-sqlite')
+
+    // Timeout: jeep-sqlite may never register on web without proper setup
+    await Promise.race([
+      customElements.whenDefined('jeep-sqlite'),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('jeep-sqlite web component timeout (3s)')), 3000),
+      ),
+    ])
     await sqliteConnection.initWebStore()
   }
 

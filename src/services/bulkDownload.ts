@@ -2,6 +2,14 @@ import { bulkInsertCards, setMeta, type RawScryfallBulkCard, type BulkInsertProg
 
 const BULK_DATA_URL = 'https://api.scryfall.com/bulk-data'
 
+async function safeSaveMeta(key: string, value: string): Promise<void> {
+  try {
+    await setMeta(key, value)
+  } catch {
+    // DB not available (web dev mode), skip metadata save
+  }
+}
+
 export interface DownloadProgress {
   phase: 'fetching_manifest' | 'downloading' | 'parsing' | 'importing' | 'done' | 'error'
   downloadedMb?: number
@@ -41,7 +49,7 @@ export async function downloadBulkData(onProgress: ProgressCallback): Promise<nu
     const downloadUrl: string = oracleData.download_uri
     const estimatedSizeMb = Math.round((oracleData.size ?? 170_000_000) / 1_000_000)
 
-    await setMeta('bulk_download_url', downloadUrl)
+    await safeSaveMeta('bulk_download_url', downloadUrl)
 
     // Phase 2: Download the JSON file
     onProgress({
