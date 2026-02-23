@@ -6,7 +6,7 @@
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
         @click.self="cancel"
       >
-        <div class="numpad-panel relative w-[280px] overflow-hidden rounded-2xl border border-arena-gold/25 shadow-2xl" style="background: linear-gradient(180deg, #1a1f35 0%, #141a2e 100%);">
+        <div class="numpad-panel relative w-[300px] overflow-hidden rounded-2xl border border-arena-gold/20 shadow-2xl" style="background: linear-gradient(180deg, #1a1f35 0%, #111827 100%);">
           <!-- Subtle gold inner glow at top -->
           <div class="pointer-events-none absolute inset-x-0 top-0 h-24 rounded-t-2xl" style="background: radial-gradient(ellipse at 50% -20%, rgba(212, 168, 67, 0.08) 0%, transparent 70%);" />
 
@@ -17,13 +17,13 @@
           <CornerAccent position="bottom-right" />
 
           <!-- Header with logo -->
-          <div class="relative flex flex-col items-center gap-1 px-4 pt-4 pb-2">
+          <div class="relative flex flex-col items-center gap-1 px-4 pt-5 pb-2">
             <img
               :src="logoUrl"
               alt="MTG Commander"
-              class="h-10 w-10 drop-shadow-lg"
+              class="h-8 w-8 opacity-80 drop-shadow-lg"
             />
-            <span class="numpad-title text-[11px] font-bold uppercase tracking-[3px] text-arena-gold-light">
+            <span class="numpad-title text-xs font-bold uppercase tracking-[0.2em] text-arena-gold-light/90">
               Set Life
             </span>
           </div>
@@ -31,9 +31,9 @@
           <DividerOrnament width="80%" />
 
           <!-- Display -->
-          <div class="numpad-display mx-4 mb-3 rounded-xl px-4 py-3 text-center">
+          <div class="numpad-display mx-4 mb-3 rounded-xl px-4 py-4 text-center">
             <span
-              class="numpad-display-value block text-4xl font-bold tabular-nums"
+              class="numpad-display-value block text-5xl font-bold tabular-nums"
               :class="displayValue ? 'text-arena-gold-light' : 'text-arena-gold/40'"
             >
               {{ displayValue || currentLifeDisplay }}
@@ -41,11 +41,11 @@
           </div>
 
           <!-- Keypad grid: 4 rows x 3 columns -->
-          <div class="grid grid-cols-3 gap-2 px-4 pb-4">
+          <div class="grid grid-cols-3 gap-2.5 px-5 pb-5">
             <button
               v-for="digit in digitKeys"
               :key="digit"
-              class="numpad-key flex min-h-[48px] items-center justify-center rounded-xl text-xl font-semibold btn-press"
+              class="numpad-key flex min-h-[52px] items-center justify-center rounded-xl text-xl font-semibold btn-press"
               @click="appendDigit(digit)"
             >
               {{ digit }}
@@ -53,7 +53,7 @@
 
             <!-- Backspace -->
             <button
-              class="numpad-action-key flex min-h-[48px] items-center justify-center rounded-xl btn-press"
+              class="numpad-action-key flex min-h-[52px] items-center justify-center rounded-xl btn-press"
               style="--action-color: 239, 68, 68;"
               aria-label="Backspace"
               @click="backspace"
@@ -79,7 +79,7 @@
 
             <!-- Zero -->
             <button
-              class="numpad-key flex min-h-[48px] items-center justify-center rounded-xl text-xl font-semibold btn-press"
+              class="numpad-key flex min-h-[52px] items-center justify-center rounded-xl text-xl font-semibold btn-press"
               @click="appendDigit('0')"
             >
               0
@@ -87,7 +87,7 @@
 
             <!-- Confirm -->
             <button
-              class="numpad-confirm flex min-h-[48px] items-center justify-center rounded-xl btn-press"
+              class="numpad-confirm flex min-h-[52px] items-center justify-center rounded-xl btn-press"
               aria-label="Confirm"
               @click="confirm"
             >
@@ -168,19 +168,20 @@ function cancel() {
 
 /* Display area — dark inset with gold border */
 .numpad-display {
-  background: rgba(10, 14, 23, 0.6);
+  background: rgba(10, 14, 23, 0.7);
   border: 1px solid rgba(212, 168, 67, 0.12);
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 .numpad-display-value {
   font-family: var(--font-beleren);
   text-shadow: 0 0 16px rgba(240, 208, 120, 0.15);
 }
 
-/* Digit keys — dark surface with gold text */
+/* Digit keys — dark surface with gold text, Beleren font */
 .numpad-key {
+  font-family: var(--font-beleren);
   color: var(--color-arena-gold-light);
-  background: linear-gradient(180deg, rgba(212, 168, 67, 0.06) 0%, rgba(10, 14, 23, 0.5) 100%);
+  background: linear-gradient(180deg, rgba(212, 168, 67, 0.05) 0%, rgba(10, 14, 23, 0.5) 100%);
   border: 1px solid rgba(212, 168, 67, 0.1);
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
@@ -188,7 +189,7 @@ function cancel() {
   color: #fff;
   background: linear-gradient(180deg, rgba(212, 168, 67, 0.2) 0%, rgba(212, 168, 67, 0.1) 100%);
   border-color: rgba(212, 168, 67, 0.35);
-  box-shadow: 0 0 10px rgba(212, 168, 67, 0.15);
+  box-shadow: 0 0 10px rgba(212, 168, 67, 0.15), inset 0 0 8px rgba(212, 168, 67, 0.06);
 }
 
 /* Backspace / action keys — tinted with --action-color */
@@ -204,22 +205,23 @@ function cancel() {
 /* Confirm — Arena gold, the premium action */
 .numpad-confirm {
   color: var(--color-arena-gold-light);
-  background: linear-gradient(180deg, rgba(212, 168, 67, 0.15) 0%, rgba(212, 168, 67, 0.06) 100%);
+  background: linear-gradient(180deg, rgba(212, 168, 67, 0.18) 0%, rgba(212, 168, 67, 0.06) 100%);
   border: 1px solid rgba(212, 168, 67, 0.2);
+  box-shadow: 0 0 8px rgba(212, 168, 67, 0.08);
 }
 .numpad-confirm:active {
   color: #fff;
-  background: linear-gradient(180deg, rgba(212, 168, 67, 0.3) 0%, rgba(212, 168, 67, 0.15) 100%);
+  background: linear-gradient(180deg, rgba(212, 168, 67, 0.35) 0%, rgba(212, 168, 67, 0.15) 100%);
   border-color: rgba(212, 168, 67, 0.5);
-  box-shadow: 0 0 14px rgba(212, 168, 67, 0.25);
+  box-shadow: 0 0 14px rgba(212, 168, 67, 0.25), inset 0 0 8px rgba(212, 168, 67, 0.06);
 }
 
 /* --- Overlay transitions --- */
 .numpad-overlay-enter-active {
-  transition: opacity 0.2s ease-out;
+  transition: opacity 0.3s ease-out;
 }
 .numpad-overlay-enter-active .numpad-panel {
-  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+  transition: opacity 0.3s ease-out, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .numpad-overlay-leave-active {
   transition: opacity 0.15s ease-in;
@@ -232,13 +234,13 @@ function cancel() {
 }
 .numpad-overlay-enter-from .numpad-panel {
   opacity: 0;
-  transform: scale(0.9);
+  transform: scale(0.92) translateY(8px);
 }
 .numpad-overlay-leave-to {
   opacity: 0;
 }
 .numpad-overlay-leave-to .numpad-panel {
   opacity: 0;
-  transform: scale(0.9);
+  transform: scale(0.95);
 }
 </style>
