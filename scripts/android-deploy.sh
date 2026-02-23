@@ -108,7 +108,7 @@ fi
 MISSING_ANDROID=""
 for PLUGIN_DIR in "$WINDOWS_PROJECT/node_modules/@capacitor"/*/; do
     PLUGIN_NAME=$(basename "$PLUGIN_DIR")
-    if [ "$PLUGIN_NAME" = "cli" ] || [ "$PLUGIN_NAME" = "core" ] || [ "$PLUGIN_NAME" = "ios" ]; then
+    if [ "$PLUGIN_NAME" = "cli" ] || [ "$PLUGIN_NAME" = "core" ] || [ "$PLUGIN_NAME" = "ios" ] || [ "$PLUGIN_NAME" = "android" ]; then
         continue
     fi
     if [ -d "$PLUGIN_DIR/android" ]; then

@@ -28,6 +28,7 @@
     "@ionic/core": "^8.7.17",
     "@ionic/vue": "^8.7.17",
     "@ionic/vue-router": "^8.7.17",
+    "android": "^0.0.8",
     "canvas-confetti": "^1.9.4",
     "firebase": "^12.9.0",
     "gsap": "^3.14.2",

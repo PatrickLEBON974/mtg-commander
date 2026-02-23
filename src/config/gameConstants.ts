@@ -27,7 +27,6 @@ export const MAX_LOCAL_PLAYERS_PER_DEVICE = 3
 export const MAX_ROOM_CODE_ATTEMPTS = 5
 
 // ─── Quick increment options ────────────────────────────────────────
-export const QUICK_LIFE_INCREMENT_OPTIONS = [-10, -5, 5, 10]
 export const QUICK_COMMANDER_DAMAGE_OPTIONS = [1, 2, 3, 5, 10]
 
 // ─── Shared stepper options (HomeView + SettingsView) ───────────────

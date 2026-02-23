@@ -512,6 +512,17 @@ export const useGameStore = defineStore('game', () => {
     redoStack.value.push(lastAction)
   }
 
+  /** Undo actions until a specific player is no longer dead (max 50 to prevent infinite loop) */
+  function undoUntilPlayerAlive(playerId: string) {
+    if (!currentGame.value) return
+    const player = currentGame.value.players.find((p) => p.id === playerId)
+    if (!player) return
+    let safety = 50
+    while (isPlayerDead(player) && currentGame.value.history.length > 0 && safety-- > 0) {
+      undoLastAction()
+    }
+  }
+
   function redoLastAction() {
     if (!currentGame.value || redoStack.value.length === 0) return
     const action = redoStack.value.pop()!
@@ -580,6 +591,7 @@ export const useGameStore = defineStore('game', () => {
     toggleInitiative,
     advanceTurn,
     undoLastAction,
+    undoUntilPlayerAlive,
     redoLastAction,
     endGame,
     resetGame,
