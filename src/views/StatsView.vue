@@ -8,9 +8,9 @@
 
     <ion-content class="ion-padding">
       <!-- Empty state -->
-      <div v-if="statsStore.totalGamesPlayed === 0" class="flex h-full items-center justify-center">
-        <div class="text-center text-text-secondary">
-          <ion-icon :icon="statsChartOutline" class="text-5xl" />
+      <div v-if="statsStore.totalGamesPlayed === 0" class="flex h-full flex-col items-center justify-center gap-3">
+        <IllustrationNoStats :size="120" data-animate />
+        <div class="text-center text-text-secondary" data-animate>
           <p class="mt-2">{{ t('stats.emptyState') }}</p>
           <p class="text-xs">{{ t('stats.emptyStateHint') }}</p>
         </div>
@@ -19,7 +19,7 @@
       <!-- Stats content -->
       <template v-else>
         <!-- Summary cards -->
-        <ion-list :inset="true">
+        <ion-list :inset="true" data-animate>
           <ion-list-header>
             <ion-label>{{ t('stats.summary') }}</ion-label>
           </ion-list-header>
@@ -53,7 +53,7 @@
         </ion-list>
 
         <!-- Recent games -->
-        <ion-list :inset="true">
+        <ion-list :inset="true" data-animate>
           <ion-list-header>
             <ion-label>{{ t('stats.recentGames') }}</ion-label>
           </ion-list-header>
@@ -66,7 +66,7 @@
             <ion-icon :icon="gameControllerOutline" slot="start" color="medium" />
             <ion-label>
               <h2>{{ formatDate(game.playedAt) }}</h2>
-              <p>{{ t('stats.playerCount', { count: game.playerCount }) }} &middot; {{ formatDuration(game.durationMs) }}</p>
+              <p>{{ t('stats.playerCount', { count: game.playerCount }) }} &middot; {{ formatMsToMinSec(game.durationMs) }}</p>
             </ion-label>
           </ion-item>
         </ion-list>
@@ -92,18 +92,23 @@ import {
   IonIcon,
 } from '@ionic/vue'
 import {
-  statsChartOutline,
   trophyOutline,
   timeOutline,
   ribbonOutline,
   gameControllerOutline,
 } from 'ionicons/icons'
 import { useStatsStore } from '@/stores/statsStore'
+import { usePageEnterAnimation } from '@/composables/usePageEnterAnimation'
+import { formatMsToMinSec } from '@/utils/time'
+import { toLocaleCode } from '@/utils/i18nHelpers'
+import IllustrationNoStats from '@/components/icons/illustrations/IllustrationNoStats.vue'
 
 const { t, locale } = useI18n()
 const statsStore = useStatsStore()
 
-const currentLocaleCode = computed(() => locale.value === 'en' ? 'en-US' : 'fr-FR')
+usePageEnterAnimation()
+
+const currentLocaleCode = computed(() => toLocaleCode(locale.value as 'en' | 'fr'))
 
 const uniqueGameCount = computed(() => {
   const uniqueGameIds = new Set(statsStore.gameRecords.map((record) => record.gameId))
@@ -111,16 +116,8 @@ const uniqueGameCount = computed(() => {
 })
 
 const formattedAverageDuration = computed(() => {
-  return formatDuration(statsStore.overallStats.averageDurationMs)
+  return formatMsToMinSec(statsStore.overallStats.averageDurationMs)
 })
-
-function formatDuration(milliseconds: number): string {
-  if (milliseconds === 0) return '0m 0s'
-  const totalSeconds = Math.round(milliseconds / 1000)
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  return `${minutes}m ${seconds}s`
-}
 
 function formatDate(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString(currentLocaleCode.value, {

@@ -1,5 +1,5 @@
 <template>
-  <div class="flex items-center justify-center gap-3 bg-surface-light px-4 py-1.5">
+  <div class="flex items-center justify-center gap-3 bg-surface-light px-4 py-2">
     <button
       class="flex h-10 w-10 items-center justify-center rounded-full text-text-secondary active:text-text-primary"
       :aria-label="isRunning ? t('game.pause') : t('game.resume')"
@@ -33,6 +33,7 @@ import { playOutline, pauseOutline } from 'ionicons/icons'
 import { useI18n } from 'vue-i18n'
 import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { TIMER_TICK_INTERVAL_MS, TURN_TIMER_WARNING_SECONDS } from '@/config/gameConstants'
 import { warningFeedback } from '@/services/haptics'
 
 const { t } = useI18n()
@@ -74,7 +75,7 @@ const formattedTurnTime = computed(() => {
 const turnTimeWarning = computed(() => {
   if (!settingsStore.gameSettings.enableTurnTimer) return false
   const remaining = settingsStore.gameSettings.turnTimerSeconds - turnElapsedSeconds.value
-  return remaining <= 10 && remaining > 0
+  return remaining <= TURN_TIMER_WARNING_SECONDS && remaining > 0
 })
 
 // Reset turn timer when turn changes
@@ -118,14 +119,14 @@ function tick() {
   const priorityPlayer = gameStore.effectivePriorityPlayer
   if (priorityPlayer) {
     gameStore.currentGame.playerPlayTimeMs[priorityPlayer.id] =
-      (gameStore.currentGame.playerPlayTimeMs[priorityPlayer.id] ?? 0) + 1000
+      (gameStore.currentGame.playerPlayTimeMs[priorityPlayer.id] ?? 0) + TIMER_TICK_INTERVAL_MS
   }
 
   // Turn time: increments for the turn player (wall-clock turn duration)
   const turnPlayer = gameStore.currentTurnPlayer
   if (turnPlayer) {
     gameStore.currentGame.playerTurnTimeMs[turnPlayer.id] =
-      (gameStore.currentGame.playerTurnTimeMs[turnPlayer.id] ?? 0) + 1000
+      (gameStore.currentGame.playerTurnTimeMs[turnPlayer.id] ?? 0) + TIMER_TICK_INTERVAL_MS
   }
 
   if (settingsStore.gameSettings.enableTurnTimer) {
@@ -157,7 +158,7 @@ onMounted(() => {
   if (isRunning.value) {
     lastResumedAt.value = Date.now()
   }
-  intervalId = setInterval(tick, 1000)
+  intervalId = setInterval(tick, TIMER_TICK_INTERVAL_MS)
 })
 
 onUnmounted(() => {

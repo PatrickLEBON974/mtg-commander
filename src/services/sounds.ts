@@ -71,12 +71,6 @@ export function playPlayerDeath() {
   setTimeout(() => playTone(110, 0.5, 'square'), 100)
 }
 
-/** Bright ascending tone for turn advance */
-export function playTurnAdvance() {
-  playTone(523, 0.06, 'sine')
-  setTimeout(() => playTone(659, 0.06, 'sine'), 60)
-}
-
 /** Royal fanfare for becoming monarch */
 export function playMonarchCrown() {
   playTone(523, 0.1, 'triangle')

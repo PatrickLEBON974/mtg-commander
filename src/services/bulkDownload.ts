@@ -1,5 +1,6 @@
 import { bulkInsertCards, setMeta, type RawScryfallBulkCard, type BulkInsertProgress } from './database'
 import i18n from '@/i18n'
+import { ALLOWED_BULK_DOWNLOAD_ORIGIN, BULK_DATA_FALLBACK_SIZE_MB } from '@/config/gameConstants'
 
 const BULK_DATA_URL = 'https://api.scryfall.com/bulk-data'
 
@@ -104,6 +105,10 @@ export async function downloadBulkData(
     const downloadUrl: string = bulkData.download_uri
     const totalSizeBytes: number = bulkData.size ?? 0
 
+    if (!downloadUrl.startsWith(ALLOWED_BULK_DOWNLOAD_ORIGIN)) {
+      throw new Error(`Unexpected bulk download origin: ${downloadUrl}`)
+    }
+
     await safeSaveMeta('bulk_download_url', downloadUrl)
 
     // Phase 2: Download the JSON file
@@ -115,7 +120,7 @@ export async function downloadBulkData(
     // Use Content-Length if available, otherwise fall back to manifest size
     const contentLength = dataResponse.headers.get('Content-Length')
     const totalBytes = contentLength ? parseInt(contentLength, 10) : totalSizeBytes
-    const totalMb = totalBytes > 0 ? Math.round(totalBytes / 1_000_000) : 170
+    const totalMb = totalBytes > 0 ? Math.round(totalBytes / 1_000_000) : BULK_DATA_FALLBACK_SIZE_MB
 
     const reader = dataResponse.body?.getReader()
     if (!reader) {

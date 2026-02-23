@@ -25,28 +25,8 @@ export async function heavyFeedback() {
 
 // === NOTIFICATION FEEDBACK (state changes) ===
 
-/** Success: game started, commander assigned */
-export async function successFeedback() {
-  if (!isNative) return
-  await Haptics.notification({ type: NotificationType.Success })
-}
-
 /** Warning: life dropping below 10, approaching lethal */
 export async function warningFeedback() {
   if (!isNative) return
   await Haptics.notification({ type: NotificationType.Warning })
-}
-
-/** Error: player eliminated, lethal poison/commander damage */
-export async function errorFeedback() {
-  if (!isNative) return
-  await Haptics.notification({ type: NotificationType.Error })
-}
-
-// === SELECTION FEEDBACK (continuous gestures) ===
-
-/** Tick during continuous selection (e.g., scrubbing a slider) */
-export async function selectionChanged() {
-  if (!isNative) return
-  await Haptics.selectionChanged()
 }

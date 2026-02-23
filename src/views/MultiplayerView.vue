@@ -13,7 +13,7 @@
       <!-- Not in a room: show create/join -->
       <div v-if="!multiplayerStore.isMultiplayer">
         <!-- Local player setup -->
-        <ion-list :inset="true">
+        <ion-list :inset="true" data-animate>
           <ion-list-header>
             <ion-label>{{ t('multiplayer.localPlayers') }}</ion-label>
           </ion-list-header>
@@ -35,12 +35,13 @@
               :label="localPlayerCount > 1 ? t('multiplayer.playerN', { n: index + 1 }) : t('multiplayer.yourName')"
               label-placement="floating"
               :placeholder="t('multiplayer.playerN', { n: index + 1 })"
+              :maxlength="PLAYER_NAME_MAX_LENGTH"
             />
           </ion-item>
         </ion-list>
 
         <!-- Create room -->
-        <ion-list :inset="true">
+        <ion-list :inset="true" data-animate>
           <ion-list-header>
             <ion-label>{{ t('multiplayer.createGame') }}</ion-label>
           </ion-list-header>
@@ -73,7 +74,7 @@
         </ion-list>
 
         <!-- Join room -->
-        <ion-list :inset="true">
+        <ion-list :inset="true" data-animate>
           <ion-list-header>
             <ion-label>{{ t('multiplayer.joinGame') }}</ion-label>
           </ion-list-header>
@@ -95,7 +96,7 @@
             <ion-button
               expand="block"
               fill="outline"
-              :disabled="joinCode.length !== 6 || !canSubmit || multiplayerStore.isConnecting"
+              :disabled="joinCode.length !== ROOM_CODE_LENGTH || !canSubmit || multiplayerStore.isConnecting"
               @click="joinExisting"
               class="ion-margin-vertical"
               style="width: 100%"
@@ -119,7 +120,7 @@
       <!-- In a room: show lobby -->
       <div v-else>
         <!-- Room code display -->
-        <div class="flex flex-col items-center gap-2 py-6">
+        <div class="flex flex-col items-center gap-2 py-6" data-animate>
           <ion-icon :icon="qrCodeOutline" size="large" color="medium" />
           <p class="text-sm" style="color: var(--ion-color-medium)">{{ t('multiplayer.roomCode') }}</p>
           <p class="text-5xl font-bold tracking-[0.3em]" style="color: var(--ion-color-primary)">
@@ -131,7 +132,7 @@
         </div>
 
         <!-- Connected players -->
-        <ion-list :inset="true">
+        <ion-list :inset="true" data-animate>
           <ion-list-header>
             <ion-label>
               {{ t('multiplayer.playersList', { count: multiplayerStore.connectedPlayerCount, total: multiplayerStore.roomData?.settings.playerCount }) }}
@@ -231,12 +232,16 @@ import {
 import { useMultiplayerStore } from '@/stores/multiplayerStore'
 import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { usePageEnterAnimation } from '@/composables/usePageEnterAnimation'
+import { ROOM_CODE_LENGTH, PLAYER_NAME_MAX_LENGTH } from '@/config/gameConstants'
 
 const { t } = useI18n()
 const router = useRouter()
 const multiplayerStore = useMultiplayerStore()
 const gameStore = useGameStore()
 const settingsStore = useSettingsStore()
+
+usePageEnterAnimation()
 
 const localPlayerCount = ref(1)
 const localPlayerNames = ref<string[]>([t('multiplayer.playerN', { n: 1 })])

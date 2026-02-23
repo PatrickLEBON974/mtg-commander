@@ -97,7 +97,6 @@ export const useOfflineStore = defineStore('offline', () => {
     formattedLastUpdate,
     estimatedSizeMb,
     initialize,
-    refreshStats,
     startDownload,
     clearCache,
   }

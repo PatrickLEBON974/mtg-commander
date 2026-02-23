@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import type { GameRecord } from '@/types/player'
+import { MAX_RECENT_GAMES } from '@/config/gameConstants'
 
 const STORAGE_KEY = 'mtg_commander_game_records'
 
@@ -8,7 +9,9 @@ function loadGameRecords(): GameRecord[] {
   const stored = localStorage.getItem(STORAGE_KEY)
   if (!stored) return []
   try {
-    return JSON.parse(stored) as GameRecord[]
+    const parsed = JSON.parse(stored)
+    if (!Array.isArray(parsed)) return []
+    return parsed as GameRecord[]
   } catch {
     return []
   }
@@ -91,7 +94,7 @@ export const useStatsStore = defineStore('stats', () => {
 
     return Array.from(gameMap.values())
       .sort((a, b) => b.playedAt - a.playedAt)
-      .slice(0, 10)
+      .slice(0, MAX_RECENT_GAMES)
   })
 
   return {

@@ -1,6 +1,6 @@
-import type { ScryfallCard, CardSearchResult } from '@/types/card'
+import type { ScryfallCard } from '@/types/card'
 import { getCachedScryfall, setCachedScryfall } from '@/services/persistence'
-import { autocompleteLocal, getCardByNameLocal, searchCardsLocal, type LocalCard } from '@/services/database'
+import { autocompleteLocal, getCardByNameLocal, type LocalCard } from '@/services/database'
 import { useOfflineStore } from '@/stores/offlineStore'
 
 const BASE_URL = 'https://api.scryfall.com'
@@ -28,7 +28,7 @@ async function throttledFetch(url: string): Promise<Response> {
     try {
       const response = await fetch(url, {
         headers: {
-          'User-Agent': 'MTGCommanderApp/1.0.0',
+          'User-Agent': `MTGCommanderApp/${import.meta.env.VITE_APP_VERSION ?? '1.0.0'}`,
           Accept: 'application/json',
         },
       })
@@ -124,49 +124,6 @@ export async function autocompleteCards(query: string): Promise<string[]> {
   }
 }
 
-export async function searchCards(
-  query: string,
-  commanderLegalOnly = true,
-): Promise<CardSearchResult> {
-  // Try local DB first
-  if (isOfflineAvailable()) {
-    try {
-      const localResults = await searchCardsLocal(query, 50, commanderLegalOnly)
-      if (localResults.length > 0) {
-        return {
-          total_cards: localResults.length,
-          has_more: false,
-          data: localResults.map(localCardToScryfallCard),
-        }
-      }
-    } catch {
-      // Fall through to API
-    }
-  }
-
-  const legalityFilter = commanderLegalOnly ? ' legal:commander' : ''
-  const fullQuery = `${query}${legalityFilter}`
-
-  const cacheKey = `search:${fullQuery.toLowerCase()}`
-  const cached = getCachedScryfall(cacheKey) as CardSearchResult | null
-  if (cached) return cached
-
-  try {
-    const encodedQuery = encodeURIComponent(fullQuery)
-    const response = await throttledFetch(`${BASE_URL}/cards/search?q=${encodedQuery}&unique=cards&order=name`)
-
-    if (!response.ok) {
-      return { total_cards: 0, has_more: false, data: [] }
-    }
-
-    const result: CardSearchResult = await response.json()
-    setCachedScryfall(cacheKey, result)
-    return result
-  } catch {
-    return { total_cards: 0, has_more: false, data: [] }
-  }
-}
-
 export async function getCardByName(name: string): Promise<ScryfallCard | null> {
   // Try local DB first
   if (isOfflineAvailable()) {
@@ -191,18 +148,6 @@ export async function getCardByName(name: string): Promise<ScryfallCard | null> 
     const card: ScryfallCard = await response.json()
     setCachedScryfall(cacheKey, card)
     return card
-  } catch {
-    return null
-  }
-}
-
-export async function getRandomCommander(): Promise<ScryfallCard | null> {
-  try {
-    const response = await throttledFetch(`${BASE_URL}/cards/random?q=is%3Acommander+legal%3Acommander`)
-
-    if (!response.ok) return null
-
-    return response.json()
   } catch {
     return null
   }

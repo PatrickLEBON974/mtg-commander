@@ -1,9 +1,23 @@
 import type { GameState, GameSettings } from '@/types/game'
+import { SCRYFALL_CACHE_MAX_ENTRIES } from '@/config/gameConstants'
 
 const GAME_STATE_KEY = 'mtg_commander_game_state'
 const SETTINGS_KEY = 'mtg_commander_settings'
 const SCRYFALL_CACHE_KEY = 'mtg_commander_scryfall_cache'
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
+
+/** Safe JSON parse from localStorage with fallback */
+export function readLocalStorageJson<T>(key: string, fallback: T): T {
+  const stored = localStorage.getItem(key)
+  if (!stored) return fallback
+  try {
+    const parsed = JSON.parse(stored)
+    if (parsed === null || parsed === undefined) return fallback
+    return parsed as T
+  } catch {
+    return fallback
+  }
+}
 
 export function saveGameState(gameState: GameState | null) {
   if (gameState) {
@@ -14,13 +28,7 @@ export function saveGameState(gameState: GameState | null) {
 }
 
 export function loadGameState(): GameState | null {
-  const stored = localStorage.getItem(GAME_STATE_KEY)
-  if (!stored) return null
-  try {
-    return JSON.parse(stored) as GameState
-  } catch {
-    return null
-  }
+  return readLocalStorageJson<GameState | null>(GAME_STATE_KEY, null)
 }
 
 export function saveSettings(settings: GameSettings) {
@@ -28,13 +36,7 @@ export function saveSettings(settings: GameSettings) {
 }
 
 export function loadSettings(): GameSettings | null {
-  const stored = localStorage.getItem(SETTINGS_KEY)
-  if (!stored) return null
-  try {
-    return JSON.parse(stored) as GameSettings
-  } catch {
-    return null
-  }
+  return readLocalStorageJson<GameSettings | null>(SETTINGS_KEY, null)
 }
 
 // App preferences (non-game settings)
@@ -57,13 +59,7 @@ export function savePreferences(preferences: AppPreferences) {
 }
 
 export function loadPreferences(): AppPreferences | null {
-  const stored = localStorage.getItem(PREFS_KEY)
-  if (!stored) return null
-  try {
-    return JSON.parse(stored) as AppPreferences
-  } catch {
-    return null
-  }
+  return readLocalStorageJson<AppPreferences | null>(PREFS_KEY, null)
 }
 
 // Scryfall response cache
@@ -73,30 +69,24 @@ interface CacheEntry {
 }
 
 export function getCachedScryfall(cacheKey: string): unknown | null {
-  try {
-    const cacheRaw = localStorage.getItem(SCRYFALL_CACHE_KEY)
-    if (!cacheRaw) return null
-    const cache: Record<string, CacheEntry> = JSON.parse(cacheRaw)
-    const entry = cache[cacheKey]
-    if (!entry) return null
-    if (Date.now() - entry.timestamp > CACHE_TTL_MS) return null
-    return entry.data
-  } catch {
-    return null
-  }
+  const cache = readLocalStorageJson<Record<string, CacheEntry> | null>(SCRYFALL_CACHE_KEY, null)
+  if (!cache) return null
+  const entry = cache[cacheKey]
+  if (!entry) return null
+  if (Date.now() - entry.timestamp > CACHE_TTL_MS) return null
+  return entry.data
 }
 
 export function setCachedScryfall(cacheKey: string, data: unknown) {
   try {
-    const cacheRaw = localStorage.getItem(SCRYFALL_CACHE_KEY)
-    const cache: Record<string, CacheEntry> = cacheRaw ? JSON.parse(cacheRaw) : {}
+    const cache = readLocalStorageJson<Record<string, CacheEntry>>(SCRYFALL_CACHE_KEY, {})
     cache[cacheKey] = { data, timestamp: Date.now() }
 
-    // Limit cache size to ~50 entries
+    // Limit cache size to configured max entries
     const keys = Object.keys(cache)
-    if (keys.length > 50) {
+    if (keys.length > SCRYFALL_CACHE_MAX_ENTRIES) {
       const oldest = keys.sort((a, b) => (cache[a]?.timestamp ?? 0) - (cache[b]?.timestamp ?? 0))
-      for (const key of oldest.slice(0, keys.length - 50)) {
+      for (const key of oldest.slice(0, keys.length - SCRYFALL_CACHE_MAX_ENTRIES)) {
         delete cache[key]
       }
     }

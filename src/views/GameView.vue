@@ -31,8 +31,9 @@
     </ion-header>
 
     <ion-content>
-      <div v-if="!gameStore.isGameActive" class="flex h-full items-center justify-center">
-        <div class="text-center">
+      <div v-if="!gameStore.isGameActive" class="flex h-full flex-col items-center justify-center gap-4">
+        <IllustrationEmptyGame :size="120" data-animate />
+        <div class="text-center" data-animate>
           <p class="text-text-secondary">{{ t('game.noActiveGame') }}</p>
           <ion-button class="mt-4" @click="router.push('/home')">
             {{ t('game.startGame') }}
@@ -42,7 +43,7 @@
 
       <div v-else class="flex h-full flex-col">
         <!-- Multiplayer indicator -->
-        <div v-if="multiplayerStore.isMultiplayer" class="flex items-center justify-center gap-2 bg-mana-blue/20 px-4 py-1">
+        <div v-if="multiplayerStore.isMultiplayer" class="flex items-center justify-center gap-2 bg-mana-blue/20 px-4 py-2">
           <div class="h-2 w-2 rounded-full bg-life-positive animate-pulse" />
           <span class="text-xs text-text-secondary">
             {{ t('game.roomStatus', { code: multiplayerStore.roomCode, count: multiplayerStore.connectedPlayerCount }) }}
@@ -53,7 +54,7 @@
         <GameTimer v-show="gameStore.settings.enableTimer" />
 
         <!-- Turn indicator -->
-        <div class="flex items-center justify-between px-4 py-1.5" role="status">
+        <div class="flex items-center justify-between px-4 py-2" role="status">
           <span class="text-xs text-text-secondary">
             {{ t('game.turn', { n: gameStore.currentGame?.turnNumber }) }}
           </span>
@@ -64,7 +65,7 @@
 
         <!-- Player grid -->
         <div
-          class="grid flex-1 gap-1.5 p-1.5"
+          class="grid flex-1 gap-2 p-2"
           :class="playerGridClass"
           :style="gridStyle"
         >
@@ -97,13 +98,13 @@
     />
 
     <!-- Layout picker modal -->
-    <ion-modal :is-open="showLayoutPicker" @didDismiss="showLayoutPicker = false" :initial-breakpoint="0.3" :breakpoints="[0, 0.3]">
+    <AppModal :is-open="showLayoutPicker" :initial-breakpoint="0.3" :breakpoints="[0, 0.3]" @close="showLayoutPicker = false">
       <div class="px-4 py-5">
         <h3 class="mb-4 text-center text-base font-semibold text-text-primary">{{ t('game.layoutTitle') }}</h3>
         <div class="flex flex-wrap justify-center gap-3">
           <!-- Default -->
           <button
-            class="flex flex-col items-center gap-2 rounded-xl px-4 py-3 btn-press"
+            class="flex flex-col items-center gap-2 rounded-xl px-4 py-3 card-lift"
             :class="settingsStore.layoutMode === 'default' ? 'bg-accent/20 ring-2 ring-accent' : 'bg-surface-card'"
             @click="selectLayoutMode('default')"
           >
@@ -120,7 +121,7 @@
 
           <!-- Face-to-face -->
           <button
-            class="flex flex-col items-center gap-2 rounded-xl px-4 py-3 btn-press"
+            class="flex flex-col items-center gap-2 rounded-xl px-4 py-3 card-lift"
             :class="settingsStore.layoutMode === 'faceToFace' ? 'bg-accent/20 ring-2 ring-accent' : 'bg-surface-card'"
             @click="selectLayoutMode('faceToFace')"
           >
@@ -138,7 +139,7 @@
 
           <!-- Face-to-face side -->
           <button
-            class="flex flex-col items-center gap-2 rounded-xl px-4 py-3 btn-press"
+            class="flex flex-col items-center gap-2 rounded-xl px-4 py-3 card-lift"
             :class="settingsStore.layoutMode === 'faceToFaceSide' ? 'bg-accent/20 ring-2 ring-accent' : 'bg-surface-card'"
             @click="selectLayoutMode('faceToFaceSide')"
           >
@@ -156,7 +157,7 @@
 
           <!-- Star -->
           <button
-            class="flex flex-col items-center gap-2 rounded-xl px-4 py-3 btn-press"
+            class="flex flex-col items-center gap-2 rounded-xl px-4 py-3 card-lift"
             :class="settingsStore.layoutMode === 'star' ? 'bg-accent/20 ring-2 ring-accent' : 'bg-surface-card'"
             @click="selectLayoutMode('star')"
           >
@@ -172,7 +173,7 @@
           </button>
         </div>
       </div>
-    </ion-modal>
+    </AppModal>
   </ion-page>
 </template>
 
@@ -189,7 +190,6 @@ import {
   IonButton,
   IonButtons,
   IonIcon,
-  IonModal,
   alertController,
   toastController,
 } from '@ionic/vue'
@@ -201,6 +201,8 @@ import type { LayoutMode } from '@/services/persistence'
 import LifeTracker from '@/components/life-tracker/LifeTracker.vue'
 import GameTimer from '@/components/game-timer/GameTimer.vue'
 import GameHistoryModal from '@/components/life-tracker/GameHistoryModal.vue'
+import AppModal from '@/components/ui/AppModal.vue'
+import IllustrationEmptyGame from '@/components/icons/illustrations/IllustrationEmptyGame.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -399,8 +401,7 @@ function handleUndo() {
 
 function handleRedo() {
   // Capture the action that will be redone (last in redoStack, before it's popped)
-  const redoStack = gameStore.redoStack
-  const actionToRedo = redoStack.length > 0 ? redoStack[redoStack.length - 1] : null
+  const actionToRedo = gameStore.nextRedoAction
 
   gameStore.redoLastAction()
 
@@ -415,9 +416,7 @@ function handleRedo() {
 
 function handleAdvanceTurn() {
   gameStore.advanceTurn()
-  if (multiplayerStore.isMultiplayer) {
-    multiplayerStore.pushTurnAdvance()
-  }
+  syncTurnAdvance()
 }
 
 async function confirmEndGame() {
@@ -454,10 +453,13 @@ function onPlayerStateChanged() {
   syncAfterAction()
 }
 
+function syncTurnAdvance() {
+  if (!multiplayerStore.isMultiplayer) return
+  multiplayerStore.pushTurnAdvance()
+  multiplayerStore.pushLocalPlayerState()
+}
+
 function onTurnAdvanced() {
-  if (multiplayerStore.isMultiplayer) {
-    multiplayerStore.pushTurnAdvance()
-  }
-  syncAfterAction()
+  syncTurnAdvance()
 }
 </script>

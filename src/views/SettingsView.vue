@@ -8,7 +8,7 @@
 
     <ion-content class="ion-padding">
       <!-- Offline Data Section -->
-      <ion-list :inset="true">
+      <ion-list :inset="true" data-animate>
         <ion-list-header>
           <ion-label>{{ t('settings.offlineData') }}</ion-label>
         </ion-list-header>
@@ -119,7 +119,7 @@
       </ion-list>
 
       <!-- Game Section -->
-      <ion-list :inset="true">
+      <ion-list :inset="true" data-animate>
         <ion-list-header>
           <ion-label>{{ t('settings.gameSection') }}</ion-label>
         </ion-list-header>
@@ -132,7 +132,7 @@
           <SettingStepper
             slot="end"
             v-model="settingsStore.gameSettings.playerCount"
-            :options="playerCountOptions"
+            :options="PLAYER_COUNT_OPTIONS"
             :label="t('common.players')"
           />
         </ion-item>
@@ -145,14 +145,14 @@
           <SettingStepper
             slot="end"
             v-model="settingsStore.gameSettings.startingLife"
-            :options="startingLifeOptions"
+            :options="STARTING_LIFE_OPTIONS"
             :label="t('common.life')"
           />
         </ion-item>
       </ion-list>
 
       <!-- Rules Section -->
-      <ion-list :inset="true">
+      <ion-list :inset="true" data-animate>
         <ion-list-header>
           <ion-label>{{ t('settings.rules') }}</ion-label>
         </ion-list-header>
@@ -185,7 +185,7 @@
       </ion-list>
 
       <!-- App Section -->
-      <ion-list :inset="true">
+      <ion-list :inset="true" data-animate>
         <ion-list-header>
           <ion-label>{{ t('settings.application') }}</ion-label>
         </ion-list-header>
@@ -284,32 +284,30 @@ import {
 import { computed } from 'vue'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useOfflineStore } from '@/stores/offlineStore'
+import { usePageEnterAnimation } from '@/composables/usePageEnterAnimation'
+import { toLocaleCode } from '@/utils/i18nHelpers'
+import { PLAYER_COUNT_OPTIONS, STARTING_LIFE_OPTIONS } from '@/config/gameConstants'
 import SettingStepper from '@/components/ui/SettingStepper.vue'
 
 const { t, locale } = useI18n()
 const settingsStore = useSettingsStore()
 const offlineStore = useOfflineStore()
 
-const currentLocaleCode = computed(() => locale.value === 'en' ? 'en-US' : 'fr-FR')
+usePageEnterAnimation()
 
-const playerCountOptions = [2, 3, 4, 5, 6].map((v) => ({ value: v, label: String(v) }))
-const startingLifeOptions = [
-  { value: 20, label: '20' },
-  { value: 25, label: '25' },
-  { value: 30, label: '30' },
-  { value: 40, label: '40' },
-]
-const commanderDamageOptions = [
-  { value: 0, label: 'Off' },
+const currentLocaleCode = computed(() => toLocaleCode(locale.value as 'en' | 'fr'))
+
+const commanderDamageOptions = computed(() => [
+  { value: 0, label: t('common.off') },
   { value: 21, label: '21' },
-]
-const poisonOptions = [
-  { value: 0, label: 'Off' },
+])
+const poisonOptions = computed(() => [
+  { value: 0, label: t('common.off') },
   { value: 5, label: '5' },
   { value: 10, label: '10' },
   { value: 15, label: '15' },
   { value: 20, label: '20' },
-]
+])
 
 const LANGUAGE_LABELS: Record<string, string> = {
   fr: 'Francais', de: 'Deutsch', es: 'Espanol', it: 'Italiano',

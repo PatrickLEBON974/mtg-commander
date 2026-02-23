@@ -13,6 +13,7 @@ import {
   type Database,
 } from 'firebase/database'
 import i18n from '@/i18n'
+import { MAX_ROOM_CODE_ATTEMPTS, ROOM_CODE_LENGTH } from '@/config/gameConstants'
 
 export type Unsubscribe = () => void
 
@@ -50,7 +51,7 @@ export async function initFirebase(): Promise<Database> {
   if (database) return database
 
   if (!firebaseConfig.databaseURL) {
-    throw new Error('Firebase non configure. Ajoutez les variables VITE_FIREBASE_* dans .env')
+    throw new Error(i18n.global.t('errors.firebaseNotConfigured'))
   }
 
   firebaseApp = initializeApp(firebaseConfig)
@@ -73,7 +74,7 @@ export async function getDb(): Promise<Database> {
 
 function generateRoomCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
-  const randomValues = crypto.getRandomValues(new Uint8Array(6))
+  const randomValues = crypto.getRandomValues(new Uint8Array(ROOM_CODE_LENGTH))
   return Array.from(randomValues, (byte) => chars[byte % chars.length]).join('')
 }
 
@@ -120,6 +121,7 @@ export interface SyncedPlayerState {
   isMonarch: boolean
   hasInitiative: boolean
   commanders: Array<{
+    id?: string
     cardName: string
     imageUri?: string
     castCount: number
@@ -143,7 +145,7 @@ export async function createRoom(
 
   cleanupExpiredRooms().catch(() => {}) // Best-effort cleanup
 
-  for (let attempt = 0; attempt < 5; attempt++) {
+  for (let attempt = 0; attempt < MAX_ROOM_CODE_ATTEMPTS; attempt++) {
     const code = generateRoomCode()
     const roomRef = dbRef(db, `rooms/${code}`)
 

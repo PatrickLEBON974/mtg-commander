@@ -12,59 +12,68 @@
       </div>
     </div>
 
-    <ion-tab-bar>
-      <ion-tab-button
+    <div class="custom-tab-bar" ref="tabBarRef">
+      <button
         v-for="(tab, index) in TABS"
         :key="tab.path"
-        :tab="tab.name"
-        :selected="currentIndex === index"
+        :ref="(el) => tabButtonRefs[index] = el as HTMLElement"
+        class="custom-tab-button"
+        :class="{ 'tab-selected': currentIndex === index }"
         @click="goToTab(index)"
       >
-        <ion-icon :icon="tab.icon" />
+        <component :is="tab.iconComponent" :size="22" />
         <ion-label>{{ t(tab.labelKey) }}</ion-label>
-      </ion-tab-button>
-    </ion-tab-bar>
+      </button>
+      <!-- Sliding gold indicator -->
+      <div class="tab-indicator" :style="indicatorStyle" />
+    </div>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, type Component } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   IonPage,
-  IonTabBar,
-  IonTabButton,
-  IonIcon,
   IonLabel,
   createGesture,
 } from '@ionic/vue'
 import type { GestureDetail } from '@ionic/vue'
-import {
-  homeOutline,
-  heartOutline,
-  searchOutline,
-  statsChartOutline,
-  settingsOutline,
-} from 'ionicons/icons'
+import gsap from 'gsap'
 
 import { isDragLocked } from '@/composables/useDragLock'
+import { prefersReducedMotion } from '@/utils/motion'
 import HomeView from '@/views/HomeView.vue'
 import GameView from '@/views/GameView.vue'
 import CardSearchView from '@/views/CardSearchView.vue'
 import StatsView from '@/views/StatsView.vue'
 import SettingsView from '@/views/SettingsView.vue'
 
+import IconHome from '@/components/icons/nav/IconHome.vue'
+import IconSwords from '@/components/icons/nav/IconSwords.vue'
+import IconSearch from '@/components/icons/nav/IconSearch.vue'
+import IconScroll from '@/components/icons/nav/IconScroll.vue'
+import IconGear from '@/components/icons/nav/IconGear.vue'
+
 const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 
-const TABS = [
-  { name: 'home', path: '/home', icon: homeOutline, labelKey: 'tabs.home', component: HomeView },
-  { name: 'game', path: '/game', icon: heartOutline, labelKey: 'tabs.game', component: GameView },
-  { name: 'search', path: '/search', icon: searchOutline, labelKey: 'tabs.cards', component: CardSearchView },
-  { name: 'stats', path: '/stats', icon: statsChartOutline, labelKey: 'tabs.stats', component: StatsView },
-  { name: 'settings', path: '/settings', icon: settingsOutline, labelKey: 'tabs.settings', component: SettingsView },
+interface TabDef {
+  name: string
+  path: string
+  iconComponent: Component
+  labelKey: string
+  component: Component
+}
+
+const TABS: TabDef[] = [
+  { name: 'home', path: '/home', iconComponent: IconHome, labelKey: 'tabs.home', component: HomeView },
+  { name: 'game', path: '/game', iconComponent: IconSwords, labelKey: 'tabs.game', component: GameView },
+  { name: 'search', path: '/search', iconComponent: IconSearch, labelKey: 'tabs.cards', component: CardSearchView },
+  { name: 'stats', path: '/stats', iconComponent: IconScroll, labelKey: 'tabs.stats', component: StatsView },
+  { name: 'settings', path: '/settings', iconComponent: IconGear, labelKey: 'tabs.settings', component: SettingsView },
 ]
 
 // Build path → index lookup
@@ -73,6 +82,8 @@ TABS.forEach((tab, index) => { pathToIndex[tab.path] = index })
 
 const viewportRef = ref<HTMLElement>()
 const trackRef = ref<HTMLElement>()
+const tabBarRef = ref<HTMLElement>()
+const tabButtonRefs = ref<(HTMLElement | null)[]>(new Array(TABS.length).fill(null))
 const currentIndex = ref(pathToIndex[route.path] ?? 0)
 const dragOffset = ref(0)
 const isAnimating = ref(false)
@@ -96,6 +107,57 @@ const trackStyle = computed(() => {
   return {
     transform: `translate3d(${totalOffset}px, 0, 0)`,
     transition: isAnimating.value ? 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+  }
+})
+
+// --- Sliding indicator ---
+
+const indicatorStyle = computed(() => {
+  const buttonEl = tabButtonRefs.value[currentIndex.value]
+  if (!buttonEl || !tabBarRef.value) {
+    const tabWidth = 100 / TABS.length
+    return {
+      left: `${currentIndex.value * tabWidth}%`,
+      width: `${tabWidth}%`,
+    }
+  }
+  return {
+    left: `${buttonEl.offsetLeft}px`,
+    width: `${buttonEl.offsetWidth}px`,
+  }
+})
+
+// --- Tab icon animation ---
+
+watch(currentIndex, (newIndex, oldIndex) => {
+  if (prefersReducedMotion.value) return
+
+  // Shrink old tab icon
+  const oldButton = tabButtonRefs.value[oldIndex]
+  if (oldButton) {
+    gsap.to(oldButton.querySelector('svg'), {
+      scale: 0.85,
+      opacity: 0.5,
+      duration: 0.15,
+      ease: 'power2.out',
+    })
+    gsap.to(oldButton.querySelector('svg'), {
+      scale: 1,
+      opacity: 1,
+      duration: 0.15,
+      delay: 0.15,
+      ease: 'power2.out',
+    })
+  }
+
+  // Grow new tab icon
+  const newButton = tabButtonRefs.value[newIndex]
+  if (newButton) {
+    gsap.fromTo(
+      newButton.querySelector('svg'),
+      { scale: 0.85, opacity: 0.5 },
+      { scale: 1, opacity: 1, duration: 0.25, delay: 0.1, ease: 'elastic.out(1, 0.6)' },
+    )
   }
 })
 
@@ -239,5 +301,47 @@ onUnmounted(() => {
   height: 100%;
   position: relative;
   overflow: hidden;
+}
+
+.custom-tab-bar {
+  display: flex;
+  position: relative;
+  background: var(--ion-tab-bar-background, #0d1220);
+  height: calc(48px + var(--ion-safe-area-bottom, 0px));
+  padding-bottom: var(--ion-safe-area-bottom, 0px);
+  border-top: 1px solid rgba(212, 168, 67, 0.12);
+  flex-shrink: 0;
+}
+
+.custom-tab-button {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  background: none;
+  border: none;
+  color: var(--ion-tab-bar-color, #5a6280);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: var(--spacing-xs) 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 150ms ease;
+}
+
+.custom-tab-button :deep(svg) {
+  transition: filter 200ms ease;
+}
+
+.custom-tab-button.tab-selected {
+  color: var(--ion-tab-bar-color-selected, #e8600a);
+}
+
+.custom-tab-button.tab-selected :deep(svg) {
+  filter: drop-shadow(0 0 8px rgba(232, 96, 10, 0.5));
 }
 </style>

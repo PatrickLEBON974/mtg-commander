@@ -1,43 +1,25 @@
 <template>
-  <ion-modal :is-open="isOpen" @didDismiss="$emit('close')">
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>{{ t('history.title') }}</ion-title>
-        <ion-buttons slot="end">
-          <ion-button @click="$emit('close')">{{ t('common.close') }}</ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
+  <AppModal :is-open="isOpen" :title="t('history.title')" @close="$emit('close')">
+    <ion-list v-if="reversedHistory.length > 0">
+      <ion-item v-for="action in reversedHistory" :key="action.id">
+        <ion-icon :icon="actionIcon(action.type)" slot="start" :color="actionColor(action.type)" />
+        <ion-label>
+          <h3>{{ action.description }}</h3>
+          <p>{{ formatRelativeTime(action.timestamp, gameStore.currentGame?.startedAt ?? action.timestamp) }}</p>
+        </ion-label>
+      </ion-item>
+    </ion-list>
 
-    <ion-content>
-      <ion-list v-if="reversedHistory.length > 0">
-        <ion-item v-for="action in reversedHistory" :key="action.id">
-          <ion-icon :icon="actionIcon(action.type)" slot="start" :color="actionColor(action.type)" />
-          <ion-label>
-            <h3>{{ action.description }}</h3>
-            <p>{{ formatTime(action.timestamp) }}</p>
-          </ion-label>
-        </ion-item>
-      </ion-list>
-
-      <div v-else class="flex h-full items-center justify-center">
-        <p class="text-text-secondary">{{ t('history.noActions') }}</p>
-      </div>
-    </ion-content>
-  </ion-modal>
+    <div v-else class="flex h-full items-center justify-center">
+      <p class="text-text-secondary">{{ t('history.noActions') }}</p>
+    </div>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
-  IonModal,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonButton,
-  IonContent,
   IonList,
   IonItem,
   IonLabel,
@@ -53,7 +35,9 @@ import {
   ribbonOutline,
 } from 'ionicons/icons'
 import { useGameStore } from '@/stores/gameStore'
+import { formatRelativeTime } from '@/utils/time'
 import type { GameActionType } from '@/types/game'
+import AppModal from '@/components/ui/AppModal.vue'
 
 defineProps<{
   isOpen: boolean
@@ -100,11 +84,4 @@ function actionColor(type: GameActionType): string {
   return colorMap[type] ?? 'medium'
 }
 
-function formatTime(timestamp: number): string {
-  const startedAt = gameStore.currentGame?.startedAt ?? timestamp
-  const elapsedSeconds = Math.floor((timestamp - startedAt) / 1000)
-  const minutes = Math.floor(elapsedSeconds / 60)
-  const seconds = elapsedSeconds % 60
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-}
 </script>

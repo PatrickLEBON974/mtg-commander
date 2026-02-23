@@ -10,6 +10,8 @@ export default {
     life: 'life',
     decrease: 'Decrease {label}',
     increase: 'Increase {label}',
+    off: 'Off',
+    remove: 'Remove',
   },
   tabs: {
     home: 'Home',
@@ -39,10 +41,9 @@ export default {
     startGame: 'Start a game',
     roomStatus: 'Room {code} — {count} connected',
     turn: 'Turn {n}',
-    connected: 'connected',
     deathLife: 'DEAD',
     deathPoison: 'POISON',
-    deathCommander: 'CMD 21',
+    deathCommander: 'CMD {threshold}',
     pause: 'Pause',
     resume: 'Resume',
     defaultPlayerName: 'Player {index}',
@@ -145,6 +146,7 @@ export default {
     autoFilter: 'Auto filter: Commander legal',
     localCards: '{count} cards locally',
     apiMode: 'API mode (download in Settings)',
+    commanderLegality: 'Commander',
   },
   stats: {
     title: 'Statistics',
@@ -179,7 +181,6 @@ export default {
   commanderDamage: {
     title: 'Commander damage',
     whoAttacks: 'Who attacks?',
-    noCommanders: 'No player has a commander assigned',
     whichCommander: 'Which commander?',
     dealsTo: 'deals to {target}',
     currentDamage: 'Current damage: {current} / {threshold}',
@@ -224,5 +225,8 @@ export default {
     poison: 'Poison: {count}. Tap +1, long press -1',
     commanderDamage: 'Commander damage: {damage}',
     playerEliminated: '{name} eliminated: {reason}',
+  },
+  errors: {
+    firebaseNotConfigured: 'Firebase not configured. Add VITE_FIREBASE_* variables to .env',
   },
 }

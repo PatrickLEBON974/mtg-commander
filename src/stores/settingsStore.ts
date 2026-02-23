@@ -76,7 +76,6 @@ export const useSettingsStore = defineStore('settings', () => {
     cardSecondLanguage,
     layoutMode,
     cardLanguages,
-    updateGameSettings,
     resetToDefaults,
   }
 })

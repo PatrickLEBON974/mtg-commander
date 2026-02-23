@@ -16,6 +16,8 @@ import {
 } from '@/services/firebase'
 import { useGameStore } from './gameStore'
 import type { PlayerState } from '@/types/game'
+import { EMPTY_PLAYER_COUNTERS } from '@/types/game'
+import { MULTIPLAYER_PUSH_DEBOUNCE_MS, PLAYER_NAME_MAX_LENGTH } from '@/config/gameConstants'
 import i18n from '@/i18n'
 
 export const useMultiplayerStore = defineStore('multiplayer', () => {
@@ -166,14 +168,14 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
       }
 
       // For remote players, accept full state from remote (their device is source of truth)
-      player.lifeTotal = remotePlayer.lifeTotal
+      player.lifeTotal = Number.isFinite(remotePlayer.lifeTotal) ? remotePlayer.lifeTotal : player.lifeTotal
       player.commanderDamageReceived = remotePlayer.commanderDamageReceived
-      player.poisonCounters = remotePlayer.poisonCounters
-      player.experienceCounters = remotePlayer.experienceCounters
-      player.energyCounters = remotePlayer.energyCounters
+      player.poisonCounters = Number.isFinite(remotePlayer.poisonCounters) ? Math.max(0, remotePlayer.poisonCounters) : player.poisonCounters
+      player.experienceCounters = Number.isFinite(remotePlayer.experienceCounters) ? Math.max(0, remotePlayer.experienceCounters) : player.experienceCounters
+      player.energyCounters = Number.isFinite(remotePlayer.energyCounters) ? Math.max(0, remotePlayer.energyCounters) : player.energyCounters
       player.isMonarch = remotePlayer.isMonarch
       player.hasInitiative = remotePlayer.hasInitiative
-      player.commanders = remotePlayer.commanders.map((commander: any) => ({
+      player.commanders = remotePlayer.commanders.map((commander) => ({
         ...commander,
         id: commander.id || crypto.randomUUID(),
       }))
@@ -188,7 +190,7 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
       doPushLocalPlayerState().catch((error) => {
         console.error('[Multiplayer] Failed to push local player state:', error)
       })
-    }, 300)
+    }, MULTIPLAYER_PUSH_DEBOUNCE_MS)
   }
 
   async function doPushLocalPlayerState() {
@@ -269,16 +271,10 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
     const players = Object.values(roomData.value.players)
     return players.map((roomPlayer) => ({
       id: roomPlayer.id,
-      name: roomPlayer.name,
+      name: roomPlayer.name.slice(0, PLAYER_NAME_MAX_LENGTH),
       color: roomPlayer.color as PlayerState['color'],
       lifeTotal: roomData.value!.settings.startingLife,
-      commanders: [],
-      commanderDamageReceived: {},
-      poisonCounters: 0,
-      experienceCounters: 0,
-      energyCounters: 0,
-      isMonarch: false,
-      hasInitiative: false,
+      ...EMPTY_PLAYER_COUNTERS,
     }))
   }
 
@@ -312,7 +308,6 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
   return {
     isMultiplayer,
     roomCode,
-    deviceId,
     localPlayerIds,
     isHost,
     roomData,

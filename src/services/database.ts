@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core'
 import { CapacitorSQLite, SQLiteConnection, type SQLiteDBConnection } from '@capacitor-community/sqlite'
+import { LOCAL_SEARCH_LIMIT } from '@/config/gameConstants'
 
 const DB_NAME = 'mtg_cards'
 const DB_VERSION = 1
@@ -8,6 +9,8 @@ let sqliteConnection: SQLiteConnection | null = null
 let database: SQLiteDBConnection | null = null
 let initialized = false
 let ftsAvailable = false
+
+const JEEP_SQLITE_INIT_TIMEOUT_MS = 5000
 
 const CREATE_CARDS_TABLE = `
   CREATE TABLE IF NOT EXISTS cards (
@@ -84,7 +87,7 @@ export async function initDatabase(): Promise<void> {
     await Promise.race([
       customElements.whenDefined('jeep-sqlite'),
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('jeep-sqlite web component timeout (5s)')), 5000),
+        setTimeout(() => reject(new Error(`jeep-sqlite web component timeout (${JEEP_SQLITE_INIT_TIMEOUT_MS}ms)`)), JEEP_SQLITE_INIT_TIMEOUT_MS),
       ),
     ])
     await sqliteConnection.initWebStore()
@@ -159,45 +162,40 @@ export async function setMeta(key: string, value: string): Promise<void> {
 
 export async function searchCardsLocal(
   query: string,
-  limit = 20,
+  limit = LOCAL_SEARCH_LIMIT,
   commanderOnly = true,
 ): Promise<LocalCard[]> {
   if (query.length < 2) return []
 
   const db = await getDb()
-  const legalityFilter = commanderOnly ? 'AND c.commander_legal = 1' : ''
 
   if (ftsAvailable) {
     const sanitized = query.replace(/[^\w\s]/g, '').trim()
     if (!sanitized) return []
     const ftsQuery = `"${sanitized}"*`
-    const result = await db.query(
-      `SELECT c.* FROM cards c
+    const ftsBaseQuery = `SELECT c.* FROM cards c
        WHERE c.rowid IN (
          SELECT rowid FROM cards_fts WHERE cards_fts MATCH ?
-       )
-       ${legalityFilter}
-       ORDER BY c.name
-       LIMIT ?;`,
-      [ftsQuery, limit],
-    )
+       ) `
+    const ftsFullQuery = commanderOnly
+      ? ftsBaseQuery + `AND c.commander_legal = 1 ORDER BY c.name LIMIT ?;`
+      : ftsBaseQuery + `ORDER BY c.name LIMIT ?;`
+    const result = await db.query(ftsFullQuery, [ftsQuery, limit])
     return (result.values ?? []) as LocalCard[]
   }
 
   // LIKE fallback when FTS5 is not available (web/sql.js)
   const likePattern = `%${query}%`
-  const result = await db.query(
-    `SELECT * FROM cards c
-     WHERE (c.name LIKE ? OR c.printed_name LIKE ? OR c.type_line LIKE ? OR c.oracle_text LIKE ?)
-     ${legalityFilter}
-     ORDER BY c.name
-     LIMIT ?;`,
-    [likePattern, likePattern, likePattern, likePattern, limit],
-  )
+  const likeBaseQuery = `SELECT * FROM cards c
+     WHERE (c.name LIKE ? OR c.printed_name LIKE ? OR c.type_line LIKE ? OR c.oracle_text LIKE ?) `
+  const likeFullQuery = commanderOnly
+    ? likeBaseQuery + `AND c.commander_legal = 1 ORDER BY c.name LIMIT ?;`
+    : likeBaseQuery + `ORDER BY c.name LIMIT ?;`
+  const result = await db.query(likeFullQuery, [likePattern, likePattern, likePattern, likePattern, limit])
   return (result.values ?? []) as LocalCard[]
 }
 
-export async function autocompleteLocal(query: string, limit = 20): Promise<string[]> {
+export async function autocompleteLocal(query: string, limit = LOCAL_SEARCH_LIMIT): Promise<string[]> {
   if (query.length < 2) return []
 
   const db = await getDb()
@@ -262,7 +260,7 @@ export async function bulkInsertCards(
   const db = await getDb()
 
   const BATCH_SIZE = 500
-  const SAVE_INTERVAL = 5000
+  const RECORDS_PER_SAVE_CHECKPOINT = 5000
   let totalInserted = 0
 
   try {
@@ -327,7 +325,7 @@ export async function bulkInsertCards(
       totalInserted += batch.length
 
       // Persist to web store periodically to prevent data loss if the tab closes
-      if (totalInserted % SAVE_INTERVAL < BATCH_SIZE) {
+      if (totalInserted % RECORDS_PER_SAVE_CHECKPOINT < BATCH_SIZE) {
         await saveIfWeb()
       }
 

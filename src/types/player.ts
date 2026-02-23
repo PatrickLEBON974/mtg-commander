@@ -1,10 +1,3 @@
-export interface PlayerProfile {
-  id: string
-  name: string
-  avatarUrl?: string
-  createdAt: number
-}
-
 export interface GameRecord {
   id: string
   gameId: string
@@ -16,13 +9,4 @@ export interface GameRecord {
   turnsPlayed: number
   gameDurationMs: number
   playedAt: number
-}
-
-export interface PlayerStats {
-  totalGames: number
-  wins: number
-  losses: number
-  winRate: number
-  averageGameDurationMs: number
-  favoriteCommanders: string[]
 }

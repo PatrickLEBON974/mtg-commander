@@ -1,11 +1,17 @@
 <template>
   <div
-    class="relative flex flex-col items-center justify-between overflow-hidden rounded-2xl border-2 p-2"
+    ref="panelRef"
+    class="floating-number-container relative flex flex-col items-center justify-between gap-1 overflow-hidden rounded-2xl border-2 p-3"
     :class="[
       playerBgClass,
       turnBorderClass,
+      dangerPulseClass,
     ]"
   >
+    <!-- Corner accents -->
+    <CornerAccent position="top-left" />
+    <CornerAccent position="top-right" />
+
     <!-- Life flash overlay -->
     <div
       v-if="flashType"
@@ -29,7 +35,7 @@
     </button>
 
     <!-- Player timers -->
-    <div class="flex items-center justify-center gap-1.5 font-mono text-[10px] tabular-nums">
+    <div class="flex items-center justify-center gap-2 font-mono text-[10px] tabular-nums">
       <span class="text-white/40" :title="t('game.totalPlayTime')">{{ formattedPlayerTotalTime }}</span>
       <span class="text-white/20">&middot;</span>
       <span
@@ -81,9 +87,9 @@
     </div>
 
     <!-- Quick increment row -->
-    <div class="flex gap-1">
+    <div class="flex gap-2">
       <button
-        v-for="amount in [-10, -5, 5, 10]"
+        v-for="amount in QUICK_LIFE_INCREMENT_OPTIONS"
         :key="amount"
         class="min-h-[36px] min-w-[40px] rounded px-2 py-1 text-[11px] font-medium btn-press"
         :class="amount < 0 ? 'bg-life-negative/15 text-life-negative' : 'bg-life-positive/15 text-life-positive'"
@@ -94,7 +100,7 @@
     </div>
 
     <!-- Counters row -->
-    <div class="flex flex-wrap justify-center gap-1.5">
+    <div class="flex flex-wrap justify-center gap-2">
       <!-- Poison -->
       <button
         class="flex min-h-[44px] min-w-[44px] items-center justify-center gap-0.5 rounded-full px-2 py-1 btn-press"
@@ -106,8 +112,9 @@
         @touchend.passive="cancelPoisonLongPress"
         @touchcancel.passive="cancelPoisonLongPress"
       >
+        <IconPoison :size="14" class="shrink-0" :class="player.poisonCounters > 0 ? 'text-poison' : 'text-white/40'" />
         <span class="text-xs" :class="player.poisonCounters > 0 ? 'text-poison font-bold' : 'text-white/50'">
-          {{ player.poisonCounters }}P
+          {{ player.poisonCounters }}
         </span>
       </button>
 
@@ -123,55 +130,61 @@
         @touchend.passive="onCommanderTouchEnd"
         @touchcancel.passive="onCommanderTouchCancel"
       >
+        <IconSwordSingle :size="14" class="shrink-0" :class="totalCommanderDamage > 0 ? 'text-commander-damage' : 'text-white/40'" />
         <span class="text-xs" :class="totalCommanderDamage > 0 ? 'text-commander-damage font-bold' : 'text-white/50'">
-          {{ totalCommanderDamage }}C
+          {{ totalCommanderDamage }}
         </span>
       </button>
 
       <!-- Experience (visible if > 0) -->
       <button
         v-if="player.experienceCounters > 0"
-        class="flex min-h-[32px] items-center gap-0.5 rounded-full bg-blue-500/20 px-2 py-1 btn-press"
+        class="flex min-h-[32px] items-center gap-0.5 rounded-full bg-arena-blue/20 px-2 py-1 btn-press"
         @click="showDetail = true"
       >
-        <span class="text-xs font-bold text-blue-400">{{ player.experienceCounters }}E</span>
+        <IconExperience :size="12" class="text-arena-blue" />
+        <span class="text-xs font-bold text-arena-blue">{{ player.experienceCounters }}</span>
       </button>
 
       <!-- Energy (visible if > 0) -->
       <button
         v-if="player.energyCounters > 0"
-        class="flex min-h-[32px] items-center gap-0.5 rounded-full bg-yellow-500/20 px-2 py-1 btn-press"
+        class="flex min-h-[32px] items-center gap-0.5 rounded-full bg-arena-gold/20 px-2 py-1 btn-press"
         @click="showDetail = true"
       >
-        <span class="text-xs font-bold text-yellow-400">{{ player.energyCounters }}N</span>
+        <IconEnergy :size="12" class="text-arena-gold" />
+        <span class="text-xs font-bold text-arena-gold">{{ player.energyCounters }}</span>
       </button>
 
       <!-- Monarch indicator -->
-      <span v-if="player.isMonarch" class="rounded-full bg-mana-gold/40 px-2 py-0.5 text-xs font-bold text-arena-gold-light shadow-glow-gold">
-        M
+      <span v-if="player.isMonarch" class="flex items-center gap-1 rounded-full bg-mana-gold/40 px-2 py-0.5 shadow-glow-gold glow-breathe" style="--glow-color: rgba(212, 168, 67, 0.4)">
+        <IconCrown :size="14" color="#f0d078" />
+        <span class="text-xs font-bold text-arena-gold-light">M</span>
       </span>
 
       <!-- Initiative indicator -->
-      <span v-if="player.hasInitiative" class="rounded-full bg-white/10 px-2 py-0.5 text-xs font-bold text-white/80">
-        I
+      <span v-if="player.hasInitiative" class="flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5">
+        <IconShield :size="14" />
+        <span class="text-xs font-bold text-white/80">I</span>
       </span>
 
       <!-- Commander tax -->
       <span
         v-for="(commander, commanderIndex) in player.commanders"
         :key="commanderIndex"
-        class="rounded-full bg-white/5 px-2 py-0.5 text-xs text-white/50"
+        class="flex items-center gap-0.5 rounded-full bg-white/5 px-2 py-0.5 text-xs text-white/50"
       >
+        <IconMana :size="10" />
         T{{ gameStore.getCommanderTax(player, commanderIndex) }}
       </span>
     </div>
 
     <!-- Turn / Priority action buttons -->
-    <div class="flex justify-center gap-1.5">
+    <div class="flex justify-center gap-2">
       <button
         v-if="showEndTurnButton"
         class="min-h-[32px] rounded-full bg-white/10 px-3 py-1 text-[11px] font-medium text-white/70 btn-press"
-        @click="handleEndTurn"
+        @click="handleAdvanceTurn"
       >
         {{ t('game.endTurn') }}
       </button>
@@ -179,14 +192,14 @@
       <button
         v-if="showStartTurnButton"
         class="min-h-[32px] rounded-full bg-life-positive/15 px-3 py-1 text-[11px] font-medium text-life-positive btn-press"
-        @click="handleStartTurn"
+        @click="handleAdvanceTurn"
       >
         {{ t('game.startTurn') }}
       </button>
 
       <button
         v-if="showRespondButton"
-        class="min-h-[32px] rounded-full bg-mana-blue/20 px-3 py-1 text-[11px] font-medium text-blue-400 btn-press"
+        class="min-h-[32px] rounded-full bg-mana-blue/20 px-3 py-1 text-[11px] font-medium text-arena-blue btn-press"
         @click="handleRespond"
       >
         {{ t('game.respond') }}
@@ -205,10 +218,11 @@
     <Transition name="death-overlay">
       <div
         v-if="deathReason"
-        class="absolute inset-0 z-20 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+        class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-black/70 backdrop-blur-sm"
         role="alert"
         :aria-label="t('aria.playerEliminated', { name: player.name, reason: deathReason })"
       >
+        <IconSkull :size="48" class="text-life-negative drop-shadow-lg" />
         <span class="text-lg font-bold text-life-negative drop-shadow-lg">{{ deathReason }}</span>
       </div>
     </Transition>
@@ -238,10 +252,22 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { isDragLocked } from '@/composables/useDragLock'
 import { tapFeedback, lifeFeedback, heavyFeedback, warningFeedback } from '@/services/haptics'
 import { playLifeChange, playLargeLifeChange, playPoisonChange, playPlayerDeath, playMonarchCrown } from '@/services/sounds'
+import { formatMsToTimer } from '@/utils/time'
+import { LOW_LIFE_WARNING_THRESHOLD, LARGE_LIFE_CHANGE_THRESHOLD, LONG_PRESS_DURATION_MS, FLOAT_ANIMATION_DELAY_MS, QUICK_LIFE_INCREMENT_OPTIONS, MAX_COMMANDERS_PER_PLAYER } from '@/config/gameConstants'
 import { useAnimatedNumber } from '@/composables/useAnimatedNumber'
 import { useCelebration } from '@/composables/useCelebration'
+import { useFloatingNumbers } from '@/composables/useFloatingNumbers'
 import PlayerDetailModal from './PlayerDetailModal.vue'
 import CommanderDamageModal from './CommanderDamageModal.vue'
+import CornerAccent from '@/components/icons/decorative/CornerAccent.vue'
+import IconPoison from '@/components/icons/game/IconPoison.vue'
+import IconSwordSingle from '@/components/icons/game/IconSwordSingle.vue'
+import IconExperience from '@/components/icons/game/IconExperience.vue'
+import IconEnergy from '@/components/icons/game/IconEnergy.vue'
+import IconCrown from '@/components/icons/game/IconCrown.vue'
+import IconShield from '@/components/icons/game/IconShield.vue'
+import IconMana from '@/components/icons/game/IconMana.vue'
+import IconSkull from '@/components/icons/game/IconSkull.vue'
 
 const props = defineProps<{
   player: PlayerState
@@ -259,17 +285,29 @@ const { t } = useI18n()
 const gameStore = useGameStore()
 const settingsStore = useSettingsStore()
 
+const panelRef = ref<HTMLElement>()
 const showDetail = ref(false)
 const showCommanderDamage = ref(false)
 const flashType = ref<'positive' | 'negative' | null>(null)
 
 const { monarchCrown, playerEliminated } = useCelebration()
 
+const { addFloat } = useFloatingNumbers({
+  containerRef: () => panelRef.value,
+})
+
 const animatedLife = useAnimatedNumber(() => props.player.lifeTotal)
 
 const totalCommanderDamage = computed(() =>
   Object.values(props.player.commanderDamageReceived).reduce((sum, damage) => sum + damage, 0),
 )
+
+// Low-life danger pulse
+const dangerPulseClass = computed(() => {
+  if (props.player.lifeTotal <= 0) return ''
+  if (props.player.lifeTotal <= LOW_LIFE_WARNING_THRESHOLD) return 'danger-pulse'
+  return ''
+})
 
 // Per-player time tracking
 const playerTotalPlayTimeMs = computed(() =>
@@ -280,19 +318,8 @@ const playerTurnTimeMs = computed(() =>
   gameStore.currentGame?.playerTurnTimeMs?.[props.player.id] ?? 0,
 )
 
-function formatTimeMs(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000)
-  const hours = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const seconds = totalSeconds % 60
-  const minutesPadded = String(minutes).padStart(2, '0')
-  const secondsPadded = String(seconds).padStart(2, '0')
-  if (hours > 0) return `${hours}:${minutesPadded}:${secondsPadded}`
-  return `${minutesPadded}:${secondsPadded}`
-}
-
-const formattedPlayerTotalTime = computed(() => formatTimeMs(playerTotalPlayTimeMs.value))
-const formattedPlayerTurnTime = computed(() => formatTimeMs(playerTurnTimeMs.value))
+const formattedPlayerTotalTime = computed(() => formatMsToTimer(playerTotalPlayTimeMs.value))
+const formattedPlayerTurnTime = computed(() => formatMsToTimer(playerTurnTimeMs.value))
 
 // Priority system
 const isActivePlayer = computed(() => props.player.id === gameStore.currentTurnPlayer?.id)
@@ -308,7 +335,7 @@ const hasPriority = computed(() => {
 // Turn / priority border
 const turnBorderClass = computed(() => {
   if (isActivePlayer.value) return 'border-arena-orange'
-  if (hasPriority.value && isPriorityTaken.value) return 'border-dashed border-blue-400'
+  if (hasPriority.value && isPriorityTaken.value) return 'border-dashed border-arena-blue'
   return 'border-transparent'
 })
 
@@ -322,14 +349,7 @@ const showReleasePriorityButton = computed(() =>
   isPriorityTaken.value && hasPriority.value && !isActivePlayer.value,
 )
 
-function handleEndTurn() {
-  gameStore.advanceTurn()
-  if (settingsStore.hapticFeedback) tapFeedback()
-  emit('turnAdvanced')
-  emit('stateChanged')
-}
-
-function handleStartTurn() {
+function handleAdvanceTurn() {
   gameStore.advanceTurn()
   if (settingsStore.hapticFeedback) tapFeedback()
   emit('turnAdvanced')
@@ -363,7 +383,7 @@ const playerBgClass = computed(() => {
 
 const lifeColorClass = computed(() => {
   if (props.player.lifeTotal <= 0) return 'text-life-negative'
-  if (props.player.lifeTotal <= 10) return 'text-life-negative/80'
+  if (props.player.lifeTotal <= LOW_LIFE_WARNING_THRESHOLD) return 'text-life-negative/80'
   return 'text-white'
 })
 
@@ -390,6 +410,7 @@ watch(() => props.player.isMonarch, (newValue, oldValue) => {
 
 onUnmounted(() => {
   cancelPoisonLongPress()
+  isDragLocked.value = false
 })
 
 // --- Life drag gesture ---
@@ -453,12 +474,15 @@ function changeLifeBy(amount: number) {
   // Flash effect
   flashType.value = amount > 0 ? 'positive' : 'negative'
 
+  // Floating number (slightly delayed for choreography)
+  setTimeout(() => addFloat(amount, 'life'), FLOAT_ANIMATION_DELAY_MS)
+
   // Haptic feedback
   if (settingsStore.hapticFeedback) {
     const newLife = props.player.lifeTotal
     if (newLife <= 0) {
       warningFeedback()
-    } else if (Math.abs(amount) >= 5) {
+    } else if (Math.abs(amount) >= LARGE_LIFE_CHANGE_THRESHOLD) {
       heavyFeedback()
     } else {
       lifeFeedback()
@@ -466,7 +490,7 @@ function changeLifeBy(amount: number) {
   }
 
   // Sound effect
-  if (Math.abs(amount) >= 5) {
+  if (Math.abs(amount) >= LARGE_LIFE_CHANGE_THRESHOLD) {
     playLargeLifeChange(amount > 0)
   } else {
     playLifeChange(amount > 0)
@@ -479,6 +503,7 @@ function changePoisonBy(amount: number) {
   gameStore.changePoison(props.player.id, amount)
   if (settingsStore.hapticFeedback) tapFeedback()
   playPoisonChange()
+  setTimeout(() => addFloat(amount, 'poison'), FLOAT_ANIMATION_DELAY_MS)
   emit('stateChanged')
 }
 
@@ -489,7 +514,7 @@ function startPoisonLongPress() {
     changePoisonBy(-1)
     if (settingsStore.hapticFeedback) heavyFeedback()
     poisonLongPressTimer = null
-  }, 500)
+  }, LONG_PRESS_DURATION_MS)
 }
 function cancelPoisonLongPress() {
   if (poisonLongPressTimer) {
@@ -578,10 +603,10 @@ function onCommanderTouchCancel() {
 
 function createCommanderDragIndicator() {
   commanderDragIndicator = document.createElement('div')
-  commanderDragIndicator.textContent = `⚔ ${props.player.name}`
+  commanderDragIndicator.textContent = `\u2694 ${props.player.name}`
   Object.assign(commanderDragIndicator.style, {
     position: 'fixed',
-    zIndex: '9999',
+    zIndex: '100',
     pointerEvents: 'none',
     padding: '6px 14px',
     borderRadius: '999px',
@@ -626,7 +651,7 @@ function highlightDropTarget(x: number, y: number) {
 
   const commanderButton = element?.closest('[data-commander-player]') as HTMLElement | null
   if (commanderButton && commanderButton.dataset.commanderPlayer !== props.player.id) {
-    commanderButton.style.outline = '2px solid #f59e0b'
+    commanderButton.style.outline = '2px solid var(--color-commander-damage)'
     commanderButton.style.outlineOffset = '2px'
   }
 }

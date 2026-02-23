@@ -1,73 +1,60 @@
 <template>
-  <ion-modal :is-open="isOpen" @didDismiss="$emit('close')">
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>{{ t('commanderPicker.title') }}</ion-title>
-        <ion-buttons slot="end">
-          <ion-button @click="$emit('close')">{{ t('common.close') }}</ion-button>
-        </ion-buttons>
-      </ion-toolbar>
+  <AppModal :is-open="isOpen" :title="t('commanderPicker.title')" @close="$emit('close')">
+    <template #header-extra>
       <ion-toolbar>
         <ion-searchbar
           v-model="searchQuery"
           :placeholder="t('commanderPicker.searchPlaceholder')"
           :debounce="300"
-          @ionInput="onSearch"
+          @ionInput="onSearchInput"
         />
       </ion-toolbar>
-    </ion-header>
+    </template>
 
-    <ion-content>
-      <ion-list v-if="suggestions.length > 0">
-        <ion-item
-          v-for="name in suggestions"
-          :key="name"
-          button
-          @click="selectCommander(name)"
-        >
-          <ion-label>{{ name }}</ion-label>
-        </ion-item>
-      </ion-list>
+    <ion-list v-if="suggestions.length > 0">
+      <ion-item
+        v-for="name in suggestions"
+        :key="name"
+        button
+        @click="selectCard(name)"
+      >
+        <ion-label>{{ name }}</ion-label>
+      </ion-item>
+    </ion-list>
 
-      <!-- Selected commander preview -->
-      <div v-if="selectedCard" class="flex flex-col items-center gap-3 p-4">
-        <img
-          :src="selectedCardImage"
-          :alt="selectedCard.name"
-          class="w-48 rounded-xl shadow-lg"
-        />
-        <p class="text-sm text-text-secondary">{{ selectedCard.type_line }}</p>
-        <ion-button expand="block" @click="confirmSelection">
-          {{ t('commanderPicker.confirm', { name: selectedCard.name }) }}
-        </ion-button>
-      </div>
+    <!-- Selected commander preview -->
+    <div v-if="selectedCard" class="flex flex-col items-center gap-3 p-4">
+      <img
+        :src="cardImageUrl"
+        :alt="selectedCard.name"
+        class="w-48 rounded-xl shadow-lg"
+      />
+      <p class="text-sm text-text-secondary">{{ selectedCard.type_line }}</p>
+      <ion-button expand="block" @click="confirmSelection">
+        {{ t('commanderPicker.confirm', { name: selectedCard.name }) }}
+      </ion-button>
+    </div>
 
-      <div v-if="isLoading" class="flex justify-center p-8">
-        <ion-spinner name="crescent" />
-      </div>
-    </ion-content>
-  </ion-modal>
+    <div v-if="isLoading" class="flex justify-center p-8">
+      <ion-spinner name="crescent" />
+    </div>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
-  IonModal,
-  IonHeader,
   IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonButton,
   IonSearchbar,
-  IonContent,
+  IonButton,
   IonList,
   IonItem,
   IonLabel,
   IonSpinner,
 } from '@ionic/vue'
-import type { ScryfallCard } from '@/types/card'
-import { autocompleteCards, getCardByName, getCardImageUrl } from '@/services/scryfall'
+import { getCardImageUrl } from '@/services/scryfall'
+import { useCardSearch } from '@/composables/useCardSearch'
+import AppModal from '@/components/ui/AppModal.vue'
 
 defineProps<{
   isOpen: boolean
@@ -80,38 +67,7 @@ const emit = defineEmits<{
   select: [cardName: string, imageUri: string]
 }>()
 
-const searchQuery = ref('')
-const suggestions = ref<string[]>([])
-const selectedCard = ref<ScryfallCard | null>(null)
-const isLoading = ref(false)
-let currentSearchId = 0
-
-const selectedCardImage = computed(() =>
-  selectedCard.value ? getCardImageUrl(selectedCard.value, 'normal') : '',
-)
-
-async function onSearch() {
-  const searchId = ++currentSearchId
-  selectedCard.value = null
-  if (searchQuery.value.length < 2) {
-    suggestions.value = []
-    return
-  }
-  const results = await autocompleteCards(searchQuery.value)
-  if (searchId !== currentSearchId) return
-  suggestions.value = results
-}
-
-async function selectCommander(cardName: string) {
-  const searchId = ++currentSearchId
-  suggestions.value = []
-  searchQuery.value = cardName
-  isLoading.value = true
-  const card = await getCardByName(cardName)
-  if (searchId !== currentSearchId) return
-  selectedCard.value = card
-  isLoading.value = false
-}
+const { searchQuery, suggestions, selectedCard, isLoading, cardImageUrl, onSearchInput, selectCard } = useCardSearch()
 
 function confirmSelection() {
   if (!selectedCard.value) return

@@ -8,7 +8,8 @@ import type {
   GameSettings,
   ManaColor,
 } from '@/types/game'
-import { DEFAULT_GAME_SETTINGS } from '@/types/game'
+import { DEFAULT_GAME_SETTINGS, EMPTY_PLAYER_COUNTERS } from '@/types/game'
+import { COMMANDER_TAX_PER_CAST, GAME_STATE_SAVE_DEBOUNCE_MS } from '@/config/gameConstants'
 import { saveGameState, loadGameState } from '@/services/persistence'
 import { useStatsStore } from '@/stores/statsStore'
 import i18n from '@/i18n'
@@ -19,20 +20,14 @@ function generateId(): string {
   return crypto.randomUUID()
 }
 
-export function createPlayer(index: number, settings: GameSettings): PlayerState {
+function createPlayer(index: number, settings: GameSettings): PlayerState {
   const { t } = i18n.global
   return {
     id: generateId(),
     name: t('game.defaultPlayerName', { index: index + 1 }),
     color: PLAYER_COLORS[index % PLAYER_COLORS.length]!,
     lifeTotal: settings.startingLife,
-    commanders: [],
-    commanderDamageReceived: {},
-    poisonCounters: 0,
-    experienceCounters: 0,
-    energyCounters: 0,
-    isMonarch: false,
-    hasInitiative: false,
+    ...EMPTY_PLAYER_COUNTERS,
   }
 }
 
@@ -58,7 +53,7 @@ export const useGameStore = defineStore('game', () => {
       saveDebounceTimer = setTimeout(() => {
         saveGameState(gameState)
         saveDebounceTimer = null
-      }, 500)
+      }, GAME_STATE_SAVE_DEBOUNCE_MS)
     },
     { deep: true },
   )
@@ -217,14 +212,14 @@ export const useGameStore = defineStore('game', () => {
       'commander_cast',
       playerId,
       commanderIndex,
-      t('game.commanderCast', { name: player.name, cardName: player.commanders[commanderIndex].cardName, tax: (player.commanders[commanderIndex].castCount - 1) * 2 }),
+      t('game.commanderCast', { name: player.name, cardName: player.commanders[commanderIndex].cardName, tax: (player.commanders[commanderIndex].castCount - 1) * COMMANDER_TAX_PER_CAST }),
     )
   }
 
   function getCommanderTax(player: PlayerState, commanderIndex: number): number {
     const commander = player.commanders[commanderIndex]
     if (!commander) return 0
-    return Math.max(0, (commander.castCount - 1) * 2)
+    return Math.max(0, (commander.castCount - 1) * COMMANDER_TAX_PER_CAST)
   }
 
   function isPlayerDeadByCommanderDamage(player: PlayerState): string | null {
@@ -241,60 +236,64 @@ export const useGameStore = defineStore('game', () => {
     return player.poisonCounters >= settings.value.poisonThreshold
   }
 
-  function toggleMonarch(playerId: string) {
+  function toggleExclusiveStatus(
+    playerId: string,
+    statusKey: 'isMonarch' | 'hasInitiative',
+    actionType: GameActionType,
+    gainKey: string,
+    loseKey: string,
+  ) {
     if (!currentGame.value) return
     const player = currentGame.value.players.find((p) => p.id === playerId)
     if (!player) return
-
-    // Find current monarch BEFORE clearing
-    const previousMonarch = currentGame.value.players.find((p) => p.isMonarch)
-    const previousMonarchId = previousMonarch?.id
-
-    const wasMonarch = player.isMonarch
-    // Only one player can be monarch at a time
+    const previousHolder = currentGame.value.players.find((p) => p[statusKey])
+    const previousHolderId = previousHolder?.id
+    const hadStatus = player[statusKey]
     for (const otherPlayer of currentGame.value.players) {
-      otherPlayer.isMonarch = false
+      otherPlayer[statusKey] = false
     }
-    if (!wasMonarch) {
-      player.isMonarch = true
+    if (!hadStatus) {
+      player[statusKey] = true
     }
-
     const { t } = i18n.global
     addAction(
-      'monarch_change',
+      actionType,
       playerId,
-      wasMonarch ? 0 : 1,
-      wasMonarch ? t('game.monarchLose', { name: player.name }) : t('game.monarchGain', { name: player.name }),
-      previousMonarchId,
+      hadStatus ? 0 : 1,
+      hadStatus
+        ? t(loseKey, { name: player.name })
+        : t(gainKey, { name: player.name }),
+      previousHolderId,
     )
   }
 
+  function toggleMonarch(playerId: string) {
+    toggleExclusiveStatus(playerId, 'isMonarch', 'monarch_change', 'game.monarchGain', 'game.monarchLose')
+  }
+
   function toggleInitiative(playerId: string) {
+    toggleExclusiveStatus(playerId, 'hasInitiative', 'initiative_change', 'game.initiativeGain', 'game.initiativeLose')
+  }
+
+  function updatePlayerName(playerId: string, newName: string) {
     if (!currentGame.value) return
     const player = currentGame.value.players.find((p) => p.id === playerId)
     if (!player) return
+    player.name = newName
+  }
 
-    // Find current initiative holder BEFORE clearing
-    const previousInitiativeHolder = currentGame.value.players.find((p) => p.hasInitiative)
-    const previousInitiativeHolderId = previousInitiativeHolder?.id
+  function addPlayerCommander(playerId: string, cardName: string, imageUri: string) {
+    if (!currentGame.value) return
+    const player = currentGame.value.players.find((p) => p.id === playerId)
+    if (!player) return
+    player.commanders.push({ id: generateId(), cardName, imageUri, castCount: 0 })
+  }
 
-    const hadInitiative = player.hasInitiative
-    // Only one player can have initiative at a time
-    for (const otherPlayer of currentGame.value.players) {
-      otherPlayer.hasInitiative = false
-    }
-    if (!hadInitiative) {
-      player.hasInitiative = true
-    }
-
-    const { t } = i18n.global
-    addAction(
-      'initiative_change',
-      playerId,
-      hadInitiative ? 0 : 1,
-      hadInitiative ? t('game.initiativeLose', { name: player.name }) : t('game.initiativeGain', { name: player.name }),
-      previousInitiativeHolderId,
-    )
+  function removePlayerCommander(playerId: string, commanderIndex: number) {
+    if (!currentGame.value) return
+    const player = currentGame.value.players.find((p) => p.id === playerId)
+    if (!player) return
+    player.commanders.splice(commanderIndex, 1)
   }
 
   function takePriority(playerId: string) {
@@ -350,6 +349,7 @@ export const useGameStore = defineStore('game', () => {
 
   const canUndo = computed(() => (currentGame.value?.history.length ?? 0) > 0)
   const canRedo = computed(() => redoStack.value.length > 0)
+  const nextRedoAction = computed(() => redoStack.value.length > 0 ? redoStack.value[redoStack.value.length - 1] : null)
 
   function applyActionReverse(action: GameAction) {
     if (!currentGame.value) return
@@ -422,6 +422,10 @@ export const useGameStore = defineStore('game', () => {
           player.hasInitiative = true
         }
         break
+      default: {
+        const _exhaustiveCheck: never = action.type
+        console.warn('Unhandled action type:', _exhaustiveCheck)
+      }
     }
   }
 
@@ -494,6 +498,10 @@ export const useGameStore = defineStore('game', () => {
           player.hasInitiative = false
         }
         break
+      default: {
+        const _exhaustiveCheck: never = action.type
+        console.warn('Unhandled action type:', _exhaustiveCheck)
+      }
     }
   }
 
@@ -551,7 +559,11 @@ export const useGameStore = defineStore('game', () => {
     effectivePriorityPlayer,
     canUndo,
     canRedo,
+    nextRedoAction,
     startNewGame,
+    updatePlayerName,
+    addPlayerCommander,
+    removePlayerCommander,
     takePriority,
     releasePriority,
     changeLife,

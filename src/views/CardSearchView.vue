@@ -25,7 +25,7 @@
           button
           detail
           :lines="index === suggestions.length - 1 ? 'none' : 'inset'"
-          @click="selectSuggestion(suggestion)"
+          @click="selectCard(suggestion)"
         >
           <ion-icon :icon="documentTextOutline" slot="start" color="medium" />
           <ion-label>{{ suggestion }}</ion-label>
@@ -33,8 +33,8 @@
       </ion-list>
 
       <!-- Selected card detail -->
-      <div v-if="selectedCard" class="ion-padding">
-        <ion-card>
+      <div v-if="selectedCard" class="ion-padding" data-animate>
+        <ion-card class="card-lift">
           <img
             :src="cardImageUrl"
             :alt="selectedCard.name"
@@ -62,7 +62,7 @@
               <ion-badge
                 :color="selectedCard.legalities.commander === 'legal' ? 'success' : 'danger'"
               >
-                Commander: {{ selectedCard.legalities.commander }}
+                {{ t('search.commanderLegality') }}: {{ selectedCard.legalities.commander }}
               </ion-badge>
               <ion-badge color="tertiary">
                 {{ selectedCard.set_name }}
@@ -85,14 +85,14 @@
         v-if="!selectedCard && suggestions.length === 0 && searchQuery.length === 0"
         class="flex h-full flex-col items-center justify-center gap-3"
       >
-        <ion-icon :icon="searchOutline" style="font-size: 56px; color: var(--ion-color-medium)" />
-        <p style="color: var(--ion-color-medium)">{{ t('search.emptyState') }}</p>
-        <p class="text-xs" style="color: var(--ion-color-medium)">{{ t('search.autoFilter') }}</p>
-        <ion-chip v-if="offlineStore.hasLocalData" color="success" outline>
+        <IllustrationNoResults :size="120" data-animate />
+        <p data-animate style="color: var(--ion-color-medium)">{{ t('search.emptyState') }}</p>
+        <p data-animate class="text-xs" style="color: var(--ion-color-medium)">{{ t('search.autoFilter') }}</p>
+        <ion-chip v-if="offlineStore.hasLocalData" color="success" outline data-animate>
           <ion-icon :icon="checkmarkCircleOutline" />
           <ion-label>{{ t('search.localCards', { count: offlineStore.cardCount.toLocaleString() }) }}</ion-label>
         </ion-chip>
-        <ion-chip v-else color="medium" outline>
+        <ion-chip v-else color="medium" outline data-animate>
           <ion-icon :icon="cloudOutline" />
           <ion-label>{{ t('search.apiMode') }}</ion-label>
         </ion-chip>
@@ -107,7 +107,6 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   IonPage,
@@ -136,54 +135,15 @@ import {
   checkmarkCircleOutline,
   cloudOutline,
 } from 'ionicons/icons'
-import type { ScryfallCard } from '@/types/card'
-import { autocompleteCards, getCardByName, getCardImageUrl } from '@/services/scryfall'
 import { useOfflineStore } from '@/stores/offlineStore'
+import { usePageEnterAnimation } from '@/composables/usePageEnterAnimation'
+import { useCardSearch } from '@/composables/useCardSearch'
+import IllustrationNoResults from '@/components/icons/illustrations/IllustrationNoResults.vue'
 
 const { t } = useI18n()
 const offlineStore = useOfflineStore()
 
-const searchQuery = ref('')
-const suggestions = ref<string[]>([])
-const selectedCard = ref<ScryfallCard | null>(null)
-const isLoading = ref(false)
+usePageEnterAnimation()
 
-let currentSearchId = 0
-
-const cardImageUrl = computed(() => {
-  if (!selectedCard.value) return ''
-  return getCardImageUrl(selectedCard.value, 'normal')
-})
-
-async function onSearchInput() {
-  selectedCard.value = null
-
-  if (searchQuery.value.length < 2) {
-    suggestions.value = []
-    return
-  }
-
-  const searchId = ++currentSearchId
-  const results = await autocompleteCards(searchQuery.value)
-  if (searchId !== currentSearchId) return // stale result, discard
-  suggestions.value = results
-}
-
-async function selectSuggestion(cardName: string) {
-  searchQuery.value = cardName
-  suggestions.value = []
-  isLoading.value = true
-
-  const searchId = ++currentSearchId
-  const card = await getCardByName(cardName)
-  if (searchId !== currentSearchId) return // stale result, discard
-  selectedCard.value = card
-  isLoading.value = false
-}
-
-function clearSelection() {
-  selectedCard.value = null
-  searchQuery.value = ''
-  suggestions.value = []
-}
+const { searchQuery, suggestions, selectedCard, isLoading, cardImageUrl, onSearchInput, selectCard, clearSelection } = useCardSearch()
 </script>

@@ -1,149 +1,159 @@
 <template>
-  <ion-modal :is-open="isOpen" @didDismiss="$emit('close')">
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>{{ player.name }}</ion-title>
-        <ion-buttons slot="end">
-          <ion-button @click="$emit('close')">{{ t('common.close') }}</ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
+  <AppModal :is-open="isOpen" :title="player.name" content-class="ion-padding" @close="$emit('close')">
+    <!-- Player name edit -->
+    <ion-item data-animate>
+      <ion-input
+        :label="t('playerDetail.name')"
+        :value="player.name"
+        :maxlength="30"
+        @ionChange="updateName($event.detail.value ?? '')"
+      />
+    </ion-item>
 
-    <ion-content class="ion-padding">
-      <!-- Player name edit -->
-      <ion-item>
-        <ion-input
-          :label="t('playerDetail.name')"
-          :value="player.name"
-          :maxlength="30"
-          @ionChange="updateName($event.detail.value ?? '')"
+    <!-- Commanders section -->
+    <div class="mt-4" data-animate>
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-semibold text-text-primary">{{ t('playerDetail.commanders') }}</h3>
+        <ion-button
+          v-if="player.commanders.length < MAX_COMMANDERS_PER_PLAYER"
+          size="small"
+          fill="clear"
+          @click="showCommanderPicker = true"
+        >
+          {{ t('playerDetail.addCommander') }}
+        </ion-button>
+      </div>
+
+      <p v-if="player.commanders.length === 0" class="mt-1 text-xs text-text-secondary">
+        {{ t('playerDetail.commanderHint') }}
+      </p>
+
+      <div
+        v-for="(commander, commanderIndex) in player.commanders"
+        :key="commanderIndex"
+        class="mt-2 flex items-center gap-3 rounded-xl bg-surface-card p-3 card-lift"
+      >
+        <img
+          v-if="commander.imageUri"
+          :src="commander.imageUri"
+          :alt="commander.cardName"
+          class="h-10 w-10 rounded-lg object-cover shadow-card"
         />
-      </ion-item>
-
-      <!-- Commanders section -->
-      <div class="mt-4">
-        <div class="flex items-center justify-between">
-          <h3 class="text-base font-semibold text-text-primary">{{ t('playerDetail.commanders') }}</h3>
-          <ion-button
-            v-if="player.commanders.length < 2"
-            size="small"
-            fill="clear"
-            @click="showCommanderPicker = true"
-          >
-            {{ t('playerDetail.addCommander') }}
-          </ion-button>
+        <div class="flex-1">
+          <p class="text-sm font-medium text-text-primary">{{ commander.cardName }}</p>
+          <p class="text-xs text-text-secondary">
+            {{ t('playerDetail.castInfo', { count: commander.castCount, tax: gameStore.getCommanderTax(player, commanderIndex) }) }}
+          </p>
         </div>
+        <ion-button size="small" fill="clear" color="primary" @click="castCommanderAction(commanderIndex)">
+          {{ t('playerDetail.cast') }}
+        </ion-button>
+        <ion-button size="small" fill="clear" color="danger" @click="removeCommander(commanderIndex)">
+          <ion-icon :icon="closeOutline" />
+        </ion-button>
+      </div>
+    </div>
 
-        <p v-if="player.commanders.length === 0" class="mt-1 text-xs text-text-secondary">
-          {{ t('playerDetail.commanderHint') }}
-        </p>
+    <!-- Counters section -->
+    <div class="mt-6 space-y-3" data-animate>
+      <h3 class="text-base font-semibold text-text-primary">{{ t('playerDetail.counters') }}</h3>
 
-        <div
-          v-for="(commander, commanderIndex) in player.commanders"
-          :key="commanderIndex"
-          class="mt-2 flex items-center gap-3 rounded-xl bg-surface-card p-3"
-        >
-          <img
-            v-if="commander.imageUri"
-            :src="commander.imageUri"
-            :alt="commander.cardName"
-            class="h-10 w-10 rounded-lg object-cover"
-          />
-          <div class="flex-1">
-            <p class="text-sm font-medium text-text-primary">{{ commander.cardName }}</p>
-            <p class="text-xs text-text-secondary">
-              {{ t('playerDetail.castInfo', { count: commander.castCount, tax: gameStore.getCommanderTax(player, commanderIndex) }) }}
-            </p>
-          </div>
-          <ion-button size="small" fill="clear" color="medium" @click="castCommanderAction(commanderIndex)">
-            {{ t('playerDetail.cast') }}
-          </ion-button>
-          <ion-button size="small" fill="clear" color="danger" @click="removeCommander(commanderIndex)">
-            X
-          </ion-button>
-        </div>
+      <!-- Experience -->
+      <div class="flex items-center justify-between rounded-xl bg-surface-card p-3">
+        <span class="flex items-center gap-2 text-sm text-text-primary">
+          <IconExperience :size="16" class="text-arena-blue" />
+          {{ t('playerDetail.experience') }}
+        </span>
+        <NumberStepper
+          :model-value="player.experienceCounters"
+          :min="0"
+          @update:model-value="setExperience"
+        />
       </div>
 
-      <!-- Counters section -->
-      <div class="mt-6 space-y-3">
-        <h3 class="text-base font-semibold text-text-primary">{{ t('playerDetail.counters') }}</h3>
-
-        <!-- Experience -->
-        <div class="flex items-center justify-between rounded-xl bg-surface-card p-3">
-          <span class="text-sm text-text-primary">{{ t('playerDetail.experience') }}</span>
-          <div class="flex items-center gap-3">
-            <button class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-lg active:bg-white/20" @click="gameStore.changeExperience(player.id, -1)">-</button>
-            <span class="min-w-[2rem] text-center text-lg font-bold tabular-nums text-text-primary">{{ player.experienceCounters }}</span>
-            <button class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-lg active:bg-white/20" @click="gameStore.changeExperience(player.id, 1)">+</button>
-          </div>
-        </div>
-
-        <!-- Energy -->
-        <div class="flex items-center justify-between rounded-xl bg-surface-card p-3">
-          <span class="text-sm text-text-primary">{{ t('playerDetail.energy') }}</span>
-          <div class="flex items-center gap-3">
-            <button class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-lg active:bg-white/20" @click="gameStore.changeEnergy(player.id, -1)">-</button>
-            <span class="min-w-[2rem] text-center text-lg font-bold tabular-nums text-text-primary">{{ player.energyCounters }}</span>
-            <button class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-lg active:bg-white/20" @click="gameStore.changeEnergy(player.id, 1)">+</button>
-          </div>
-        </div>
-
-        <!-- Monarch -->
-        <div class="flex items-center justify-between rounded-xl bg-surface-card p-3">
-          <span class="text-sm text-text-primary">{{ t('playerDetail.monarch') }}</span>
-          <ion-toggle :checked="player.isMonarch" @ionChange="toggleMonarch" />
-        </div>
-
-        <!-- Initiative -->
-        <div class="flex items-center justify-between rounded-xl bg-surface-card p-3">
-          <span class="text-sm text-text-primary">{{ t('playerDetail.initiative') }}</span>
-          <ion-toggle :checked="player.hasInitiative" @ionChange="toggleInitiative" />
-        </div>
+      <!-- Energy -->
+      <div class="flex items-center justify-between rounded-xl bg-surface-card p-3">
+        <span class="flex items-center gap-2 text-sm text-text-primary">
+          <IconEnergy :size="16" class="text-arena-gold" />
+          {{ t('playerDetail.energy') }}
+        </span>
+        <NumberStepper
+          :model-value="player.energyCounters"
+          :min="0"
+          @update:model-value="setEnergy"
+        />
       </div>
 
-      <!-- Commander damage received breakdown -->
-      <div v-if="Object.keys(player.commanderDamageReceived).length > 0" class="mt-6">
-        <h3 class="text-base font-semibold text-text-primary">{{ t('playerDetail.commanderDamageReceived') }}</h3>
-        <div
-          v-for="(damage, cmdId) in player.commanderDamageReceived"
-          :key="cmdId"
-          class="mt-2 flex items-center justify-between rounded-xl bg-surface-card p-3"
-        >
-          <span class="text-sm text-text-secondary">{{ resolveCommanderName(String(cmdId)) }}</span>
-          <span class="text-lg font-bold tabular-nums text-commander-damage">
-            {{ damage }} / {{ gameStore.settings.commanderDamageThreshold }}
-          </span>
-        </div>
+      <!-- Monarch -->
+      <div class="flex items-center justify-between rounded-xl bg-surface-card p-3">
+        <span class="flex items-center gap-2 text-sm text-text-primary">
+          <IconCrown :size="16" color="#f0d078" />
+          {{ t('playerDetail.monarch') }}
+        </span>
+        <ion-toggle :checked="player.isMonarch" @ionChange="toggleMonarch" />
       </div>
-    </ion-content>
 
-    <!-- Commander picker sub-modal -->
-    <CommanderPicker
-      :is-open="showCommanderPicker"
-      @close="showCommanderPicker = false"
-      @select="addCommander"
-    />
-  </ion-modal>
+      <!-- Initiative -->
+      <div class="flex items-center justify-between rounded-xl bg-surface-card p-3">
+        <span class="flex items-center gap-2 text-sm text-text-primary">
+          <IconShield :size="16" />
+          {{ t('playerDetail.initiative') }}
+        </span>
+        <ion-toggle :checked="player.hasInitiative" @ionChange="toggleInitiative" />
+      </div>
+    </div>
+
+    <!-- Commander damage received breakdown -->
+    <div v-if="Object.keys(player.commanderDamageReceived).length > 0" class="mt-6" data-animate>
+      <h3 class="text-base font-semibold text-text-primary">{{ t('playerDetail.commanderDamageReceived') }}</h3>
+      <div
+        v-for="(damage, commanderId) in player.commanderDamageReceived"
+        :key="commanderId"
+        class="mt-2 flex items-center justify-between rounded-xl bg-surface-card p-3"
+      >
+        <span class="flex items-center gap-2 text-sm text-text-secondary">
+          <IconSwordSingle :size="14" class="text-commander-damage" />
+          {{ resolveCommanderName(String(commanderId)) }}
+        </span>
+        <span class="text-lg font-bold tabular-nums text-commander-damage">
+          {{ damage }} / {{ gameStore.settings.commanderDamageThreshold }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Commander picker sub-modal (lives inside ion-modal, outside ion-content) -->
+    <template #after-content>
+      <CommanderPicker
+        :is-open="showCommanderPicker"
+        @close="showCommanderPicker = false"
+        @select="addCommander"
+      />
+    </template>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
-  IonModal,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
   IonButton,
-  IonContent,
+  IonIcon,
   IonItem,
   IonInput,
   IonToggle,
 } from '@ionic/vue'
+import { closeOutline } from 'ionicons/icons'
 import type { PlayerState } from '@/types/game'
 import { useGameStore } from '@/stores/gameStore'
+import { MAX_COMMANDERS_PER_PLAYER } from '@/config/gameConstants'
+import AppModal from '@/components/ui/AppModal.vue'
 import CommanderPicker from '@/components/commander-zone/CommanderPicker.vue'
+import NumberStepper from '@/components/ui/NumberStepper.vue'
+import IconExperience from '@/components/icons/game/IconExperience.vue'
+import IconEnergy from '@/components/icons/game/IconEnergy.vue'
+import IconCrown from '@/components/icons/game/IconCrown.vue'
+import IconShield from '@/components/icons/game/IconShield.vue'
+import IconSwordSingle from '@/components/icons/game/IconSwordSingle.vue'
 
 const props = defineProps<{
   isOpen: boolean
@@ -159,21 +169,26 @@ const gameStore = useGameStore()
 const showCommanderPicker = ref(false)
 
 function updateName(newName: string) {
-  if (!newName.trim() || !gameStore.currentGame) return
-  const player = gameStore.currentGame.players.find(p => p.id === props.player.id)
-  if (player) player.name = newName.trim()
+  if (!newName.trim()) return
+  gameStore.updatePlayerName(props.player.id, newName.trim())
 }
 
 function addCommander(cardName: string, imageUri: string) {
-  if (!gameStore.currentGame) return
-  const player = gameStore.currentGame.players.find(p => p.id === props.player.id)
-  if (player) player.commanders.push({ id: crypto.randomUUID(), cardName, imageUri, castCount: 0 })
+  gameStore.addPlayerCommander(props.player.id, cardName, imageUri)
 }
 
 function removeCommander(commanderIndex: number) {
-  if (!gameStore.currentGame) return
-  const player = gameStore.currentGame.players.find(p => p.id === props.player.id)
-  if (player) player.commanders.splice(commanderIndex, 1)
+  gameStore.removePlayerCommander(props.player.id, commanderIndex)
+}
+
+function setExperience(newValue: number) {
+  const delta = newValue - props.player.experienceCounters
+  if (delta !== 0) gameStore.changeExperience(props.player.id, delta)
+}
+
+function setEnergy(newValue: number) {
+  const delta = newValue - props.player.energyCounters
+  if (delta !== 0) gameStore.changeEnergy(props.player.id, delta)
 }
 
 function castCommanderAction(commanderIndex: number) {

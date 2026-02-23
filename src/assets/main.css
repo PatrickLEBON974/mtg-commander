@@ -29,6 +29,9 @@
    ============================================= */
 
 @theme {
+  /* Spacing scale — 4px grid */
+  --spacing-xs: 4px;
+
   /* Mana colors (official WUBRG) */
   --color-mana-white: #f9faf4;
   --color-mana-blue: #0e68ab;
@@ -63,7 +66,6 @@
 
   /* Shadows & glows */
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
   --shadow-glow-orange: 0 0 20px rgba(232, 96, 10, 0.3);
   --shadow-glow-gold: 0 0 20px rgba(212, 168, 67, 0.3);
 }
@@ -77,6 +79,15 @@
   --ion-safe-area-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
   --ion-safe-area-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
   --ion-safe-area-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+
+  --modal-background: #111827;
+
+  /* Z-index scale */
+  --z-game-flash: 10;
+  --z-death-overlay: 20;
+  --z-floating-numbers: 30;
+  --z-drag-indicator: 100;
+  --z-splash: 9999;
 
   /* Primary: Mythic Orange — main CTA, active elements */
   --ion-color-primary: #e8600a;
@@ -126,7 +137,7 @@
   --ion-color-danger-shade: #d23c3c;
   --ion-color-danger-tint: #f15757;
 
-  /* Dark */
+  /* Intentionally inverted: app is always dark-themed, "dark" color = primary text */
   --ion-color-dark: #e8e8e8;
   --ion-color-dark-rgb: 232, 232, 232;
   --ion-color-dark-contrast: #0a0e17;
@@ -223,40 +234,6 @@ ion-card-title {
 }
 
 /* =============================================
-   TAB BAR — Arena bottom navigation
-   ============================================= */
-
-ion-tab-bar {
-  --border: none;
-  height: calc(40px + var(--ion-safe-area-bottom, 0px));
-  padding-bottom: var(--ion-safe-area-bottom, 0px);
-  border-top: 1px solid rgba(212, 168, 67, 0.12);
-}
-
-ion-tab-button {
-  --color: var(--ion-tab-bar-color);
-  --color-selected: var(--ion-tab-bar-color-selected);
-  --padding-top: 2px;
-  --padding-bottom: 2px;
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-
-ion-tab-button ion-icon {
-  font-size: 20px;
-}
-
-ion-tab-button.tab-selected {
-  --color: var(--ion-tab-bar-color-selected);
-}
-
-ion-tab-button.tab-selected ion-icon {
-  filter: drop-shadow(0 0 8px rgba(232, 96, 10, 0.5));
-}
-
-/* =============================================
    ITEMS & LISTS — Arena panel style
    ============================================= */
 
@@ -309,7 +286,7 @@ ion-list-header {
   text-transform: uppercase;
   margin-top: 8px;
   margin-bottom: 4px;
-  padding-left: 4px;
+  padding-left: 16px;
 }
 
 /* =============================================
@@ -478,8 +455,16 @@ ion-toggle {
 
 ion-modal {
   --border-radius: 16px 16px 0 0;
-  --background: #111827;
+  --background: var(--modal-background);
   --box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.6);
+}
+
+ion-modal ion-content {
+  --background: var(--modal-background);
+}
+
+ion-modal ion-toolbar {
+  --background: var(--modal-background);
 }
 
 ion-modal::part(handle) {
@@ -490,9 +475,13 @@ ion-modal::part(handle) {
 }
 
 ion-action-sheet {
-  --background: #111827;
-  --button-background: transparent;
+  --background: var(--modal-background);
+  --button-background: var(--modal-background);
+  --button-background-activated: rgba(212, 168, 67, 0.12);
+  --button-background-hover: rgba(212, 168, 67, 0.08);
+  --button-background-selected: rgba(212, 168, 67, 0.12);
   --button-color: var(--ion-text-color);
+  --color: var(--ion-text-color);
 }
 
 ion-action-sheet .action-sheet-title {
@@ -500,13 +489,23 @@ ion-action-sheet .action-sheet-title {
 }
 
 ion-alert {
-  --background: #111827;
+  --background: var(--modal-background);
   --max-width: 320px;
 }
 
 ion-alert .alert-wrapper {
+  background: var(--modal-background);
   border-radius: 16px;
   border: 1px solid rgba(212, 168, 67, 0.1);
+}
+
+ion-picker {
+  --background: var(--modal-background);
+  --background-rgb: 17, 24, 39;
+}
+
+ion-select-popover {
+  --background: var(--modal-background);
 }
 
 /* =============================================
@@ -647,7 +646,7 @@ ion-content::part(scroll) {
    ============================================= */
 
 .death-overlay-enter-active {
-  transition: opacity 400ms ease, backdrop-filter 400ms ease;
+  transition: opacity 400ms ease;
 }
 .death-overlay-leave-active {
   transition: opacity 200ms ease;
@@ -656,65 +655,6 @@ ion-content::part(scroll) {
 .death-overlay-leave-to {
   opacity: 0;
   backdrop-filter: blur(0px);
-}
-
-/* =============================================
-   LOADING — Skeleton shimmer with gold
-   ============================================= */
-
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-.skeleton-shimmer {
-  background: linear-gradient(
-    90deg,
-    rgba(212, 168, 67, 0.02) 25%,
-    rgba(212, 168, 67, 0.06) 50%,
-    rgba(212, 168, 67, 0.02) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
-  border-radius: 6px;
-}
-
-/* =============================================
-   GLASS PANELS — Arena frosted surfaces
-   ============================================= */
-
-.glass-panel {
-  background: rgba(10, 14, 23, 0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(212, 168, 67, 0.08);
-}
-
-.glass-light {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(212, 168, 67, 0.06);
-}
-
-/* =============================================
-   ARENA DECORATIVE — Gold border accents
-   ============================================= */
-
-.arena-border {
-  border: 1px solid rgba(212, 168, 67, 0.15);
-}
-
-.arena-border-strong {
-  border: 1px solid rgba(212, 168, 67, 0.3);
-}
-
-.arena-glow-gold {
-  box-shadow: 0 0 12px rgba(212, 168, 67, 0.15);
-}
-
-.arena-glow-orange {
-  box-shadow: 0 0 12px rgba(232, 96, 10, 0.2);
 }
 
 /* Arena gradient background for hero sections */
@@ -739,10 +679,6 @@ ion-content::part(scroll) {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-
-  .skeleton-shimmer {
-    animation: none;
-  }
 }
 
 /* =============================================
@@ -754,11 +690,61 @@ ion-content::part(scroll) {
   outline-offset: 2px;
 }
 
+/* NumberStepper and custom buttons need explicit focus rings */
+.stepper-input:focus-visible {
+  outline: 2px solid var(--color-arena-orange);
+  outline-offset: 2px;
+}
+
 /* =============================================
-   GAME — Tabular numbers
+   ANIMATION — Ambient glow pulse
    ============================================= */
 
-.font-game-number {
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: 'tnum';
+@keyframes glow-breathe {
+  0%, 100% { box-shadow: 0 0 8px var(--glow-color, rgba(232, 96, 10, 0.4)); }
+  50% { box-shadow: 0 0 20px var(--glow-color, rgba(232, 96, 10, 0.6)); }
+}
+
+.glow-breathe {
+  animation: glow-breathe 2s ease-in-out infinite;
+}
+
+/* =============================================
+   ANIMATION — Card hover/press lift
+   ============================================= */
+
+.card-lift {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+.card-lift:active {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* =============================================
+   ANIMATION — Low-life danger pulse
+   ============================================= */
+
+@keyframes danger-pulse {
+  0%, 100% { border-color: rgba(239, 68, 68, 0.3); }
+  50% { border-color: rgba(239, 68, 68, 0.7); }
+}
+
+.danger-pulse {
+  animation: danger-pulse 1.5s ease-in-out infinite;
+}
+
+/* =============================================
+   TAB BAR — Sliding active indicator
+   ============================================= */
+
+.tab-indicator {
+  position: absolute;
+  bottom: 0;
+  height: 2px;
+  background: var(--ion-tab-bar-color-selected, #e8600a);
+  border-radius: 1px 1px 0 0;
+  transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1), width 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 8px rgba(232, 96, 10, 0.4);
 }
