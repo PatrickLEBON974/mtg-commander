@@ -39,7 +39,7 @@
           color="primary"
           class="glow-breathe"
           style="--glow-color: rgba(232, 96, 10, 0.4)"
-          @click="startNewGame"
+          @click="showNewGameModal = true"
         >
           <ion-icon :icon="playOutline" slot="start" />
           {{ t('home.newGame') }}
@@ -74,45 +74,91 @@
         <IllustrationEmptyGame :size="100" />
       </div>
 
-      <!-- Quick settings -->
-      <ion-list data-animate :inset="true" class="ion-margin-top">
+      <!-- New Game Modal -->
+      <AppModal :is-open="showNewGameModal" :title="t('home.newGame')" @close="showNewGameModal = false">
+        <ion-list :inset="true">
+          <ion-item lines="inset">
+            <ion-icon :icon="peopleOutline" slot="start" color="tertiary" />
+            <ion-label>{{ t('home.players') }}</ion-label>
+            <SettingStepper
+              slot="end"
+              v-model="settingsStore.gameSettings.playerCount"
+              :options="PLAYER_COUNT_OPTIONS"
+              :label="t('common.players')"
+            />
+          </ion-item>
+
+          <ion-item lines="inset">
+            <ion-icon :icon="heartOutline" slot="start" color="danger" />
+            <ion-label>{{ t('home.life') }}</ion-label>
+            <SettingStepper
+              slot="end"
+              v-model="settingsStore.gameSettings.startingLife"
+              :options="STARTING_LIFE_OPTIONS"
+              :label="t('common.life')"
+            />
+          </ion-item>
+
+          <ion-item lines="none">
+            <ion-icon :icon="timerOutline" slot="start" color="medium" />
+            <ion-label>{{ t('home.gameTimer') }}</ion-label>
+            <ion-toggle slot="end" v-model="settingsStore.gameSettings.enableTimer" />
+          </ion-item>
+        </ion-list>
+
+        <ion-list :inset="true">
+          <ion-list-header>
+            <ion-label>{{ t('home.rules') }}</ion-label>
+          </ion-list-header>
+
+          <ion-item lines="inset">
+            <ion-icon :icon="shieldOutline" slot="start" color="warning" />
+            <ion-label>{{ t('home.commanderDamage') }}</ion-label>
+            <SettingStepper
+              slot="end"
+              v-model="settingsStore.gameSettings.commanderDamageThreshold"
+              :options="commanderDamageOptions"
+              :label="t('settings.commanderDamageLabel')"
+            />
+          </ion-item>
+
+          <ion-item lines="none">
+            <ion-icon :icon="skullOutline" slot="start" color="primary" />
+            <ion-label>{{ t('home.poisonThreshold') }}</ion-label>
+            <SettingStepper
+              slot="end"
+              v-model="settingsStore.gameSettings.poisonThreshold"
+              :options="poisonOptions"
+              :label="t('settings.poisonLabel')"
+            />
+          </ion-item>
+        </ion-list>
+
         <ion-list-header>
-          <ion-label>{{ t('home.quickSettings') }}</ion-label>
+          <ion-label>{{ t('home.playerList') }}</ion-label>
         </ion-list-header>
 
-        <ion-item lines="inset">
-          <ion-icon :icon="peopleOutline" slot="start" color="tertiary" />
-          <ion-label>{{ t('home.players') }}</ion-label>
-          <SettingStepper
-            slot="end"
-            v-model="settingsStore.gameSettings.playerCount"
-            :options="PLAYER_COUNT_OPTIONS"
-            :label="t('common.players')"
-          />
-        </ion-item>
+        <ion-reorder-group :disabled="false" @ionItemReorder="handleReorder($event)">
+          <ion-item v-for="player in playerConfigs" :key="player.id">
+            <span slot="start" class="mana-dot" :style="{ background: `var(--color-mana-${player.color})` }" />
+            <ion-input v-model="player.name" :maxlength="PLAYER_NAME_MAX_LENGTH" :clear-input="true" />
+            <ion-reorder slot="end" />
+          </ion-item>
+        </ion-reorder-group>
 
-        <ion-item lines="inset">
-          <ion-icon :icon="heartOutline" slot="start" color="danger" />
-          <ion-label>{{ t('home.life') }}</ion-label>
-          <SettingStepper
-            slot="end"
-            v-model="settingsStore.gameSettings.startingLife"
-            :options="STARTING_LIFE_OPTIONS"
-            :label="t('common.life')"
-          />
-        </ion-item>
-
-        <ion-item lines="none">
-          <ion-icon :icon="timerOutline" slot="start" color="medium" />
-          <ion-label>{{ t('home.gameTimer') }}</ion-label>
-          <ion-toggle slot="end" v-model="settingsStore.gameSettings.enableTimer" />
-        </ion-item>
-      </ion-list>
+        <div class="p-4">
+          <ion-button expand="block" color="primary" @click="confirmNewGame">
+            <ion-icon :icon="playOutline" slot="start" />
+            {{ t('home.newGame') }}
+          </ion-button>
+        </div>
+      </AppModal>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
+import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import {
@@ -124,10 +170,13 @@ import {
   IonButton,
   IonIcon,
   IonList,
-  IonListHeader,
   IonItem,
   IonLabel,
   IonToggle,
+  IonListHeader,
+  IonReorderGroup,
+  IonReorder,
+  IonInput,
 } from '@ionic/vue'
 import {
   playOutline,
@@ -135,25 +184,81 @@ import {
   peopleOutline,
   heartOutline,
   timerOutline,
+  shieldOutline,
+  skullOutline,
 } from 'ionicons/icons'
 import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { usePageEnterAnimation } from '@/composables/usePageEnterAnimation'
+import AppModal from '@/components/ui/AppModal.vue'
 import SettingStepper from '@/components/ui/SettingStepper.vue'
 import DividerOrnament from '@/components/icons/decorative/DividerOrnament.vue'
 import IllustrationEmptyGame from '@/components/icons/illustrations/IllustrationEmptyGame.vue'
-import { PLAYER_COUNT_OPTIONS, STARTING_LIFE_OPTIONS } from '@/config/gameConstants'
+import { PLAYER_COUNT_OPTIONS, STARTING_LIFE_OPTIONS, PLAYER_COLORS, PLAYER_NAME_MAX_LENGTH } from '@/config/gameConstants'
+import type { ManaColor } from '@/types/game'
 
 const { t } = useI18n()
 const router = useRouter()
 const gameStore = useGameStore()
 const settingsStore = useSettingsStore()
 
+const commanderDamageOptions = computed(() => [
+  { value: 0, label: t('common.off') },
+  { value: 21, label: '21' },
+])
+const poisonOptions = computed(() => [
+  { value: 0, label: t('common.off') },
+  { value: 5, label: '5' },
+  { value: 10, label: '10' },
+  { value: 15, label: '15' },
+  { value: 20, label: '20' },
+])
+
+const showNewGameModal = ref(false)
+
+let nextConfigId = 0
+interface PlayerConfig {
+  id: number
+  name: string
+  color: ManaColor
+}
+const playerConfigs = ref<PlayerConfig[]>([])
+
+watch(() => settingsStore.gameSettings.playerCount, (count) => {
+  const existing = playerConfigs.value
+  if (count > existing.length) {
+    for (let i = existing.length; i < count; i++) {
+      existing.push({
+        id: nextConfigId++,
+        name: t('game.defaultPlayerName', { index: i + 1 }),
+        color: PLAYER_COLORS[i % PLAYER_COLORS.length]!,
+      })
+    }
+  } else if (count < existing.length) {
+    existing.splice(count)
+  }
+}, { immediate: true })
+
+function handleReorder(event: CustomEvent) {
+  const movedItem = playerConfigs.value.splice(event.detail.from, 1)[0]
+  playerConfigs.value.splice(event.detail.to, 0, movedItem)
+  event.detail.complete(false)
+}
+
 usePageEnterAnimation()
 
-function startNewGame() {
+function confirmNewGame() {
+  showNewGameModal.value = false
   gameStore.settings = { ...settingsStore.gameSettings }
   gameStore.startNewGame()
+  // Apply player names and colors from modal config
+  playerConfigs.value.forEach((config, index) => {
+    const player = gameStore.currentGame!.players[index]
+    if (player) {
+      player.name = config.name
+      player.color = config.color
+    }
+  })
   router.push('/game')
 }
 
@@ -161,3 +266,12 @@ function resumeGame() {
   router.push('/game')
 }
 </script>
+
+<style scoped>
+.mana-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+</style>

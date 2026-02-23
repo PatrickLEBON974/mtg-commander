@@ -8,6 +8,9 @@
       ]"
       :aria-label="ariaDecrement"
       @click="decrement"
+      @touchstart.passive="startRepeat(decrement)"
+      @touchend.passive="stopRepeat"
+      @touchcancel.passive="stopRepeat"
     >
       -
     </button>
@@ -38,6 +41,9 @@
       ]"
       :aria-label="ariaIncrement"
       @click="increment"
+      @touchstart.passive="startRepeat(increment)"
+      @touchend.passive="stopRepeat"
+      @touchcancel.passive="stopRepeat"
     >
       +
     </button>
@@ -45,7 +51,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
+
+const REPEAT_DELAY_MS = 400
+const REPEAT_INTERVAL_MS = 100
 
 const props = withDefaults(defineProps<{
   modelValue: number
@@ -76,6 +85,9 @@ const emit = defineEmits<{
 
 const inputRef = ref<HTMLInputElement>()
 
+let repeatDelayTimer: ReturnType<typeof setTimeout> | null = null
+let repeatIntervalTimer: ReturnType<typeof setInterval> | null = null
+
 function clamp(value: number): number {
   let clamped = value
   if (props.min !== undefined) clamped = Math.max(props.min, clamped)
@@ -90,6 +102,27 @@ function decrement() {
 function increment() {
   emit('update:modelValue', clamp(props.modelValue + props.step))
 }
+
+function startRepeat(action: () => void) {
+  stopRepeat()
+  repeatDelayTimer = setTimeout(() => {
+    action()
+    repeatIntervalTimer = setInterval(action, REPEAT_INTERVAL_MS)
+  }, REPEAT_DELAY_MS)
+}
+
+function stopRepeat() {
+  if (repeatDelayTimer) {
+    clearTimeout(repeatDelayTimer)
+    repeatDelayTimer = null
+  }
+  if (repeatIntervalTimer) {
+    clearInterval(repeatIntervalTimer)
+    repeatIntervalTimer = null
+  }
+}
+
+onUnmounted(stopRepeat)
 
 function onInput(event: Event) {
   const rawValue = (event.target as HTMLInputElement).value

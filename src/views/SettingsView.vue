@@ -7,6 +7,50 @@
     </ion-header>
 
     <ion-content class="ion-padding">
+      <!-- App Section -->
+      <ion-list :inset="true" data-animate>
+        <ion-list-header>
+          <ion-label>{{ t('settings.application') }}</ion-label>
+        </ion-list-header>
+
+        <ion-item lines="inset">
+          <ion-icon :icon="languageOutline" slot="start" color="tertiary" />
+          <ion-label>
+            <h2>{{ t('settings.language') }}</h2>
+          </ion-label>
+          <ion-select v-model="settingsStore.language" interface="action-sheet" @ionChange="onLanguageChange">
+            <ion-select-option value="fr">Francais</ion-select-option>
+            <ion-select-option value="en">English</ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <ion-item lines="inset">
+          <ion-icon :icon="phonePortraitOutline" slot="start" color="medium" />
+          <ion-label>{{ t('settings.hapticFeedback') }}</ion-label>
+          <ion-toggle slot="end" v-model="settingsStore.hapticFeedback" />
+        </ion-item>
+
+        <ion-item lines="inset">
+          <ion-icon :icon="volumeHighOutline" slot="start" color="medium" />
+          <ion-label>
+            <h2>{{ t('settings.sounds') }}</h2>
+            <p>{{ t('settings.soundsDescription') }}</p>
+          </ion-label>
+          <ion-toggle slot="end" v-model="settingsStore.soundEnabled" />
+        </ion-item>
+
+        <ion-item lines="inset">
+          <ion-icon :icon="sunnyOutline" slot="start" color="medium" />
+          <ion-label>{{ t('settings.keepScreenOn') }}</ion-label>
+          <ion-toggle slot="end" v-model="settingsStore.keepScreenOn" />
+        </ion-item>
+
+        <ion-item button lines="none" @click="resetSettings" detail>
+          <ion-icon :icon="refreshOutline" slot="start" color="danger" />
+          <ion-label color="danger">{{ t('settings.reset') }}</ion-label>
+        </ion-item>
+      </ion-list>
+
       <!-- Offline Data Section -->
       <ion-list :inset="true" data-animate>
         <ion-list-header>
@@ -118,122 +162,6 @@
         </ion-item>
       </ion-list>
 
-      <!-- Game Section -->
-      <ion-list :inset="true" data-animate>
-        <ion-list-header>
-          <ion-label>{{ t('settings.gameSection') }}</ion-label>
-        </ion-list-header>
-
-        <ion-item lines="inset">
-          <ion-icon :icon="peopleOutline" slot="start" color="tertiary" />
-          <ion-label>
-            <h2>{{ t('settings.playerCount') }}</h2>
-          </ion-label>
-          <SettingStepper
-            slot="end"
-            v-model="settingsStore.gameSettings.playerCount"
-            :options="PLAYER_COUNT_OPTIONS"
-            :label="t('common.players')"
-          />
-        </ion-item>
-
-        <ion-item lines="none">
-          <ion-icon :icon="heartOutline" slot="start" color="danger" />
-          <ion-label>
-            <h2>{{ t('settings.lifePoints') }}</h2>
-          </ion-label>
-          <SettingStepper
-            slot="end"
-            v-model="settingsStore.gameSettings.startingLife"
-            :options="STARTING_LIFE_OPTIONS"
-            :label="t('common.life')"
-          />
-        </ion-item>
-      </ion-list>
-
-      <!-- Rules Section -->
-      <ion-list :inset="true" data-animate>
-        <ion-list-header>
-          <ion-label>{{ t('settings.rules') }}</ion-label>
-        </ion-list-header>
-
-        <ion-item lines="inset">
-          <ion-icon :icon="shieldOutline" slot="start" color="warning" />
-          <ion-label>
-            <h2>{{ t('settings.commanderDamage') }}</h2>
-          </ion-label>
-          <SettingStepper
-            slot="end"
-            v-model="settingsStore.gameSettings.commanderDamageThreshold"
-            :options="commanderDamageOptions"
-            :label="t('settings.commanderDamageLabel')"
-          />
-        </ion-item>
-
-        <ion-item lines="none">
-          <ion-icon :icon="skullOutline" slot="start" color="primary" />
-          <ion-label>
-            <h2>{{ t('settings.poisonThreshold') }}</h2>
-          </ion-label>
-          <SettingStepper
-            slot="end"
-            v-model="settingsStore.gameSettings.poisonThreshold"
-            :options="poisonOptions"
-            :label="t('settings.poisonLabel')"
-          />
-        </ion-item>
-      </ion-list>
-
-      <!-- App Section -->
-      <ion-list :inset="true" data-animate>
-        <ion-list-header>
-          <ion-label>{{ t('settings.application') }}</ion-label>
-        </ion-list-header>
-
-        <ion-item lines="inset">
-          <ion-icon :icon="languageOutline" slot="start" color="tertiary" />
-          <ion-label>
-            <h2>{{ t('settings.language') }}</h2>
-          </ion-label>
-          <ion-select v-model="settingsStore.language" interface="action-sheet" @ionChange="onLanguageChange">
-            <ion-select-option value="fr">Francais</ion-select-option>
-            <ion-select-option value="en">English</ion-select-option>
-          </ion-select>
-        </ion-item>
-
-        <ion-item lines="inset">
-          <ion-icon :icon="phonePortraitOutline" slot="start" color="medium" />
-          <ion-label>{{ t('settings.hapticFeedback') }}</ion-label>
-          <ion-toggle slot="end" v-model="settingsStore.hapticFeedback" />
-        </ion-item>
-
-        <ion-item lines="inset">
-          <ion-icon :icon="volumeHighOutline" slot="start" color="medium" />
-          <ion-label>
-            <h2>{{ t('settings.sounds') }}</h2>
-            <p>{{ t('settings.soundsDescription') }}</p>
-          </ion-label>
-          <ion-toggle slot="end" v-model="settingsStore.soundEnabled" />
-        </ion-item>
-
-        <ion-item lines="inset">
-          <ion-icon :icon="sunnyOutline" slot="start" color="medium" />
-          <ion-label>{{ t('settings.keepScreenOn') }}</ion-label>
-          <ion-toggle slot="end" v-model="settingsStore.keepScreenOn" />
-        </ion-item>
-
-        <ion-item lines="inset">
-          <ion-icon :icon="timerOutline" slot="start" color="medium" />
-          <ion-label>{{ t('settings.gameTimer') }}</ion-label>
-          <ion-toggle slot="end" v-model="settingsStore.gameSettings.enableTimer" />
-        </ion-item>
-
-        <ion-item button lines="none" @click="resetSettings" detail>
-          <ion-icon :icon="refreshOutline" slot="start" color="danger" />
-          <ion-label color="danger">{{ t('settings.reset') }}</ion-label>
-        </ion-item>
-      </ion-list>
-
       <!-- Wizards of the Coast fan content disclaimer -->
       <div class="ion-padding ion-text-center" style="opacity: 0.55; font-size: 12px; line-height: 1.5; color: var(--ion-color-medium)">
         <p>{{ t('settings.disclaimer') }}</p>
@@ -269,14 +197,9 @@ import {
   serverOutline,
   timeOutline,
   alertCircleOutline,
-  peopleOutline,
-  heartOutline,
-  shieldOutline,
-  skullOutline,
   phonePortraitOutline,
   volumeHighOutline,
   sunnyOutline,
-  timerOutline,
   refreshOutline,
   trashOutline,
   languageOutline,
@@ -286,8 +209,6 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { useOfflineStore } from '@/stores/offlineStore'
 import { usePageEnterAnimation } from '@/composables/usePageEnterAnimation'
 import { toLocaleCode } from '@/utils/i18nHelpers'
-import { PLAYER_COUNT_OPTIONS, STARTING_LIFE_OPTIONS } from '@/config/gameConstants'
-import SettingStepper from '@/components/ui/SettingStepper.vue'
 
 const { t, locale } = useI18n()
 const settingsStore = useSettingsStore()
@@ -296,18 +217,6 @@ const offlineStore = useOfflineStore()
 usePageEnterAnimation()
 
 const currentLocaleCode = computed(() => toLocaleCode(locale.value as 'en' | 'fr'))
-
-const commanderDamageOptions = computed(() => [
-  { value: 0, label: t('common.off') },
-  { value: 21, label: '21' },
-])
-const poisonOptions = computed(() => [
-  { value: 0, label: t('common.off') },
-  { value: 5, label: '5' },
-  { value: 10, label: '10' },
-  { value: 15, label: '15' },
-  { value: 20, label: '20' },
-])
 
 const LANGUAGE_LABELS: Record<string, string> = {
   fr: 'Francais', de: 'Deutsch', es: 'Espanol', it: 'Italiano',

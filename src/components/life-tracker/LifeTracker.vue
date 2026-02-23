@@ -7,12 +7,21 @@
       turnBorderClass,
       dangerPulseClass,
     ]"
+    :data-commander-player="player.id"
   >
     <!-- Corner accents -->
     <CornerAccent position="top-left" />
     <CornerAccent position="top-right" />
     <CornerAccent position="bottom-left" />
     <CornerAccent position="bottom-right" />
+
+    <!-- Priority — animated border glow (blue) -->
+    <div
+      v-if="showMarchingBorder"
+      class="life-tracker-priority-track pointer-events-none absolute inset-0 z-[1] rounded-2xl"
+    >
+      <div class="life-tracker-priority-spinner absolute inset-[-50%]" />
+    </div>
 
     <!-- Rotating border glow — active turn -->
     <div
@@ -50,6 +59,9 @@
         class="life-tracker-btn-minus group flex min-h-[48px] min-w-[48px] items-center justify-center rounded-full"
         :aria-label="t('aria.decreaseLife', { name: player.name })"
         @click="changeLifeBy(-1)"
+        @touchstart.passive="startLifeRepeat(-1)"
+        @touchend.passive="stopLifeRepeat"
+        @touchcancel.passive="stopLifeRepeat"
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" class="text-life-negative drop-shadow-sm transition-transform duration-150 group-active:scale-90">
           <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" opacity="0.3" />
@@ -89,6 +101,9 @@
         class="life-tracker-btn-plus group flex min-h-[48px] min-w-[48px] items-center justify-center rounded-full"
         :aria-label="t('aria.increaseLife', { name: player.name })"
         @click="changeLifeBy(1)"
+        @touchstart.passive="startLifeRepeat(1)"
+        @touchend.passive="stopLifeRepeat"
+        @touchcancel.passive="stopLifeRepeat"
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" class="text-life-positive drop-shadow-sm transition-transform duration-150 group-active:scale-90">
           <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" opacity="0.3" />
@@ -156,7 +171,6 @@
           totalCommanderDamage > 0 ? 'bg-commander-damage/20 ring-1 ring-commander-damage/20' : 'bg-white/5',
         ]"
         :aria-label="t('aria.commanderDamage', { damage: totalCommanderDamage })"
-        :data-commander-player="player.id"
         @click="onCommanderClick"
         @touchstart.passive="onCommanderTouchStart"
         @touchmove="onCommanderTouchMove"
@@ -437,9 +451,10 @@ const hasPriority = computed(() => {
 })
 
 // Turn / priority border + rotating glow (glow tied to isCurrentTurn like the timer)
+const showMarchingBorder = computed(() => hasPriority.value && isPriorityTaken.value && !isActivePlayer.value)
 const turnBorderClass = computed(() => {
   if (isActivePlayer.value) return 'border-arena-orange/70'
-  if (hasPriority.value && isPriorityTaken.value) return 'border-transparent life-tracker-marching-border'
+  if (showMarchingBorder.value) return 'border-transparent'
   return 'border-white/[0.04]'
 })
 
@@ -519,6 +534,7 @@ watch(() => props.player.isMonarch, (newValue, oldValue) => {
 
 onUnmounted(() => {
   cancelPoisonLongPress()
+  stopLifeRepeat()
   hideActionTooltip()
   isDragLocked.value = false
 })
@@ -607,6 +623,31 @@ function changeLifeBy(amount: number) {
   }
 
   emit('stateChanged')
+}
+
+// Long-press repeat for ±1 buttons
+const LIFE_REPEAT_DELAY_MS = 400
+const LIFE_REPEAT_INTERVAL_MS = 100
+let lifeRepeatDelayTimer: ReturnType<typeof setTimeout> | null = null
+let lifeRepeatIntervalTimer: ReturnType<typeof setInterval> | null = null
+
+function startLifeRepeat(amount: number) {
+  stopLifeRepeat()
+  lifeRepeatDelayTimer = setTimeout(() => {
+    changeLifeBy(amount)
+    lifeRepeatIntervalTimer = setInterval(() => changeLifeBy(amount), LIFE_REPEAT_INTERVAL_MS)
+  }, LIFE_REPEAT_DELAY_MS)
+}
+
+function stopLifeRepeat() {
+  if (lifeRepeatDelayTimer) {
+    clearTimeout(lifeRepeatDelayTimer)
+    lifeRepeatDelayTimer = null
+  }
+  if (lifeRepeatIntervalTimer) {
+    clearInterval(lifeRepeatIntervalTimer)
+    lifeRepeatIntervalTimer = null
+  }
 }
 
 function openLifeNumpad() {
@@ -770,7 +811,10 @@ function createSwordSvg(): SVGSVGElement {
 
 function createCommanderDragIndicator() {
   commanderDragIndicator = document.createElement('div')
-  commanderDragIndicator.appendChild(createSwordSvg())
+  const swordSvg = createSwordSvg()
+  // Shift sword up 2px to visually center (blade is taller than handle)
+  swordSvg.style.transform = 'translateY(-2px)'
+  commanderDragIndicator.appendChild(swordSvg)
   Object.assign(commanderDragIndicator.style, {
     position: 'fixed',
     zIndex: '100',
@@ -778,11 +822,11 @@ function createCommanderDragIndicator() {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '44px',
-    height: '44px',
+    width: '52px',
+    height: '52px',
     borderRadius: '50%',
     backgroundColor: 'rgba(245, 158, 11, 0.9)',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+    boxShadow: '0 4px 20px rgba(245, 158, 11, 0.4), 0 2px 8px rgba(0,0,0,0.5)',
     transform: 'translate(-50%, -50%)',
   })
   document.body.appendChild(commanderDragIndicator)
@@ -816,17 +860,15 @@ function highlightDropTarget(x: number, y: number) {
   const element = document.elementFromPoint(x, y)
   if (commanderDragIndicator) commanderDragIndicator.style.display = ''
 
-  const commanderButton = element?.closest('[data-commander-player]') as HTMLElement | null
-  if (commanderButton && commanderButton.dataset.commanderPlayer !== props.player.id) {
-    commanderButton.style.outline = '2px solid var(--color-commander-damage)'
-    commanderButton.style.outlineOffset = '2px'
+  const playerPanel = element?.closest('[data-commander-player]') as HTMLElement | null
+  if (playerPanel && playerPanel.dataset.commanderPlayer !== props.player.id) {
+    playerPanel.style.boxShadow = 'inset 0 0 0 3px var(--color-commander-damage), 0 0 24px rgba(245, 158, 11, 0.3)'
   }
 }
 
 function clearDropHighlights() {
   document.querySelectorAll('[data-commander-player]').forEach((el) => {
-    ;(el as HTMLElement).style.outline = ''
-    ;(el as HTMLElement).style.outlineOffset = ''
+    ;(el as HTMLElement).style.boxShadow = ''
   })
 }
 
@@ -936,22 +978,35 @@ function onDetailClose() {
   }
 }
 
-/* Marching ants — animated dashed border for priority */
-.life-tracker-marching-border {
-  background-image:
-    repeating-linear-gradient(0deg, rgba(74, 144, 226, 0.5), rgba(74, 144, 226, 0.5) 6px, transparent 6px, transparent 12px),
-    repeating-linear-gradient(90deg, rgba(74, 144, 226, 0.5), rgba(74, 144, 226, 0.5) 6px, transparent 6px, transparent 12px),
-    repeating-linear-gradient(180deg, rgba(74, 144, 226, 0.5), rgba(74, 144, 226, 0.5) 6px, transparent 6px, transparent 12px),
-    repeating-linear-gradient(270deg, rgba(74, 144, 226, 0.5), rgba(74, 144, 226, 0.5) 6px, transparent 6px, transparent 12px);
-  background-size: 1px 100%, 100% 1px, 1px 100%, 100% 1px;
-  background-position: 0 0, 0 0, 100% 0, 0 100%;
-  background-repeat: no-repeat;
-  animation: marching-ants 0.6s linear infinite;
+/* Priority — rotating blue light along the border (same mask technique as active turn glow) */
+.life-tracker-priority-track {
+  overflow: hidden;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  padding: 2px;
 }
 
-@keyframes marching-ants {
+.life-tracker-priority-spinner {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0%,
+    transparent 60%,
+    rgba(74, 144, 226, 0.3) 67%,
+    rgba(100, 180, 255, 0.7) 74%,
+    rgba(150, 210, 255, 0.9) 78%,
+    rgba(100, 180, 255, 0.7) 82%,
+    rgba(74, 144, 226, 0.3) 89%,
+    transparent 96%,
+    transparent 100%
+  );
+  animation: priority-spin 2.5s linear infinite;
+}
+
+@keyframes priority-spin {
   to {
-    background-position: 0 -24px, 24px 0, 100% 24px, -24px 100%;
+    transform: rotate(360deg);
   }
 }
 

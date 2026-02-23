@@ -1,55 +1,77 @@
 <template>
   <AppModal :is-open="isOpen" :title="t('commanderDamage.title')" content-class="ion-padding" @close="$emit('close')">
     <!-- Step 1: Choose attacker -->
-    <div v-if="!selectedAttacker" data-animate>
-      <h3 class="mb-3 text-lg font-semibold text-text-primary">{{ t('commanderDamage.whoAttacks') }}</h3>
-      <div class="flex flex-col gap-2">
-        <button
-          v-for="attackerPlayer in otherPlayers"
-          :key="attackerPlayer.id"
-          class="flex items-center gap-3 rounded-xl bg-surface-card p-3 text-left card-lift active:bg-white/10"
-          @click="selectAttacker(attackerPlayer)"
-        >
-          <IconSwordSingle :size="18" class="shrink-0 text-commander-damage" />
-          <span class="text-base font-medium text-text-primary">{{ attackerPlayer.name }}</span>
-          <span v-if="attackerPlayer.commanders.length > 0" class="text-xs text-text-secondary">
-            ({{ attackerPlayer.commanders.map(c => c.cardName).join(', ') }})
+    <div v-if="!selectedAttacker" class="flex flex-col gap-3 px-1" data-animate>
+      <p class="text-center text-sm text-text-secondary">{{ t('commanderDamage.whoAttacks') }}</p>
+      <button
+        v-for="attackerPlayer in otherPlayers"
+        :key="attackerPlayer.id"
+        class="attacker-card flex items-center gap-4 rounded-2xl p-4 active:scale-[0.97]"
+        :style="{ '--card-mana': `var(--color-mana-${attackerPlayer.color})` }"
+        @click="selectAttacker(attackerPlayer)"
+      >
+        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full" style="background: rgba(245, 158, 11, 0.2)">
+          <IconSwordSingle :size="22" class="text-commander-damage" />
+        </div>
+        <div class="min-w-0 flex-1 text-left">
+          <span class="block truncate text-base font-bold text-white">{{ attackerPlayer.name }}</span>
+          <span v-if="attackerPlayer.commanders.length > 0" class="block truncate text-xs text-white/50">
+            {{ attackerPlayer.commanders.map(c => c.cardName).join(' / ') }}
           </span>
-        </button>
-      </div>
+        </div>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="shrink-0 text-white/30">
+          <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
     </div>
 
     <!-- Step 2: Choose which commander (if attacker has multiple) -->
-    <div v-else-if="selectedAttacker.commanders.length > 1 && selectedCommanderIndex === null" data-animate>
-      <h3 class="mb-3 text-lg font-semibold text-text-primary">{{ t('commanderDamage.whichCommander') }}</h3>
-      <div class="flex flex-col gap-2">
-        <button
-          v-for="(commander, commanderIndex) in selectedAttacker.commanders"
-          :key="commanderIndex"
-          class="rounded-xl bg-surface-card p-3 text-left card-lift active:bg-white/10"
-          @click="selectedCommanderIndex = commanderIndex"
-        >
-          <span class="text-base text-text-primary">{{ commander.cardName }}</span>
-        </button>
-      </div>
-      <ion-button fill="clear" class="mt-4" @click="selectedAttacker = null">
+    <div v-else-if="selectedAttacker.commanders.length > 1 && selectedCommanderIndex === null" class="flex flex-col gap-3 px-1" data-animate>
+      <p class="text-center text-sm text-text-secondary">{{ t('commanderDamage.whichCommander') }}</p>
+      <button
+        v-for="(commander, commanderIndex) in selectedAttacker.commanders"
+        :key="commanderIndex"
+        class="attacker-card flex items-center gap-4 rounded-2xl p-4 active:scale-[0.97]"
+        :style="{ '--card-mana': `var(--color-mana-${selectedAttacker.color})` }"
+        @click="selectedCommanderIndex = commanderIndex"
+      >
+        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full" style="background: rgba(245, 158, 11, 0.2)">
+          <IconSwordSingle :size="22" class="text-commander-damage" />
+        </div>
+        <span class="min-w-0 flex-1 truncate text-left text-base font-bold text-white">{{ commander.cardName }}</span>
+      </button>
+      <button class="mt-2 self-center rounded-lg px-4 py-2 text-sm text-text-secondary active:bg-white/5" @click="selectedAttacker = null">
         {{ t('common.back') }}
-      </ion-button>
+      </button>
     </div>
 
     <!-- Step 3: Choose amount -->
-    <div v-else data-animate>
-      <div class="mb-4 text-center">
-        <p class="text-sm text-text-secondary">
+    <div v-else class="flex flex-col items-center gap-5 px-1" data-animate>
+      <!-- Context header -->
+      <div class="w-full rounded-xl bg-white/5 px-4 py-3 text-center">
+        <p class="text-sm font-medium text-white/90">
           {{ selectedAttacker.name }}
-          <span v-if="activeCommanderName"> ({{ activeCommanderName }})</span>
+          <span v-if="activeCommanderName" class="text-white/50"> — {{ activeCommanderName }}</span>
+        </p>
+        <p class="mt-1 text-xs text-text-secondary">
           {{ t('commanderDamage.dealsTo', { target: targetPlayer.name }) }}
         </p>
-        <p class="text-xs text-text-secondary">
-          {{ t('commanderDamage.currentDamage', { current: currentDamageFromAttacker, threshold: gameStore.settings.commanderDamageThreshold }) }}
-        </p>
+        <!-- Damage progress -->
+        <div class="mt-3 flex items-center gap-3">
+          <div class="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+            <div
+              class="h-full rounded-full transition-all duration-300"
+              :class="damageProgressRatio >= 1 ? 'bg-life-negative' : 'bg-commander-damage'"
+              :style="{ width: `${Math.min(damageProgressRatio * 100, 100)}%` }"
+            />
+          </div>
+          <span class="shrink-0 text-xs font-bold tabular-nums" :class="damageProgressRatio >= 1 ? 'text-life-negative' : 'text-commander-damage'">
+            {{ currentDamageFromAttacker + damageAmount }} / {{ gameStore.settings.commanderDamageThreshold }}
+          </span>
+        </div>
       </div>
 
+      <!-- Damage stepper -->
       <NumberStepper
         v-model="damageAmount"
         :min="0"
@@ -60,30 +82,36 @@
       />
 
       <!-- Quick amounts -->
-      <div class="mt-4 flex justify-center gap-2">
+      <div class="flex gap-2">
         <button
           v-for="quickAmount in QUICK_COMMANDER_DAMAGE_OPTIONS"
           :key="quickAmount"
-          class="rounded-lg bg-white/5 px-3 py-1.5 text-sm text-text-secondary card-lift active:bg-white/10"
+          class="flex h-12 w-12 items-center justify-center rounded-xl text-base font-bold tabular-nums transition-colors"
+          :class="damageAmount === quickAmount
+            ? 'bg-commander-damage/30 text-commander-damage ring-1 ring-commander-damage/40'
+            : 'bg-white/5 text-white/60 active:bg-white/10'"
           @click="damageAmount = quickAmount"
         >
           {{ quickAmount }}
         </button>
       </div>
 
-      <div class="mt-6 flex gap-3">
-        <ion-button fill="clear" expand="block" class="flex-1" @click="resetSelection">
+      <!-- Actions -->
+      <div class="flex w-full gap-3 pt-1">
+        <button
+          class="flex-1 rounded-xl bg-white/5 py-3.5 text-center text-sm font-medium text-text-secondary active:bg-white/10"
+          @click="resetSelection"
+        >
           {{ t('common.back') }}
-        </ion-button>
-        <ion-button
-          expand="block"
-          color="warning"
-          class="flex-1"
+        </button>
+        <button
+          class="flex-[2] rounded-xl py-3.5 text-center text-base font-bold text-white transition-opacity active:scale-[0.97]"
+          :class="damageAmount > 0 ? 'bg-commander-damage' : 'bg-commander-damage/30 opacity-50'"
           :disabled="damageAmount <= 0"
           @click="confirmDamage"
         >
           {{ t('commanderDamage.deal', { amount: damageAmount }) }}
-        </ion-button>
+        </button>
       </div>
     </div>
   </AppModal>
@@ -92,7 +120,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { IonButton } from '@ionic/vue'
 import type { PlayerState } from '@/types/game'
 import { useGameStore } from '@/stores/gameStore'
 import { QUICK_COMMANDER_DAMAGE_OPTIONS } from '@/config/gameConstants'
@@ -152,6 +179,12 @@ const currentDamageFromAttacker = computed(() =>
   props.targetPlayer.commanderDamageReceived[commanderId.value] ?? 0,
 )
 
+const damageProgressRatio = computed(() => {
+  const threshold = gameStore.settings.commanderDamageThreshold
+  if (threshold <= 0) return 0
+  return (currentDamageFromAttacker.value + damageAmount.value) / threshold
+})
+
 function selectAttacker(player: PlayerState) {
   selectedAttacker.value = player
   if (player.commanders.length <= 1) {
@@ -172,3 +205,12 @@ function resetSelection() {
   damageAmount.value = 1
 }
 </script>
+
+<style scoped>
+.attacker-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 20px color-mix(in srgb, var(--card-mana) 8%, transparent);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+</style>

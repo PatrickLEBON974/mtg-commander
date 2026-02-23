@@ -18,7 +18,7 @@
     </ion-header>
 
     <!-- With header: ion-content for scrollable area -->
-    <ion-content v-if="hasHeader" :class="contentClass">
+    <ion-content v-if="hasHeader" :class="contentClass" class="app-modal-content">
       <slot />
     </ion-content>
 
@@ -73,6 +73,14 @@ const hasHeader = computed(() => props.showHeader ?? !!props.title)
 </script>
 
 <style scoped>
+.app-modal-content {
+  --padding-bottom: var(--ion-safe-area-bottom, 0px);
+}
+
+.app-modal-content::part(scroll) {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 .app-modal-sheet {
   background: var(--modal-background);
   min-height: 100%;

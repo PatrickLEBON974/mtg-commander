@@ -38,6 +38,10 @@ export const STARTING_LIFE_OPTIONS = [
   { value: 40, label: '40' },
 ]
 
+// ─── Player colours (mana identity order) ──────────────────────────
+import type { ManaColor } from '@/types/game'
+export const PLAYER_COLORS: ManaColor[] = ['white', 'blue', 'black', 'red', 'green', 'gold']
+
 // ─── Scryfall ───────────────────────────────────────────────────────
 export const ALLOWED_BULK_DOWNLOAD_ORIGIN = 'https://data.scryfall.io/'
 export const BULK_DATA_FALLBACK_SIZE_MB = 170

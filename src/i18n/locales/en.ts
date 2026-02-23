@@ -30,6 +30,10 @@ export default {
     players: 'Players',
     life: 'Life',
     gameTimer: 'Game timer',
+    playerList: 'Players',
+    rules: 'Rules',
+    commanderDamage: 'Commander damage',
+    poisonThreshold: 'Poison threshold',
   },
   game: {
     title: 'Game',

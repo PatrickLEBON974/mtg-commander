@@ -9,12 +9,10 @@ import type {
   ManaColor,
 } from '@/types/game'
 import { DEFAULT_GAME_SETTINGS, EMPTY_PLAYER_COUNTERS } from '@/types/game'
-import { COMMANDER_TAX_PER_CAST, GAME_STATE_SAVE_DEBOUNCE_MS } from '@/config/gameConstants'
+import { COMMANDER_TAX_PER_CAST, GAME_STATE_SAVE_DEBOUNCE_MS, PLAYER_COLORS } from '@/config/gameConstants'
 import { saveGameState, loadGameState } from '@/services/persistence'
 import { useStatsStore } from '@/stores/statsStore'
 import i18n from '@/i18n'
-
-const PLAYER_COLORS: ManaColor[] = ['white', 'blue', 'black', 'red', 'green', 'gold'] as const
 
 function generateId(): string {
   return crypto.randomUUID()
