@@ -168,7 +168,9 @@ export async function searchCardsLocal(
   const legalityFilter = commanderOnly ? 'AND c.commander_legal = 1' : ''
 
   if (ftsAvailable) {
-    const ftsQuery = query.replace(/[^\w\s]/g, '') + '*'
+    const sanitized = query.replace(/[^\w\s]/g, '').trim()
+    if (!sanitized) return []
+    const ftsQuery = `"${sanitized}"*`
     const result = await db.query(
       `SELECT c.* FROM cards c
        WHERE c.rowid IN (
@@ -201,7 +203,9 @@ export async function autocompleteLocal(query: string, limit = 20): Promise<stri
   const db = await getDb()
 
   if (ftsAvailable) {
-    const ftsQuery = query.replace(/[^\w\s]/g, '') + '*'
+    const sanitized = query.replace(/[^\w\s]/g, '').trim()
+    if (!sanitized) return []
+    const ftsQuery = `"${sanitized}"*`
     const result = await db.query(
       `SELECT DISTINCT c.name FROM cards c
        WHERE c.rowid IN (
@@ -257,76 +261,95 @@ export async function bulkInsertCards(
 ): Promise<number> {
   const db = await getDb()
 
-  // Clear existing data
-  if (ftsAvailable) {
-    await db.execute('DELETE FROM cards_fts;')
-  }
-  await db.execute('DELETE FROM cards;')
-
   const BATCH_SIZE = 500
+  const SAVE_INTERVAL = 5000
   let totalInserted = 0
 
-  for (let startIndex = 0; startIndex < cards.length; startIndex += BATCH_SIZE) {
-    const batch = cards.slice(startIndex, startIndex + BATCH_SIZE)
+  try {
+    await db.execute('BEGIN TRANSACTION;')
 
-    const statements = batch.map((card) => {
-      const imageUris = card.image_uris ?? card.card_faces?.[0]?.image_uris
-      const isCommander = card.type_line?.includes('Legendary') && card.type_line?.includes('Creature')
-      const commanderLegal = card.legalities?.commander === 'legal'
+    // Clear existing data inside the transaction
+    if (ftsAvailable) {
+      await db.execute('DELETE FROM cards_fts;')
+    }
+    await db.execute('DELETE FROM cards;')
 
-      return {
-        statement: `INSERT OR REPLACE INTO cards (
-          id, name, printed_name, lang, oracle_id,
-          mana_cost, cmc, type_line, oracle_text,
-          colors, color_identity, keywords,
-          power, toughness, loyalty, legalities,
-          set_code, set_name, collector_number, rarity, artist,
-          image_small, image_normal, image_art_crop,
-          is_commander, commander_legal
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-        values: [
-          card.id,
-          card.name,
-          card.printed_name ?? null,
-          card.lang ?? 'en',
-          card.oracle_id ?? null,
-          card.mana_cost ?? '',
-          card.cmc ?? 0,
-          card.type_line ?? '',
-          card.oracle_text ?? card.card_faces?.map((f) => f.oracle_text).join('\n---\n') ?? '',
-          JSON.stringify(card.colors ?? []),
-          JSON.stringify(card.color_identity ?? []),
-          JSON.stringify(card.keywords ?? []),
-          card.power ?? null,
-          card.toughness ?? null,
-          card.loyalty ?? null,
-          JSON.stringify(card.legalities ?? {}),
-          card.set ?? '',
-          card.set_name ?? '',
-          card.collector_number ?? '',
-          card.rarity ?? '',
-          card.artist ?? '',
-          imageUris?.small ?? null,
-          imageUris?.normal ?? null,
-          imageUris?.art_crop ?? null,
-          isCommander ? 1 : 0,
-          commanderLegal ? 1 : 0,
-        ],
+    for (let startIndex = 0; startIndex < cards.length; startIndex += BATCH_SIZE) {
+      const batch = cards.slice(startIndex, startIndex + BATCH_SIZE)
+
+      const statements = batch.map((card) => {
+        const imageUris = card.image_uris ?? card.card_faces?.[0]?.image_uris
+        const isCommander = card.type_line?.includes('Legendary') && card.type_line?.includes('Creature')
+        const commanderLegal = card.legalities?.commander === 'legal'
+
+        return {
+          statement: `INSERT OR REPLACE INTO cards (
+            id, name, printed_name, lang, oracle_id,
+            mana_cost, cmc, type_line, oracle_text,
+            colors, color_identity, keywords,
+            power, toughness, loyalty, legalities,
+            set_code, set_name, collector_number, rarity, artist,
+            image_small, image_normal, image_art_crop,
+            is_commander, commander_legal
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          values: [
+            card.id,
+            card.name,
+            card.printed_name ?? null,
+            card.lang ?? 'en',
+            card.oracle_id ?? null,
+            card.mana_cost ?? '',
+            card.cmc ?? 0,
+            card.type_line ?? '',
+            card.oracle_text ?? card.card_faces?.map((f) => f.oracle_text).join('\n---\n') ?? '',
+            JSON.stringify(card.colors ?? []),
+            JSON.stringify(card.color_identity ?? []),
+            JSON.stringify(card.keywords ?? []),
+            card.power ?? null,
+            card.toughness ?? null,
+            card.loyalty ?? null,
+            JSON.stringify(card.legalities ?? {}),
+            card.set ?? '',
+            card.set_name ?? '',
+            card.collector_number ?? '',
+            card.rarity ?? '',
+            card.artist ?? '',
+            imageUris?.small ?? null,
+            imageUris?.normal ?? null,
+            imageUris?.art_crop ?? null,
+            isCommander ? 1 : 0,
+            commanderLegal ? 1 : 0,
+          ],
+        }
+      })
+
+      await db.executeSet(statements, false)
+      totalInserted += batch.length
+
+      // Persist to web store periodically to prevent data loss if the tab closes
+      if (totalInserted % SAVE_INTERVAL < BATCH_SIZE) {
+        await saveIfWeb()
       }
-    })
 
-    await db.executeSet(statements, false)
-    totalInserted += batch.length
+      onProgress?.({ inserted: totalInserted, total: cards.length })
+    }
 
-    onProgress?.({ inserted: totalInserted, total: cards.length })
-  }
+    // Rebuild FTS index (skip on web where FTS5 is unavailable)
+    if (ftsAvailable) {
+      await db.execute(`
+        INSERT INTO cards_fts(rowid, name, printed_name, type_line, oracle_text)
+        SELECT rowid, name, COALESCE(printed_name, ''), type_line, oracle_text FROM cards;
+      `)
+    }
 
-  // Rebuild FTS index (skip on web where FTS5 is unavailable)
-  if (ftsAvailable) {
-    await db.execute(`
-      INSERT INTO cards_fts(rowid, name, printed_name, type_line, oracle_text)
-      SELECT rowid, name, COALESCE(printed_name, ''), type_line, oracle_text FROM cards;
-    `)
+    await db.execute('COMMIT;')
+  } catch (error) {
+    try {
+      await db.execute('ROLLBACK;')
+    } catch {
+      // Rollback may fail if the transaction was already aborted
+    }
+    throw error
   }
 
   await setMeta('last_bulk_update', new Date().toISOString())

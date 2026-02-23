@@ -4,7 +4,7 @@
       <ion-toolbar>
         <ion-title>{{ player.name }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="$emit('close')">Fermer</ion-button>
+          <ion-button @click="$emit('close')">{{ t('common.close') }}</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -13,8 +13,9 @@
       <!-- Player name edit -->
       <ion-item>
         <ion-input
-          label="Nom"
+          :label="t('playerDetail.name')"
           :value="player.name"
+          :maxlength="30"
           @ionChange="updateName($event.detail.value ?? '')"
         />
       </ion-item>
@@ -22,19 +23,19 @@
       <!-- Commanders section -->
       <div class="mt-4">
         <div class="flex items-center justify-between">
-          <h3 class="text-base font-semibold text-text-primary">Commandants</h3>
+          <h3 class="text-base font-semibold text-text-primary">{{ t('playerDetail.commanders') }}</h3>
           <ion-button
             v-if="player.commanders.length < 2"
             size="small"
             fill="clear"
             @click="showCommanderPicker = true"
           >
-            + Ajouter
+            {{ t('playerDetail.addCommander') }}
           </ion-button>
         </div>
 
         <p v-if="player.commanders.length === 0" class="mt-1 text-xs text-text-secondary">
-          Optionnel — tap pour assigner un commandant
+          {{ t('playerDetail.commanderHint') }}
         </p>
 
         <div
@@ -51,11 +52,11 @@
           <div class="flex-1">
             <p class="text-sm font-medium text-text-primary">{{ commander.cardName }}</p>
             <p class="text-xs text-text-secondary">
-              Lance {{ commander.castCount }}x — Taxe: {{ gameStore.getCommanderTax(player, commanderIndex) }}
+              {{ t('playerDetail.castInfo', { count: commander.castCount, tax: gameStore.getCommanderTax(player, commanderIndex) }) }}
             </p>
           </div>
           <ion-button size="small" fill="clear" color="medium" @click="castCommanderAction(commanderIndex)">
-            Cast
+            {{ t('playerDetail.cast') }}
           </ion-button>
           <ion-button size="small" fill="clear" color="danger" @click="removeCommander(commanderIndex)">
             X
@@ -65,11 +66,11 @@
 
       <!-- Counters section -->
       <div class="mt-6 space-y-3">
-        <h3 class="text-base font-semibold text-text-primary">Compteurs</h3>
+        <h3 class="text-base font-semibold text-text-primary">{{ t('playerDetail.counters') }}</h3>
 
         <!-- Experience -->
         <div class="flex items-center justify-between rounded-xl bg-surface-card p-3">
-          <span class="text-sm text-text-primary">Experience</span>
+          <span class="text-sm text-text-primary">{{ t('playerDetail.experience') }}</span>
           <div class="flex items-center gap-3">
             <button class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-lg active:bg-white/20" @click="gameStore.changeExperience(player.id, -1)">-</button>
             <span class="min-w-[2rem] text-center text-lg font-bold tabular-nums text-text-primary">{{ player.experienceCounters }}</span>
@@ -79,7 +80,7 @@
 
         <!-- Energy -->
         <div class="flex items-center justify-between rounded-xl bg-surface-card p-3">
-          <span class="text-sm text-text-primary">Energie</span>
+          <span class="text-sm text-text-primary">{{ t('playerDetail.energy') }}</span>
           <div class="flex items-center gap-3">
             <button class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-lg active:bg-white/20" @click="gameStore.changeEnergy(player.id, -1)">-</button>
             <span class="min-w-[2rem] text-center text-lg font-bold tabular-nums text-text-primary">{{ player.energyCounters }}</span>
@@ -89,20 +90,20 @@
 
         <!-- Monarch -->
         <div class="flex items-center justify-between rounded-xl bg-surface-card p-3">
-          <span class="text-sm text-text-primary">Monarque</span>
+          <span class="text-sm text-text-primary">{{ t('playerDetail.monarch') }}</span>
           <ion-toggle :checked="player.isMonarch" @ionChange="toggleMonarch" />
         </div>
 
         <!-- Initiative -->
         <div class="flex items-center justify-between rounded-xl bg-surface-card p-3">
-          <span class="text-sm text-text-primary">Initiative</span>
+          <span class="text-sm text-text-primary">{{ t('playerDetail.initiative') }}</span>
           <ion-toggle :checked="player.hasInitiative" @ionChange="toggleInitiative" />
         </div>
       </div>
 
       <!-- Commander damage received breakdown -->
       <div v-if="Object.keys(player.commanderDamageReceived).length > 0" class="mt-6">
-        <h3 class="text-base font-semibold text-text-primary">Degats de commandant recus</h3>
+        <h3 class="text-base font-semibold text-text-primary">{{ t('playerDetail.commanderDamageReceived') }}</h3>
         <div
           v-for="(damage, cmdId) in player.commanderDamageReceived"
           :key="cmdId"
@@ -127,6 +128,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   IonModal,
   IonHeader,
@@ -152,25 +154,26 @@ defineEmits<{
   close: []
 }>()
 
+const { t } = useI18n()
 const gameStore = useGameStore()
 const showCommanderPicker = ref(false)
 
 function updateName(newName: string) {
-  if (newName.trim()) {
-    props.player.name = newName.trim()
-  }
+  if (!newName.trim() || !gameStore.currentGame) return
+  const player = gameStore.currentGame.players.find(p => p.id === props.player.id)
+  if (player) player.name = newName.trim()
 }
 
 function addCommander(cardName: string, imageUri: string) {
-  props.player.commanders.push({
-    cardName,
-    imageUri,
-    castCount: 0,
-  })
+  if (!gameStore.currentGame) return
+  const player = gameStore.currentGame.players.find(p => p.id === props.player.id)
+  if (player) player.commanders.push({ id: crypto.randomUUID(), cardName, imageUri, castCount: 0 })
 }
 
 function removeCommander(commanderIndex: number) {
-  props.player.commanders.splice(commanderIndex, 1)
+  if (!gameStore.currentGame) return
+  const player = gameStore.currentGame.players.find(p => p.id === props.player.id)
+  if (player) player.commanders.splice(commanderIndex, 1)
 }
 
 function castCommanderAction(commanderIndex: number) {
@@ -178,26 +181,20 @@ function castCommanderAction(commanderIndex: number) {
 }
 
 function toggleMonarch() {
-  // Only one player can be monarch at a time
-  if (!gameStore.currentGame) return
-  for (const player of gameStore.currentGame.players) {
-    player.isMonarch = player.id === props.player.id ? !player.isMonarch : false
-  }
+  gameStore.toggleMonarch(props.player.id)
 }
 
 function toggleInitiative() {
-  if (!gameStore.currentGame) return
-  for (const player of gameStore.currentGame.players) {
-    player.hasInitiative = player.id === props.player.id ? !player.hasInitiative : false
-  }
+  gameStore.toggleInitiative(props.player.id)
 }
 
 function resolveCommanderName(commanderId: string): string {
   if (!gameStore.currentGame) return commanderId
   for (const player of gameStore.currentGame.players) {
-    if (commanderId.startsWith(player.id)) {
-      const cmdIndex = commanderId.includes('_cmd') ? parseInt(commanderId.split('_cmd')[1] ?? '0') : 0
-      return player.commanders[cmdIndex]?.cardName ?? player.name
+    for (const commander of player.commanders) {
+      if (commander.id === commanderId) {
+        return commander.cardName
+      }
     }
   }
   return commanderId

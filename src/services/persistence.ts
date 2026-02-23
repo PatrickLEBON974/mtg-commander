@@ -37,6 +37,35 @@ export function loadSettings(): GameSettings | null {
   }
 }
 
+// App preferences (non-game settings)
+const PREFS_KEY = 'mtg_commander_preferences'
+
+export type LayoutMode = 'default' | 'faceToFace' | 'faceToFaceSide' | 'star'
+
+export interface AppPreferences {
+  hapticFeedback: boolean
+  keepScreenOn: boolean
+  cardSecondLanguage: string | null
+  language?: string
+  soundEnabled?: boolean
+  soundVolume?: number
+  layoutMode?: LayoutMode
+}
+
+export function savePreferences(preferences: AppPreferences) {
+  localStorage.setItem(PREFS_KEY, JSON.stringify(preferences))
+}
+
+export function loadPreferences(): AppPreferences | null {
+  const stored = localStorage.getItem(PREFS_KEY)
+  if (!stored) return null
+  try {
+    return JSON.parse(stored) as AppPreferences
+  } catch {
+    return null
+  }
+}
+
 // Scryfall response cache
 interface CacheEntry {
   data: unknown

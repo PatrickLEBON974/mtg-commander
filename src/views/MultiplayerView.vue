@@ -2,7 +2,7 @@
   <ion-page>
     <ion-header>
       <ion-toolbar>
-        <ion-title>Multijoueur</ion-title>
+        <ion-title>{{ t('multiplayer.title') }}</ion-title>
         <ion-buttons slot="start">
           <ion-back-button default-href="/home" />
         </ion-buttons>
@@ -15,12 +15,12 @@
         <!-- Local player setup -->
         <ion-list :inset="true">
           <ion-list-header>
-            <ion-label>Joueurs sur cet appareil</ion-label>
+            <ion-label>{{ t('multiplayer.localPlayers') }}</ion-label>
           </ion-list-header>
 
           <ion-item lines="inset">
             <ion-icon :icon="phonePortraitOutline" slot="start" color="medium" />
-            <ion-label>Nombre</ion-label>
+            <ion-label>{{ t('multiplayer.count') }}</ion-label>
             <ion-select v-model="localPlayerCount" interface="action-sheet">
               <ion-select-option :value="1">1</ion-select-option>
               <ion-select-option :value="2">2</ion-select-option>
@@ -32,9 +32,9 @@
             <ion-icon :icon="personOutline" slot="start" color="tertiary" />
             <ion-input
               v-model="localPlayerNames[index]"
-              :label="localPlayerCount > 1 ? `Joueur ${index + 1}` : 'Votre nom'"
+              :label="localPlayerCount > 1 ? t('multiplayer.playerN', { n: index + 1 }) : t('multiplayer.yourName')"
               label-placement="floating"
-              :placeholder="`Joueur ${index + 1}`"
+              :placeholder="t('multiplayer.playerN', { n: index + 1 })"
             />
           </ion-item>
         </ion-list>
@@ -42,12 +42,12 @@
         <!-- Create room -->
         <ion-list :inset="true">
           <ion-list-header>
-            <ion-label>Creer une partie</ion-label>
+            <ion-label>{{ t('multiplayer.createGame') }}</ion-label>
           </ion-list-header>
 
           <ion-item lines="inset">
             <ion-icon :icon="peopleOutline" slot="start" color="tertiary" />
-            <ion-label>Joueurs total</ion-label>
+            <ion-label>{{ t('multiplayer.totalPlayers') }}</ion-label>
             <ion-select v-model="totalPlayerCount" interface="action-sheet">
               <ion-select-option :value="2">2</ion-select-option>
               <ion-select-option :value="3">3</ion-select-option>
@@ -67,7 +67,7 @@
             >
               <ion-spinner v-if="multiplayerStore.isConnecting" name="crescent" slot="start" />
               <ion-icon v-else :icon="addCircleOutline" slot="start" />
-              Creer la room
+              {{ t('multiplayer.createRoom') }}
             </ion-button>
           </ion-item>
         </ion-list>
@@ -75,17 +75,17 @@
         <!-- Join room -->
         <ion-list :inset="true">
           <ion-list-header>
-            <ion-label>Rejoindre une partie</ion-label>
+            <ion-label>{{ t('multiplayer.joinGame') }}</ion-label>
           </ion-list-header>
 
           <ion-item lines="inset">
             <ion-icon :icon="keyOutline" slot="start" color="warning" />
             <ion-input
               v-model="joinCode"
-              label="Code de la room"
+              :label="t('multiplayer.roomCodeLabel')"
               label-placement="floating"
-              placeholder="ABCD"
-              :maxlength="4"
+              placeholder="ABCDEF"
+              :maxlength="6"
               class="uppercase"
               @ionInput="joinCode = joinCode.toUpperCase()"
             />
@@ -95,14 +95,14 @@
             <ion-button
               expand="block"
               fill="outline"
-              :disabled="joinCode.length !== 4 || !canSubmit || multiplayerStore.isConnecting"
+              :disabled="joinCode.length !== 6 || !canSubmit || multiplayerStore.isConnecting"
               @click="joinExisting"
               class="ion-margin-vertical"
               style="width: 100%"
             >
               <ion-spinner v-if="multiplayerStore.isConnecting" name="crescent" slot="start" />
               <ion-icon v-else :icon="enterOutline" slot="start" />
-              Rejoindre
+              {{ t('multiplayer.join') }}
             </ion-button>
           </ion-item>
         </ion-list>
@@ -121,12 +121,12 @@
         <!-- Room code display -->
         <div class="flex flex-col items-center gap-2 py-6">
           <ion-icon :icon="qrCodeOutline" size="large" color="medium" />
-          <p class="text-sm" style="color: var(--ion-color-medium)">Code de la room</p>
+          <p class="text-sm" style="color: var(--ion-color-medium)">{{ t('multiplayer.roomCode') }}</p>
           <p class="text-5xl font-bold tracking-[0.3em]" style="color: var(--ion-color-primary)">
             {{ multiplayerStore.roomCode }}
           </p>
           <p class="text-xs" style="color: var(--ion-color-medium)">
-            Partagez ce code aux autres joueurs
+            {{ t('multiplayer.shareCode') }}
           </p>
         </div>
 
@@ -134,7 +134,7 @@
         <ion-list :inset="true">
           <ion-list-header>
             <ion-label>
-              Joueurs ({{ multiplayerStore.connectedPlayerCount }} / {{ multiplayerStore.roomData?.settings.playerCount }})
+              {{ t('multiplayer.playersList', { count: multiplayerStore.connectedPlayerCount, total: multiplayerStore.roomData?.settings.playerCount }) }}
             </ion-label>
           </ion-list-header>
 
@@ -151,12 +151,12 @@
             <ion-label>
               <h2>
                 {{ player.name }}
-                <ion-text v-if="multiplayerStore.isLocalPlayer(player.id)" color="medium"> (vous)</ion-text>
+                <ion-text v-if="multiplayerStore.isLocalPlayer(player.id)" color="medium"> {{ t('multiplayer.you') }}</ion-text>
               </h2>
-              <p v-if="player.deviceId === multiplayerStore.roomData?.hostId">Host</p>
+              <p v-if="player.deviceId === multiplayerStore.roomData?.hostId">{{ t('multiplayer.host') }}</p>
             </ion-label>
             <ion-note slot="end" :color="player.connected ? 'success' : 'danger'">
-              {{ player.connected ? 'Connecte' : 'Deconnecte' }}
+              {{ player.connected ? t('multiplayer.connected') : t('multiplayer.disconnected') }}
             </ion-note>
           </ion-item>
         </ion-list>
@@ -172,16 +172,16 @@
             @click="startMultiplayerGame"
           >
             <ion-icon :icon="playOutline" slot="start" />
-            Lancer la partie ({{ multiplayerStore.connectedPlayerCount }} joueurs)
+            {{ t('multiplayer.startGame', { count: multiplayerStore.connectedPlayerCount }) }}
           </ion-button>
 
           <p v-if="!multiplayerStore.isHost" class="ion-text-center ion-padding" style="color: var(--ion-color-medium); font-size: 14px;">
-            En attente que le host lance la partie...
+            {{ t('multiplayer.waitingForHost') }}
           </p>
 
           <ion-button expand="block" fill="clear" color="medium" @click="leave" class="ion-margin-top">
             <ion-icon :icon="exitOutline" slot="start" />
-            Quitter la room
+            {{ t('multiplayer.leaveRoom') }}
           </ion-button>
         </div>
       </div>
@@ -192,6 +192,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   IonPage,
   IonHeader,
@@ -231,20 +232,21 @@ import { useMultiplayerStore } from '@/stores/multiplayerStore'
 import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 
+const { t } = useI18n()
 const router = useRouter()
 const multiplayerStore = useMultiplayerStore()
 const gameStore = useGameStore()
 const settingsStore = useSettingsStore()
 
 const localPlayerCount = ref(1)
-const localPlayerNames = ref<string[]>(['Joueur 1'])
+const localPlayerNames = ref<string[]>([t('multiplayer.playerN', { n: 1 })])
 const joinCode = ref('')
 const totalPlayerCount = ref(settingsStore.gameSettings.playerCount)
 
 // Keep names array in sync with count
 watch(localPlayerCount, (newCount) => {
   while (localPlayerNames.value.length < newCount) {
-    localPlayerNames.value.push(`Joueur ${localPlayerNames.value.length + 1}`)
+    localPlayerNames.value.push(t('multiplayer.playerN', { n: localPlayerNames.value.length + 1 }))
   }
   localPlayerNames.value.length = newCount
 })
@@ -284,15 +286,10 @@ function startMultiplayerGame() {
     playerCount: players.length,
   }
 
-  gameStore.currentGame = {
-    id: crypto.randomUUID(),
-    players,
-    currentTurnPlayerIndex: 0,
-    turnNumber: 1,
-    startedAt: Date.now(),
-    elapsedMs: 0,
-    isRunning: true,
-    history: [],
+  // Use the store's method, then replace players with the multiplayer ones
+  gameStore.startNewGame()
+  if (gameStore.currentGame) {
+    gameStore.currentGame.players = players
   }
 
   multiplayerStore.pushFullGameState()

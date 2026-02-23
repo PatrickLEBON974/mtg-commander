@@ -2,9 +2,9 @@
   <ion-modal :is-open="isOpen" @didDismiss="$emit('close')">
     <ion-header>
       <ion-toolbar>
-        <ion-title>Degats de commandant</ion-title>
+        <ion-title>{{ t('commanderDamage.title') }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="$emit('close')">Fermer</ion-button>
+          <ion-button @click="$emit('close')">{{ t('common.close') }}</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -12,7 +12,7 @@
     <ion-content class="ion-padding">
       <!-- Step 1: Choose attacker -->
       <div v-if="!selectedAttacker">
-        <h3 class="mb-3 text-lg font-semibold text-text-primary">Qui attaque ?</h3>
+        <h3 class="mb-3 text-lg font-semibold text-text-primary">{{ t('commanderDamage.whoAttacks') }}</h3>
         <div class="flex flex-col gap-2">
           <button
             v-for="attackerPlayer in otherPlayers"
@@ -21,10 +21,7 @@
             @click="selectAttacker(attackerPlayer)"
           >
             <span class="text-base font-medium text-text-primary">{{ attackerPlayer.name }}</span>
-            <span
-              v-if="attackerPlayer.commanders.length > 0"
-              class="text-xs text-text-secondary"
-            >
+            <span v-if="attackerPlayer.commanders.length > 0" class="text-xs text-text-secondary">
               ({{ attackerPlayer.commanders.map(c => c.cardName).join(', ') }})
             </span>
           </button>
@@ -33,7 +30,7 @@
 
       <!-- Step 2: Choose which commander (if attacker has multiple) -->
       <div v-else-if="selectedAttacker.commanders.length > 1 && !selectedCommanderIndex">
-        <h3 class="mb-3 text-lg font-semibold text-text-primary">Quel commandant ?</h3>
+        <h3 class="mb-3 text-lg font-semibold text-text-primary">{{ t('commanderDamage.whichCommander') }}</h3>
         <div class="flex flex-col gap-2">
           <button
             v-for="(commander, commanderIndex) in selectedAttacker.commanders"
@@ -45,7 +42,7 @@
           </button>
         </div>
         <ion-button fill="clear" class="mt-4" @click="selectedAttacker = null">
-          Retour
+          {{ t('common.back') }}
         </ion-button>
       </div>
 
@@ -55,10 +52,10 @@
           <p class="text-sm text-text-secondary">
             {{ selectedAttacker.name }}
             <span v-if="activeCommanderName"> ({{ activeCommanderName }})</span>
-            inflige a {{ targetPlayer.name }}
+            {{ t('commanderDamage.dealsTo', { target: targetPlayer.name }) }}
           </p>
           <p class="text-xs text-text-secondary">
-            Degats actuels : {{ currentDamageFromAttacker }} / {{ gameStore.settings.commanderDamageThreshold }}
+            {{ t('commanderDamage.currentDamage', { current: currentDamageFromAttacker, threshold: gameStore.settings.commanderDamageThreshold }) }}
           </p>
         </div>
 
@@ -96,7 +93,7 @@
 
         <div class="mt-6 flex gap-3">
           <ion-button fill="clear" expand="block" class="flex-1" @click="resetSelection">
-            Retour
+            {{ t('common.back') }}
           </ion-button>
           <ion-button
             expand="block"
@@ -105,7 +102,7 @@
             :disabled="damageAmount <= 0"
             @click="confirmDamage"
           >
-            Infliger {{ damageAmount }}
+            {{ t('commanderDamage.deal', { amount: damageAmount }) }}
           </ion-button>
         </div>
       </div>
@@ -114,7 +111,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   IonModal,
   IonHeader,
@@ -130,20 +128,37 @@ import { useGameStore } from '@/stores/gameStore'
 const props = defineProps<{
   isOpen: boolean
   targetPlayer: PlayerState
+  initialAttackerId?: string | null
 }>()
 
 const emit = defineEmits<{
   close: []
 }>()
 
+const { t } = useI18n()
 const gameStore = useGameStore()
 
 const selectedAttacker = ref<PlayerState | null>(null)
 const selectedCommanderIndex = ref<number | null>(null)
 const damageAmount = ref(1)
 
+// Auto-select attacker when opened via drag-drop
+watch(() => props.isOpen, (open) => {
+  if (open && props.initialAttackerId) {
+    const attacker = otherPlayers.value.find((p) => p.id === props.initialAttackerId)
+    if (attacker) {
+      selectAttacker(attacker)
+    }
+  }
+  if (!open) {
+    resetSelection()
+  }
+})
+
 const otherPlayers = computed(() =>
-  gameStore.currentGame?.players.filter((p) => p.id !== props.targetPlayer.id) ?? [],
+  gameStore.currentGame?.players.filter(
+    (p) => p.id !== props.targetPlayer.id,
+  ) ?? [],
 )
 
 const activeCommanderName = computed(() => {
@@ -154,10 +169,8 @@ const activeCommanderName = computed(() => {
 
 const commanderId = computed(() => {
   if (!selectedAttacker.value) return ''
-  const commanderIndex = selectedCommanderIndex.value ?? 0
-  const commander = selectedAttacker.value.commanders[commanderIndex]
-  // Use player_id + commander_index as stable identifier
-  return commander ? `${selectedAttacker.value.id}_cmd${commanderIndex}` : selectedAttacker.value.id
+  const commander = selectedAttacker.value.commanders[selectedCommanderIndex.value ?? 0]
+  return commander ? commander.id : selectedAttacker.value.id
 })
 
 const currentDamageFromAttacker = computed(() =>

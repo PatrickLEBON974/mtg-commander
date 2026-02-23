@@ -1,4 +1,5 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app'
+import { getAuth, signInAnonymously, type Auth } from 'firebase/auth'
 import {
   getDatabase,
   ref as dbRef,
@@ -8,15 +9,29 @@ import {
   onDisconnect,
   remove,
   update,
+  runTransaction,
   type Database,
 } from 'firebase/database'
+import i18n from '@/i18n'
 
 export type Unsubscribe = () => void
 
-// TODO: Replace with your Firebase project config
+// Replace with your Firebase project config
 // Create a project at https://console.firebase.google.com
 // Enable Realtime Database (not Firestore)
-// Set rules to: { ".read": true, ".write": true } for dev
+// Enable Anonymous Authentication in the Firebase console
+//
+// Recommended Firebase Security Rules:
+// {
+//   "rules": {
+//     "rooms": {
+//       "$roomCode": {
+//         ".read": "auth != null",
+//         ".write": "auth != null"
+//       }
+//     }
+//   }
+// }
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? '',
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ?? '',
@@ -29,8 +44,9 @@ const firebaseConfig = {
 
 let firebaseApp: FirebaseApp | null = null
 let database: Database | null = null
+let auth: Auth | null = null
 
-export function initFirebase(): Database {
+export async function initFirebase(): Promise<Database> {
   if (database) return database
 
   if (!firebaseConfig.databaseURL) {
@@ -38,12 +54,18 @@ export function initFirebase(): Database {
   }
 
   firebaseApp = initializeApp(firebaseConfig)
+  auth = getAuth(firebaseApp)
+  try {
+    await signInAnonymously(auth)
+  } catch (error) {
+    console.error('[Firebase] Anonymous auth failed:', error)
+  }
   database = getDatabase(firebaseApp)
   return database
 }
 
-export function getDb(): Database {
-  if (!database) return initFirebase()
+export async function getDb(): Promise<Database> {
+  if (!database) return await initFirebase()
   return database
 }
 
@@ -51,11 +73,8 @@ export function getDb(): Database {
 
 function generateRoomCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
-  let code = ''
-  for (let i = 0; i < 4; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)]
-  }
-  return code
+  const randomValues = crypto.getRandomValues(new Uint8Array(6))
+  return Array.from(randomValues, (byte) => chars[byte % chars.length]).join('')
 }
 
 // --- Room management ---
@@ -107,21 +126,26 @@ export interface SyncedPlayerState {
   }>
 }
 
-const PLAYER_COLORS = ['white', 'blue', 'black', 'red', 'green', 'gold', 'colorless']
+const PLAYER_COLORS = ['white', 'blue', 'black', 'red', 'green', 'gold']
+
+const ROOM_TTL_MS = 4 * 60 * 60 * 1000 // 4 hours
+
+function isRoomExpired(roomData: RoomData): boolean {
+  return Date.now() - roomData.createdAt > ROOM_TTL_MS
+}
 
 export async function createRoom(
   deviceId: string,
   playerNames: string[],
   settings: RoomData['settings'],
 ): Promise<{ code: string; playerIds: string[] }> {
-  const db = getDb()
+  const db = await getDb()
+
+  cleanupExpiredRooms().catch(() => {}) // Best-effort cleanup
 
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = generateRoomCode()
     const roomRef = dbRef(db, `rooms/${code}`)
-
-    const snapshot = await get(roomRef)
-    if (snapshot.exists()) continue
 
     const players: Record<string, RoomPlayer> = {}
     const playerIds: string[] = []
@@ -133,7 +157,7 @@ export async function createRoom(
         id: playerId,
         deviceId,
         name: playerNames[i]!,
-        color: PLAYER_COLORS[i] ?? 'colorless',
+        color: PLAYER_COLORS[i] ?? 'gold',
         connected: true,
         joinedAt: Date.now(),
       }
@@ -148,7 +172,15 @@ export async function createRoom(
       gameState: null,
     }
 
-    await set(roomRef, roomData)
+    const { committed } = await runTransaction(roomRef, (currentData) => {
+      if (currentData !== null) {
+        // Room already exists, abort the transaction
+        return undefined
+      }
+      return roomData
+    })
+
+    if (!committed) continue
 
     // Auto-cleanup on disconnect for all local players
     for (const playerId of playerIds) {
@@ -158,7 +190,7 @@ export async function createRoom(
     return { code, playerIds }
   }
 
-  throw new Error('Impossible de generer un code unique')
+  throw new Error(i18n.global.t('multiplayer.cannotGenerateCode'))
 }
 
 export async function joinRoom(
@@ -166,20 +198,26 @@ export async function joinRoom(
   deviceId: string,
   playerNames: string[],
 ): Promise<{ roomData: RoomData; playerIds: string[] }> {
-  const db = getDb()
+  const db = await getDb()
   const roomRef = dbRef(db, `rooms/${code}`)
 
   const snapshot = await get(roomRef)
   if (!snapshot.exists()) {
-    throw new Error('Room introuvable')
+    throw new Error(i18n.global.t('multiplayer.roomNotFound'))
   }
 
   const roomData = snapshot.val() as RoomData
+
+  if (isRoomExpired(roomData)) {
+    await remove(roomRef)
+    throw new Error(i18n.global.t('multiplayer.roomExpired'))
+  }
+
   const existingCount = Object.keys(roomData.players).length
   const slotsLeft = roomData.settings.playerCount - existingCount
 
   if (playerNames.length > slotsLeft) {
-    throw new Error(`Pas assez de places (${slotsLeft} restante${slotsLeft > 1 ? 's' : ''})`)
+    throw new Error(i18n.global.t('multiplayer.roomFull', { remaining: slotsLeft, plural: slotsLeft > 1 ? 's' : '' }))
   }
 
   const newPlayers: Record<string, RoomPlayer> = {}
@@ -193,7 +231,7 @@ export async function joinRoom(
       id: playerId,
       deviceId,
       name: playerNames[i]!,
-      color: PLAYER_COLORS[colorIndex] ?? 'colorless',
+      color: PLAYER_COLORS[colorIndex] ?? 'gold',
       connected: true,
       joinedAt: Date.now(),
     }
@@ -217,8 +255,8 @@ export async function joinRoom(
   }
 }
 
-export function listenToRoom(code: string, callback: (data: RoomData | null) => void): Unsubscribe {
-  const db = getDb()
+export async function listenToRoom(code: string, callback: (data: RoomData | null) => void): Promise<Unsubscribe> {
+  const db = await getDb()
   const roomRef = dbRef(db, `rooms/${code}`)
 
   return onValue(roomRef, (snapshot) => {
@@ -227,7 +265,7 @@ export function listenToRoom(code: string, callback: (data: RoomData | null) => 
 }
 
 export async function updateGameState(code: string, gameState: SyncedGameState): Promise<void> {
-  const db = getDb()
+  const db = await getDb()
   await set(dbRef(db, `rooms/${code}/gameState`), gameState)
 }
 
@@ -236,20 +274,20 @@ export async function updatePlayerState(
   playerId: string,
   playerState: SyncedPlayerState,
 ): Promise<void> {
-  const db = getDb()
+  const db = await getDb()
   await set(dbRef(db, `rooms/${code}/gameState/players/${playerId}`), playerState)
 }
 
 export async function updatePartialGameState(
   code: string,
-  updates: Record<string, unknown>,
+  updates: Partial<Omit<SyncedGameState, 'players'>>,
 ): Promise<void> {
-  const db = getDb()
+  const db = await getDb()
   await update(dbRef(db, `rooms/${code}/gameState`), updates)
 }
 
 export async function leaveRoom(code: string, playerIds: string[]): Promise<void> {
-  const db = getDb()
+  const db = await getDb()
   const updates: Record<string, null> = {}
   for (const playerId of playerIds) {
     updates[`rooms/${code}/players/${playerId}`] = null
@@ -258,6 +296,26 @@ export async function leaveRoom(code: string, playerIds: string[]): Promise<void
 }
 
 export async function deleteRoom(code: string): Promise<void> {
-  const db = getDb()
+  const db = await getDb()
   await remove(dbRef(db, `rooms/${code}`))
+}
+
+export async function cleanupExpiredRooms(): Promise<void> {
+  const db = await getDb()
+  const roomsRef = dbRef(db, 'rooms')
+  const snapshot = await get(roomsRef)
+  if (!snapshot.exists()) return
+
+  const rooms = snapshot.val() as Record<string, RoomData>
+  const expiredCodes = Object.entries(rooms)
+    .filter(([, room]) => isRoomExpired(room))
+    .map(([code]) => code)
+
+  if (expiredCodes.length === 0) return
+
+  const updates: Record<string, null> = {}
+  for (const code of expiredCodes) {
+    updates[`rooms/${code}`] = null
+  }
+  await update(dbRef(db), updates)
 }

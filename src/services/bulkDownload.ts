@@ -1,6 +1,51 @@
 import { bulkInsertCards, setMeta, type RawScryfallBulkCard, type BulkInsertProgress } from './database'
+import i18n from '@/i18n'
 
 const BULK_DATA_URL = 'https://api.scryfall.com/bulk-data'
+
+/**
+ * Find the end index of a complete top-level JSON object in `text` starting
+ * from position 0.  Returns the index of the closing `}` or -1 when the
+ * buffer does not yet contain a full object.
+ *
+ * Brackets inside JSON string values are correctly ignored by tracking
+ * whether we are inside a quoted string and handling backslash escapes.
+ */
+function findObjectEnd(text: string): number {
+  let depth = 0
+  let insideString = false
+  let escaped = false
+
+  for (let index = 0; index < text.length; index++) {
+    const character = text[index]
+
+    if (escaped) {
+      escaped = false
+      continue
+    }
+
+    if (character === '\\' && insideString) {
+      escaped = true
+      continue
+    }
+
+    if (character === '"') {
+      insideString = !insideString
+      continue
+    }
+
+    if (insideString) continue
+
+    if (character === '{') {
+      depth++
+    } else if (character === '}') {
+      depth--
+      if (depth === 0) return index
+    }
+  }
+
+  return -1
+}
 
 async function safeSaveMeta(key: string, value: string): Promise<void> {
   try {
@@ -26,10 +71,12 @@ export async function downloadBulkData(
   languages: string[] = ['en'],
 ): Promise<number> {
   try {
+    const { t } = i18n.global
+
     // Phase 1: Fetch bulk data manifest
     onProgress({
       phase: 'fetching_manifest',
-      message: 'Recuperation du manifest Scryfall...',
+      message: t('offline.fetchingManifest'),
     })
 
     const manifestResponse = await fetch(BULK_DATA_URL, {
@@ -37,7 +84,7 @@ export async function downloadBulkData(
     })
 
     if (!manifestResponse.ok) {
-      throw new Error(`Erreur manifest: ${manifestResponse.status}`)
+      throw new Error(t('offline.manifestError', { status: manifestResponse.status }))
     }
 
     const manifest = await manifestResponse.json()
@@ -51,7 +98,7 @@ export async function downloadBulkData(
     )
 
     if (!bulkData?.download_uri) {
-      throw new Error(`${bulkType} introuvable dans le manifest`)
+      throw new Error(t('offline.bulkTypeNotFound', { bulkType }))
     }
 
     const downloadUrl: string = bulkData.download_uri
@@ -62,7 +109,7 @@ export async function downloadBulkData(
     // Phase 2: Download the JSON file
     const dataResponse = await fetch(downloadUrl)
     if (!dataResponse.ok) {
-      throw new Error(`Erreur telechargement: ${dataResponse.status}`)
+      throw new Error(t('offline.downloadError', { status: dataResponse.status }))
     }
 
     // Use Content-Length if available, otherwise fall back to manifest size
@@ -72,100 +119,101 @@ export async function downloadBulkData(
 
     const reader = dataResponse.body?.getReader()
     if (!reader) {
-      throw new Error('ReadableStream non supporte')
+      throw new Error(t('offline.streamNotSupported'))
     }
 
-    const chunks: Uint8Array[] = []
+    // Phase 2+3: Stream, decode, and parse JSON incrementally.
+    // Instead of accumulating Uint8Array chunks and then combining + decoding
+    // + JSON.parsing the whole blob (triple memory allocation), we decode each
+    // chunk to text immediately, track JSON object boundaries with bracket
+    // counting, and parse individual card objects as soon as they are complete.
+
+    const decoder = new TextDecoder()
+    const langSet = new Set(languages)
+    const validCards: RawScryfallBulkCard[] = []
+    let buffer = ''
     let downloadedBytes = 0
+    let totalParsed = 0
 
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
 
-      chunks.push(value)
       downloadedBytes += value.length
+      buffer += decoder.decode(value, { stream: true })
 
+      // Strip the leading '[' of the JSON array on the very first chunk
+      if (buffer.startsWith('[')) {
+        buffer = buffer.substring(1)
+      }
+
+      // Extract and parse every complete JSON object from the buffer
+      let objectEndIndex: number
+      while ((objectEndIndex = findObjectEnd(buffer)) !== -1) {
+        const objectString = buffer.substring(0, objectEndIndex + 1).trim()
+        buffer = buffer.substring(objectEndIndex + 1).replace(/^[\s,]+/, '')
+
+        if (!objectString || objectString === ']') continue
+
+        try {
+          const card: RawScryfallBulkCard = JSON.parse(objectString)
+          totalParsed++
+
+          const hasImage = card.image_uris || card.card_faces?.[0]?.image_uris
+          if (card.name && hasImage && langSet.has(card.lang ?? 'en')) {
+            validCards.push(card)
+          }
+        } catch {
+          // Skip malformed JSON objects
+        }
+      }
+
+      // Report download + parsing progress
       const downloadedMb = Math.round(downloadedBytes / 1_000_000)
       onProgress({
         phase: 'downloading',
         downloadedMb,
         totalMb,
-        message: `Telechargement (${downloadedMb} / ${totalMb} MB)...`,
+        message: t('offline.downloading', { downloadedMb, totalMb, count: validCards.length }),
       })
     }
 
-    // Phase 3: Parse JSON
-    // Yield to let the UI repaint before heavy synchronous work
-    onProgress({
-      phase: 'parsing',
-      message: 'Assemblage des donnees...',
-    })
-    await new Promise((resolve) => setTimeout(resolve, 50))
-
-    const combinedLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0)
-    const combined = new Uint8Array(combinedLength)
-    let offset = 0
-    for (const chunk of chunks) {
-      combined.set(chunk, offset)
-      offset += chunk.length
-    }
+    // Flush any remaining decoded bytes from the stream
+    buffer += decoder.decode()
 
     onProgress({
       phase: 'parsing',
-      message: 'Decodage du JSON (~170 MB)...',
-    })
-    await new Promise((resolve) => setTimeout(resolve, 50))
-
-    const jsonText = new TextDecoder().decode(combined)
-    const allCards: RawScryfallBulkCard[] = JSON.parse(jsonText)
-
-    // Filter: keep only cards with a name, an image, and matching selected languages
-    const langSet = new Set(languages)
-    onProgress({
-      phase: 'parsing',
-      message: `Filtrage de ${allCards.length} cartes (langues: ${languages.join(', ')})...`,
-    })
-    await new Promise((resolve) => setTimeout(resolve, 50))
-
-    const validCards = allCards.filter(
-      (card) =>
-        card.name &&
-        (card.image_uris || card.card_faces?.[0]?.image_uris) &&
-        langSet.has(card.lang ?? 'en'),
-    )
-
-    onProgress({
-      phase: 'parsing',
-      message: `${validCards.length} cartes valides sur ${allCards.length} total`,
+      message: t('offline.parsingDone', { validCount: validCards.length, totalCount: totalParsed, languages: languages.join(', ') }),
     })
 
     // Phase 4: Import into SQLite
     onProgress({
       phase: 'importing',
       importProgress: { inserted: 0, total: validCards.length },
-      message: `Import dans la base locale (0 / ${validCards.length})...`,
+      message: t('offline.importing', { inserted: 0, total: validCards.length }),
     })
 
     const insertedCount = await bulkInsertCards(validCards, (importProgress) => {
       onProgress({
         phase: 'importing',
         importProgress,
-        message: `Import (${importProgress.inserted} / ${importProgress.total})...`,
+        message: t('offline.importProgress', { inserted: importProgress.inserted, total: importProgress.total }),
       })
     })
 
     // Done
     onProgress({
       phase: 'done',
-      message: `${insertedCount} cartes importees avec succes`,
+      message: t('offline.importSuccess', { count: insertedCount }),
     })
 
     return insertedCount
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
+    const { t: tError } = i18n.global
+    const errorMessage = error instanceof Error ? error.message : tError('offline.unknownError')
     onProgress({
       phase: 'error',
-      message: `Echec: ${errorMessage}`,
+      message: tError('offline.importFailed', { error: errorMessage }),
       error: errorMessage,
     })
     throw error

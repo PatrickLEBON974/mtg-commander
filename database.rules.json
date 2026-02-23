@@ -1,0 +1,53 @@
+{
+  "rules": {
+    "rooms": {
+      "$roomCode": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "gameState": {
+          ".validate": "newData.hasChildren(['currentTurnPlayerIndex', 'turnNumber', 'isRunning'])",
+          "settings": {
+            "startingLife": {
+              ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 999"
+            },
+            "commanderDamageThreshold": {
+              ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 99"
+            },
+            "poisonThreshold": {
+              ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 99"
+            },
+            "playerCount": {
+              ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 6"
+            }
+          }
+        },
+        "players": {
+          "$playerId": {
+            ".validate": "newData.hasChildren(['name', 'lifeTotal'])",
+            "lifeTotal": {
+              ".validate": "newData.isNumber() && newData.val() >= -999 && newData.val() <= 9999"
+            },
+            "poisonCounters": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999"
+            },
+            "experienceCounters": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999"
+            },
+            "energyCounters": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999"
+            }
+          }
+        },
+        "hostId": {
+          ".validate": "newData.isString()"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber()"
+        },
+        "maxPlayers": {
+          ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 6"
+        }
+      }
+    }
+  }
+}

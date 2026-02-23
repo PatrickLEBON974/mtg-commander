@@ -47,23 +47,25 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const isVisible = ref(true)
 const isReady = ref(false)
 const loadProgress = ref(0)
-const loadingMessage = ref('Initialisation...')
+const loadingMessage = ref(t('splash.initializing'))
 
 onMounted(async () => {
   loadProgress.value = 30
-  loadingMessage.value = 'Chargement des stores...'
+  loadingMessage.value = t('splash.loadingStores')
 
   await new Promise((resolve) => setTimeout(resolve, 300))
   loadProgress.value = 60
-  loadingMessage.value = 'Preparation de la partie...'
+  loadingMessage.value = t('splash.preparingGame')
 
   await new Promise((resolve) => setTimeout(resolve, 300))
   loadProgress.value = 100
-  loadingMessage.value = 'Pret !'
+  loadingMessage.value = t('splash.ready')
   isReady.value = true
 
   await new Promise((resolve) => setTimeout(resolve, 400))

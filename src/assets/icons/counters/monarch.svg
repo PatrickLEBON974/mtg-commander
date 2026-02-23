@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="currentColor">
-  <!-- Monarch — Royal crown -->
-  <path d="M4 24V12l6 6 6-10 6 10 6-6v12z"/>
-  <rect x="4" y="24" width="24" height="4" rx="1"/>
-  <!-- Gems -->
-  <circle cx="10" cy="20" r="1.5" fill="#1a1a2e" opacity="0.6"/>
-  <circle cx="16" cy="17" r="1.5" fill="#1a1a2e" opacity="0.6"/>
-  <circle cx="22" cy="20" r="1.5" fill="#1a1a2e" opacity="0.6"/>
-</svg>

@@ -5,6 +5,8 @@ import { useOfflineStore } from '@/stores/offlineStore'
 
 const BASE_URL = 'https://api.scryfall.com'
 const REQUEST_DELAY_MS = 100
+const MAX_RETRIES = 3
+const BASE_DELAY_MS = 500
 
 let lastRequestTime = 0
 
@@ -16,12 +18,35 @@ async function throttledFetch(url: string): Promise<Response> {
   }
   lastRequestTime = Date.now()
 
-  return fetch(url, {
-    headers: {
-      'User-Agent': 'MTGCommanderApp/1.0.0',
-      Accept: 'application/json',
-    },
-  })
+  let lastError: Error | null = null
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1)
+      await new Promise((resolve) => setTimeout(resolve, delay))
+    }
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'MTGCommanderApp/1.0.0',
+          Accept: 'application/json',
+        },
+      })
+
+      // Don't retry client errors (except 429)
+      if (response.ok || (response.status >= 400 && response.status < 500 && response.status !== 429)) {
+        return response
+      }
+
+      // Retry on 429 and 5xx
+      lastError = new Error(`HTTP ${response.status}`)
+    } catch (error) {
+      // Network error - retry
+      lastError = error instanceof Error ? error : new Error('Network error')
+    }
+  }
+
+  throw lastError ?? new Error('Request failed after retries')
 }
 
 function localCardToScryfallCard(local: LocalCard): ScryfallCard {
@@ -84,15 +109,19 @@ export async function autocompleteCards(query: string): Promise<string[]> {
   if (cached) return cached
 
   // Fallback to API
-  const encodedQuery = encodeURIComponent(query)
-  const response = await throttledFetch(`${BASE_URL}/cards/autocomplete?q=${encodedQuery}`)
+  try {
+    const encodedQuery = encodeURIComponent(query)
+    const response = await throttledFetch(`${BASE_URL}/cards/autocomplete?q=${encodedQuery}`)
 
-  if (!response.ok) return []
+    if (!response.ok) return []
 
-  const data = await response.json()
-  const results = data.data ?? []
-  setCachedScryfall(cacheKey, results)
-  return results
+    const data = await response.json()
+    const results = data.data ?? []
+    setCachedScryfall(cacheKey, results)
+    return results
+  } catch {
+    return []
+  }
 }
 
 export async function searchCards(
@@ -122,16 +151,20 @@ export async function searchCards(
   const cached = getCachedScryfall(cacheKey) as CardSearchResult | null
   if (cached) return cached
 
-  const encodedQuery = encodeURIComponent(fullQuery)
-  const response = await throttledFetch(`${BASE_URL}/cards/search?q=${encodedQuery}&unique=cards&order=name`)
+  try {
+    const encodedQuery = encodeURIComponent(fullQuery)
+    const response = await throttledFetch(`${BASE_URL}/cards/search?q=${encodedQuery}&unique=cards&order=name`)
 
-  if (!response.ok) {
+    if (!response.ok) {
+      return { total_cards: 0, has_more: false, data: [] }
+    }
+
+    const result: CardSearchResult = await response.json()
+    setCachedScryfall(cacheKey, result)
+    return result
+  } catch {
     return { total_cards: 0, has_more: false, data: [] }
   }
-
-  const result: CardSearchResult = await response.json()
-  setCachedScryfall(cacheKey, result)
-  return result
 }
 
 export async function getCardByName(name: string): Promise<ScryfallCard | null> {
@@ -149,22 +182,30 @@ export async function getCardByName(name: string): Promise<ScryfallCard | null> 
   const cached = getCachedScryfall(cacheKey) as ScryfallCard | null
   if (cached) return cached
 
-  const encodedName = encodeURIComponent(name)
-  const response = await throttledFetch(`${BASE_URL}/cards/named?exact=${encodedName}`)
+  try {
+    const encodedName = encodeURIComponent(name)
+    const response = await throttledFetch(`${BASE_URL}/cards/named?exact=${encodedName}`)
 
-  if (!response.ok) return null
+    if (!response.ok) return null
 
-  const card: ScryfallCard = await response.json()
-  setCachedScryfall(cacheKey, card)
-  return card
+    const card: ScryfallCard = await response.json()
+    setCachedScryfall(cacheKey, card)
+    return card
+  } catch {
+    return null
+  }
 }
 
 export async function getRandomCommander(): Promise<ScryfallCard | null> {
-  const response = await throttledFetch(`${BASE_URL}/cards/random?q=is%3Acommander+legal%3Acommander`)
+  try {
+    const response = await throttledFetch(`${BASE_URL}/cards/random?q=is%3Acommander+legal%3Acommander`)
 
-  if (!response.ok) return null
+    if (!response.ok) return null
 
-  return response.json()
+    return response.json()
+  } catch {
+    return null
+  }
 }
 
 export function getCardImageUrl(card: ScryfallCard, size: 'small' | 'normal' | 'large' | 'art_crop' = 'normal'): string {

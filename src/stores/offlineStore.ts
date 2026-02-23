@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { getCardCount, getMeta, initDatabase, clearCards } from '@/services/database'
 import { downloadBulkData, type DownloadProgress } from '@/services/bulkDownload'
 import { useSettingsStore } from './settingsStore'
+import i18n from '@/i18n'
 
 export const useOfflineStore = defineStore('offline', () => {
   const isDbReady = ref(false)
@@ -14,8 +15,11 @@ export const useOfflineStore = defineStore('offline', () => {
 
   const hasLocalData = computed(() => cardCount.value > 0)
   const formattedLastUpdate = computed(() => {
-    if (!lastUpdateDate.value) return 'Jamais'
-    return new Date(lastUpdateDate.value).toLocaleDateString('fr-FR', {
+    const { t } = i18n.global
+    if (!lastUpdateDate.value) return t('offline.never')
+    const currentLocale = (i18n.global.locale as unknown as { value: string }).value
+    const locale = currentLocale === 'en' ? 'en-US' : 'fr-FR'
+    return new Date(lastUpdateDate.value).toLocaleDateString(locale, {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
@@ -48,7 +52,8 @@ export const useOfflineStore = defineStore('offline', () => {
     if (isDownloading.value) return
 
     if (!isDbReady.value) {
-      downloadError.value = 'Base de donnees non disponible (SQLite requis sur appareil natif)'
+      const { t } = i18n.global
+      downloadError.value = t('offline.databaseUnavailable')
       return
     }
 
@@ -64,7 +69,8 @@ export const useOfflineStore = defineStore('offline', () => {
       cardCount.value = count
       await refreshStats()
     } catch (error) {
-      downloadError.value = error instanceof Error ? error.message : 'Erreur inconnue'
+      const { t } = i18n.global
+      downloadError.value = error instanceof Error ? error.message : t('offline.unknownError')
     } finally {
       isDownloading.value = false
     }

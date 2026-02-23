@@ -73,8 +73,10 @@
    ============================================= */
 
 :root {
-  --ion-safe-area-top: env(safe-area-inset-top);
-  --ion-safe-area-bottom: env(safe-area-inset-bottom);
+  --ion-safe-area-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --ion-safe-area-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --ion-safe-area-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+  --ion-safe-area-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
 
   /* Primary: Mythic Orange — main CTA, active elements */
   --ion-color-primary: #e8600a;
@@ -199,7 +201,7 @@ body {
 
 ion-toolbar {
   --border-width: 0;
-  --min-height: 56px;
+  --min-height: 44px;
 }
 
 ion-header ion-toolbar:last-of-type {
@@ -213,6 +215,7 @@ ion-title {
   font-weight: 700;
   letter-spacing: 1px;
   color: var(--color-arena-gold-light);
+  text-align: center;
 }
 
 ion-card-title {
@@ -225,17 +228,24 @@ ion-card-title {
 
 ion-tab-bar {
   --border: none;
-  height: 64px;
+  height: calc(40px + var(--ion-safe-area-bottom, 0px));
+  padding-bottom: var(--ion-safe-area-bottom, 0px);
   border-top: 1px solid rgba(212, 168, 67, 0.12);
 }
 
 ion-tab-button {
   --color: var(--ion-tab-bar-color);
   --color-selected: var(--ion-tab-bar-color-selected);
-  font-size: 12px;
+  --padding-top: 2px;
+  --padding-bottom: 2px;
+  font-size: 10px;
   font-weight: 500;
-  letter-spacing: 0.75px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
+}
+
+ion-tab-button ion-icon {
+  font-size: 20px;
 }
 
 ion-tab-button.tab-selected {
@@ -631,15 +641,6 @@ ion-content::part(scroll) {
 .flash-positive { animation: flash-green 350ms ease-out; }
 .flash-negative { animation: flash-red 350ms ease-out; }
 
-/* =============================================
-   GAME UI — Current turn glow (orange Arena)
-   ============================================= */
-
-.current-turn-glow {
-  box-shadow:
-    0 0 0 2px var(--color-arena-orange),
-    0 0 16px rgba(232, 96, 10, 0.25);
-}
 
 /* =============================================
    GAME UI — Death overlay transition

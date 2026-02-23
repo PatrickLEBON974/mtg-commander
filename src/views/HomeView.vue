@@ -25,14 +25,14 @@
           <i class="ms ms-r ms-cost" />
           <i class="ms ms-g ms-cost" />
         </div>
-        <p class="text-xs" style="color: var(--ion-color-medium)">Tracker de partie EDH</p>
+        <p class="text-xs" style="color: var(--ion-color-medium)">{{ t('home.subtitle') }}</p>
       </div>
 
       <!-- Actions -->
       <div class="flex flex-col gap-3 px-4">
         <ion-button expand="block" size="large" color="primary" @click="startNewGame">
           <ion-icon :icon="playOutline" slot="start" />
-          Nouvelle Partie
+          {{ t('home.newGame') }}
         </ion-button>
 
         <ion-button
@@ -44,7 +44,7 @@
           @click="resumeGame"
         >
           <ion-icon :icon="returnUpForwardOutline" slot="start" />
-          Reprendre la Partie
+          {{ t('home.resumeGame') }}
         </ion-button>
 
         <ion-button
@@ -55,41 +55,41 @@
           @click="router.push('/multiplayer')"
         >
           <ion-icon :icon="peopleOutline" slot="start" />
-          Multijoueur
+          {{ t('home.multiplayer') }}
         </ion-button>
       </div>
 
       <!-- Quick settings -->
       <ion-list :inset="true" class="ion-margin-top">
         <ion-list-header>
-          <ion-label>Configuration rapide</ion-label>
+          <ion-label>{{ t('home.quickSettings') }}</ion-label>
         </ion-list-header>
 
         <ion-item lines="inset">
           <ion-icon :icon="peopleOutline" slot="start" color="tertiary" />
-          <ion-label>Joueurs</ion-label>
+          <ion-label>{{ t('home.players') }}</ion-label>
           <SettingStepper
             slot="end"
             v-model="settingsStore.gameSettings.playerCount"
             :options="playerCountOptions"
-            label="joueurs"
+            :label="t('common.players')"
           />
         </ion-item>
 
         <ion-item lines="inset">
           <ion-icon :icon="heartOutline" slot="start" color="danger" />
-          <ion-label>Vie</ion-label>
+          <ion-label>{{ t('home.life') }}</ion-label>
           <SettingStepper
             slot="end"
             v-model="settingsStore.gameSettings.startingLife"
             :options="startingLifeOptions"
-            label="vie"
+            :label="t('common.life')"
           />
         </ion-item>
 
         <ion-item lines="none">
           <ion-icon :icon="timerOutline" slot="start" color="medium" />
-          <ion-label>Timer de partie</ion-label>
+          <ion-label>{{ t('home.gameTimer') }}</ion-label>
           <ion-toggle slot="end" v-model="settingsStore.gameSettings.enableTimer" />
         </ion-item>
       </ion-list>
@@ -98,6 +98,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import {
   IonPage,
@@ -132,6 +133,7 @@ const startingLifeOptions = [
   { value: 40, label: '40' },
 ]
 
+const { t } = useI18n()
 const router = useRouter()
 const gameStore = useGameStore()
 const settingsStore = useSettingsStore()

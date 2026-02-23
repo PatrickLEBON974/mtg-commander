@@ -1,4 +1,5 @@
 export interface Commander {
+  id: string // stable UUID, does not change when commanders are reordered
   cardName: string
   imageUri?: string
   castCount: number
@@ -27,6 +28,9 @@ export interface GameState {
   elapsedMs: number
   isRunning: boolean
   history: GameAction[]
+  playerPlayTimeMs: Record<string, number>
+  playerTurnTimeMs: Record<string, number>
+  priorityPlayerId: string | null
 }
 
 export interface GameAction {
@@ -38,6 +42,7 @@ export interface GameAction {
   commanderId?: string
   value: number
   description: string
+  previousValue?: number // stores previous state for undo (e.g., previous turn index)
 }
 
 export type GameActionType =

@@ -2,15 +2,15 @@
   <ion-modal :is-open="isOpen" @didDismiss="$emit('close')">
     <ion-header>
       <ion-toolbar>
-        <ion-title>Choisir un commandant</ion-title>
+        <ion-title>{{ t('commanderPicker.title') }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="$emit('close')">Fermer</ion-button>
+          <ion-button @click="$emit('close')">{{ t('common.close') }}</ion-button>
         </ion-buttons>
       </ion-toolbar>
       <ion-toolbar>
         <ion-searchbar
           v-model="searchQuery"
-          placeholder="Rechercher un commandant..."
+          :placeholder="t('commanderPicker.searchPlaceholder')"
           :debounce="300"
           @ionInput="onSearch"
         />
@@ -38,7 +38,7 @@
         />
         <p class="text-sm text-text-secondary">{{ selectedCard.type_line }}</p>
         <ion-button expand="block" @click="confirmSelection">
-          Confirmer {{ selectedCard.name }}
+          {{ t('commanderPicker.confirm', { name: selectedCard.name }) }}
         </ion-button>
       </div>
 
@@ -51,6 +51,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   IonModal,
   IonHeader,
@@ -72,6 +73,8 @@ defineProps<{
   isOpen: boolean
 }>()
 
+const { t } = useI18n()
+
 const emit = defineEmits<{
   close: []
   select: [cardName: string, imageUri: string]
@@ -81,25 +84,32 @@ const searchQuery = ref('')
 const suggestions = ref<string[]>([])
 const selectedCard = ref<ScryfallCard | null>(null)
 const isLoading = ref(false)
+let currentSearchId = 0
 
 const selectedCardImage = computed(() =>
   selectedCard.value ? getCardImageUrl(selectedCard.value, 'normal') : '',
 )
 
 async function onSearch() {
+  const searchId = ++currentSearchId
   selectedCard.value = null
   if (searchQuery.value.length < 2) {
     suggestions.value = []
     return
   }
-  suggestions.value = await autocompleteCards(searchQuery.value)
+  const results = await autocompleteCards(searchQuery.value)
+  if (searchId !== currentSearchId) return
+  suggestions.value = results
 }
 
 async function selectCommander(cardName: string) {
+  const searchId = ++currentSearchId
   suggestions.value = []
   searchQuery.value = cardName
   isLoading.value = true
-  selectedCard.value = await getCardByName(cardName)
+  const card = await getCardByName(cardName)
+  if (searchId !== currentSearchId) return
+  selectedCard.value = card
   isLoading.value = false
 }
 

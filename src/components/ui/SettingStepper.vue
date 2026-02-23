@@ -4,7 +4,7 @@
       class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-lg font-bold active:bg-white/20"
       :disabled="currentIndex <= 0"
       :class="currentIndex <= 0 ? 'opacity-30' : ''"
-      :aria-label="`Diminuer ${label}`"
+      :aria-label="t('common.decrease', { label })"
       @click="prev"
     >
       -
@@ -18,7 +18,7 @@
       class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-lg font-bold active:bg-white/20"
       :disabled="currentIndex >= options.length - 1"
       :class="currentIndex >= options.length - 1 ? 'opacity-30' : ''"
-      :aria-label="`Augmenter ${label}`"
+      :aria-label="t('common.increase', { label })"
       @click="next"
     >
       +
@@ -27,6 +27,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
 
 export interface StepperOption {
@@ -39,6 +40,8 @@ const props = defineProps<{
   options: StepperOption[]
   label?: string
 }>()
+
+const { t } = useI18n()
 
 const emit = defineEmits<{
   'update:modelValue': [value: number | string]

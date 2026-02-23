@@ -2,9 +2,9 @@
   <ion-modal :is-open="isOpen" @didDismiss="$emit('close')">
     <ion-header>
       <ion-toolbar>
-        <ion-title>Historique</ion-title>
+        <ion-title>{{ t('history.title') }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="$emit('close')">Fermer</ion-button>
+          <ion-button @click="$emit('close')">{{ t('common.close') }}</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -21,7 +21,7 @@
       </ion-list>
 
       <div v-else class="flex h-full items-center justify-center">
-        <p class="text-text-secondary">Aucune action pour le moment</p>
+        <p class="text-text-secondary">{{ t('history.noActions') }}</p>
       </div>
     </ion-content>
   </ion-modal>
@@ -29,6 +29,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   IonModal,
   IonHeader,
@@ -62,6 +63,7 @@ defineEmits<{
   close: []
 }>()
 
+const { t } = useI18n()
 const gameStore = useGameStore()
 
 const reversedHistory = computed(() =>

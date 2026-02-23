@@ -5,6 +5,7 @@ import {
   joinRoom,
   listenToRoom,
   updateGameState,
+  updatePartialGameState,
   updatePlayerState,
   leaveRoom,
   deleteRoom,
@@ -15,6 +16,7 @@ import {
 } from '@/services/firebase'
 import { useGameStore } from './gameStore'
 import type { PlayerState } from '@/types/game'
+import i18n from '@/i18n'
 
 export const useMultiplayerStore = defineStore('multiplayer', () => {
   const isMultiplayer = ref(false)
@@ -27,6 +29,20 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
   const isConnecting = ref(false)
 
   let unsubscribe: Unsubscribe | null = null
+  let pushDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
+  function toSyncedPlayerState(player: PlayerState): SyncedPlayerState {
+    return {
+      lifeTotal: player.lifeTotal,
+      commanderDamageReceived: player.commanderDamageReceived,
+      poisonCounters: player.poisonCounters,
+      experienceCounters: player.experienceCounters,
+      energyCounters: player.energyCounters,
+      isMonarch: player.isMonarch,
+      hasInitiative: player.hasInitiative,
+      commanders: player.commanders,
+    }
+  }
 
   const connectedPlayerCount = computed(() => {
     if (!roomData.value) return 0
@@ -67,11 +83,11 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
       isHost.value = true
       isMultiplayer.value = true
 
-      startListening(result.code)
+      await startListening(result.code)
 
       return result.code
     } catch (error) {
-      connectionError.value = error instanceof Error ? error.message : 'Erreur de connexion'
+      connectionError.value = error instanceof Error ? error.message : i18n.global.t('multiplayer.connectionError')
       throw error
     } finally {
       isConnecting.value = false
@@ -91,21 +107,21 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
       isHost.value = false
       isMultiplayer.value = true
 
-      startListening(code.toUpperCase())
+      await startListening(code.toUpperCase())
     } catch (error) {
-      connectionError.value = error instanceof Error ? error.message : 'Erreur de connexion'
+      connectionError.value = error instanceof Error ? error.message : i18n.global.t('multiplayer.connectionError')
       throw error
     } finally {
       isConnecting.value = false
     }
   }
 
-  function startListening(code: string) {
+  async function startListening(code: string) {
     if (unsubscribe) unsubscribe()
 
-    unsubscribe = listenToRoom(code, (data) => {
+    unsubscribe = await listenToRoom(code, (data) => {
       if (!data) {
-        connectionError.value = 'Room fermee'
+        connectionError.value = i18n.global.t('multiplayer.roomClosed')
         disconnect()
         return
       }
@@ -133,9 +149,23 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
       const remotePlayer = remoteState.players[player.id]
       if (!remotePlayer) continue
 
-      // Skip local players — this device is source of truth for them
-      if (isLocalPlayer(player.id)) continue
+      if (isLocalPlayer(player.id)) {
+        // For local players, only merge commander damage from remote.
+        // A remote device may have dealt commander damage to this local player,
+        // so we take the higher value for each damage source (damage only increases).
+        const remoteDamage = remotePlayer.commanderDamageReceived ?? {}
+        for (const [sourceCommanderId, remoteDamageValue] of Object.entries(remoteDamage)) {
+          const localDamageValue = player.commanderDamageReceived[sourceCommanderId] ?? 0
+          if (remoteDamageValue > localDamageValue) {
+            const damageIncrease = remoteDamageValue - localDamageValue
+            player.commanderDamageReceived[sourceCommanderId] = remoteDamageValue
+            player.lifeTotal -= damageIncrease
+          }
+        }
+        continue
+      }
 
+      // For remote players, accept full state from remote (their device is source of truth)
       player.lifeTotal = remotePlayer.lifeTotal
       player.commanderDamageReceived = remotePlayer.commanderDamageReceived
       player.poisonCounters = remotePlayer.poisonCounters
@@ -143,11 +173,25 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
       player.energyCounters = remotePlayer.energyCounters
       player.isMonarch = remotePlayer.isMonarch
       player.hasInitiative = remotePlayer.hasInitiative
-      player.commanders = remotePlayer.commanders
+      player.commanders = remotePlayer.commanders.map((commander: any) => ({
+        ...commander,
+        id: commander.id || crypto.randomUUID(),
+      }))
     }
   }
 
-  async function pushLocalPlayerState() {
+  function pushLocalPlayerState() {
+    if (!isMultiplayer.value || !roomCode.value) return
+
+    if (pushDebounceTimer) clearTimeout(pushDebounceTimer)
+    pushDebounceTimer = setTimeout(() => {
+      doPushLocalPlayerState().catch((error) => {
+        console.error('[Multiplayer] Failed to push local player state:', error)
+      })
+    }, 300)
+  }
+
+  async function doPushLocalPlayerState() {
     if (!isMultiplayer.value || !roomCode.value) return
 
     const gameStore = useGameStore()
@@ -158,21 +202,30 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
       const localPlayer = gameStore.currentGame!.players.find((p) => p.id === playerId)
       if (!localPlayer) return Promise.resolve()
 
-      const playerState: SyncedPlayerState = {
-        lifeTotal: localPlayer.lifeTotal,
-        commanderDamageReceived: localPlayer.commanderDamageReceived,
-        poisonCounters: localPlayer.poisonCounters,
-        experienceCounters: localPlayer.experienceCounters,
-        energyCounters: localPlayer.energyCounters,
-        isMonarch: localPlayer.isMonarch,
-        hasInitiative: localPlayer.hasInitiative,
-        commanders: localPlayer.commanders,
-      }
-
-      return updatePlayerState(roomCode.value!, playerId, playerState)
+      return updatePlayerState(roomCode.value!, playerId, toSyncedPlayerState(localPlayer))
     })
 
     await Promise.all(pushPromises)
+  }
+
+  /**
+   * Push a remote player's state to Firebase after it was locally modified.
+   * This is needed when a local action (e.g. commander damage) modifies
+   * a player that belongs to another device.
+   */
+  function pushRemotePlayerState(playerId: string) {
+    if (!isMultiplayer.value || !roomCode.value) return
+
+    const gameStore = useGameStore()
+    if (!gameStore.currentGame) return
+
+    const player = gameStore.currentGame.players.find((p) => p.id === playerId)
+    if (!player) return
+
+    const syncedState = toSyncedPlayerState(player)
+    updatePlayerState(roomCode.value, playerId, syncedState).catch((error) => {
+      console.error('[Multiplayer] Failed to push remote player state:', error)
+    })
   }
 
   async function pushFullGameState() {
@@ -183,16 +236,7 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
 
     const playersState: Record<string, SyncedPlayerState> = {}
     for (const player of gameStore.currentGame.players) {
-      playersState[player.id] = {
-        lifeTotal: player.lifeTotal,
-        commanderDamageReceived: player.commanderDamageReceived,
-        poisonCounters: player.poisonCounters,
-        experienceCounters: player.experienceCounters,
-        energyCounters: player.energyCounters,
-        isMonarch: player.isMonarch,
-        hasInitiative: player.hasInitiative,
-        commanders: player.commanders,
-      }
+      playersState[player.id] = toSyncedPlayerState(player)
     }
 
     const syncedState: SyncedGameState = {
@@ -213,7 +257,6 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
     const gameStore = useGameStore()
     if (!gameStore.currentGame) return
 
-    const { updatePartialGameState } = await import('@/services/firebase')
     await updatePartialGameState(roomCode.value, {
       currentTurnPlayerIndex: gameStore.currentGame.currentTurnPlayerIndex,
       turnNumber: gameStore.currentGame.turnNumber,
@@ -240,6 +283,11 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
   }
 
   async function disconnect() {
+    if (pushDebounceTimer) {
+      clearTimeout(pushDebounceTimer)
+      pushDebounceTimer = null
+    }
+
     if (unsubscribe) {
       unsubscribe()
       unsubscribe = null
@@ -277,6 +325,7 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
     hostRoom,
     joinExistingRoom,
     pushLocalPlayerState,
+    pushRemotePlayerState,
     pushFullGameState,
     pushTurnAdvance,
     createMultiplayerGame,

@@ -2,7 +2,7 @@
   <ion-page>
     <ion-header>
       <ion-toolbar>
-        <ion-title>Reglages</ion-title>
+        <ion-title>{{ t('settings.title') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -10,28 +10,28 @@
       <!-- Offline Data Section -->
       <ion-list :inset="true">
         <ion-list-header>
-          <ion-label>Donnees hors-ligne</ion-label>
+          <ion-label>{{ t('settings.offlineData') }}</ion-label>
         </ion-list-header>
 
         <ion-item lines="inset">
           <ion-icon :icon="serverOutline" slot="start" color="secondary" />
           <ion-label>
-            <h2>Base de cartes locale</h2>
+            <h2>{{ t('settings.localCardDb') }}</h2>
             <p v-if="offlineStore.hasLocalData">
-              {{ offlineStore.cardCount.toLocaleString('fr-FR') }} cartes
+              {{ t('settings.cardCount', { count: offlineStore.cardCount.toLocaleString(currentLocaleCode) }) }}
               (~{{ offlineStore.estimatedSizeMb }} MB)
             </p>
-            <p v-else>Non telechargee</p>
+            <p v-else>{{ t('settings.notDownloaded') }}</p>
           </ion-label>
           <ion-note slot="end" :color="offlineStore.hasLocalData ? 'success' : 'medium'">
-            {{ offlineStore.hasLocalData ? 'Pret' : 'Vide' }}
+            {{ offlineStore.hasLocalData ? t('settings.ready') : t('settings.empty') }}
           </ion-note>
         </ion-item>
 
         <ion-item lines="inset">
           <ion-icon :icon="timeOutline" slot="start" color="medium" />
           <ion-label>
-            <h2>Derniere mise a jour</h2>
+            <h2>{{ t('settings.lastUpdate') }}</h2>
             <p>{{ offlineStore.formattedLastUpdate }}</p>
           </ion-label>
         </ion-item>
@@ -39,16 +39,16 @@
         <ion-item lines="inset">
           <ion-icon :icon="languageOutline" slot="start" color="tertiary" />
           <ion-label>
-            <h2>Langue supplementaire</h2>
-            <p>Anglais toujours inclus{{ settingsStore.cardSecondLanguage ? ' + ' + languageLabel(settingsStore.cardSecondLanguage) : '' }}</p>
+            <h2>{{ t('settings.secondLanguage') }}</h2>
+            <p>{{ t('settings.englishIncluded') }}{{ settingsStore.cardSecondLanguage ? ' + ' + languageLabel(settingsStore.cardSecondLanguage) : '' }}</p>
           </ion-label>
           <ion-select
             v-model="settingsStore.cardSecondLanguage"
             interface="action-sheet"
-            :interface-options="{ header: 'Langue des cartes' }"
-            placeholder="Anglais seul"
+            :interface-options="{ header: t('settings.cardLanguage') }"
+            :placeholder="t('settings.englishOnly')"
           >
-            <ion-select-option :value="null">Anglais seul (~170 MB)</ion-select-option>
+            <ion-select-option :value="null">{{ t('settings.englishOnly') }}</ion-select-option>
             <ion-select-option value="fr">Francais (~1.5 GB)</ion-select-option>
             <ion-select-option value="de">Deutsch (~1.5 GB)</ion-select-option>
             <ion-select-option value="es">Espanol (~1.5 GB)</ion-select-option>
@@ -85,7 +85,7 @@
         <ion-item v-if="offlineStore.downloadError" lines="inset">
           <ion-icon :icon="alertCircleOutline" slot="start" color="danger" />
           <ion-label color="danger">
-            <h2>Erreur</h2>
+            <h2>{{ t('settings.error') }}</h2>
             <p>{{ offlineStore.downloadError }}</p>
           </ion-label>
         </ion-item>
@@ -99,7 +99,7 @@
           >
             <ion-spinner v-if="offlineStore.isDownloading" name="crescent" slot="start" />
             <ion-icon v-else :icon="cloudDownloadOutline" slot="start" />
-            {{ offlineStore.hasLocalData ? 'Mettre a jour' : 'Telecharger' }} ({{ downloadSizeLabel }})
+            {{ offlineStore.hasLocalData ? t('settings.update') : t('settings.download') }} ({{ downloadSizeLabel }})
           </ion-button>
         </ion-item>
 
@@ -113,7 +113,7 @@
             class="ion-margin-vertical"
           >
             <ion-icon :icon="trashOutline" slot="start" />
-            Vider le cache des cartes
+            {{ t('settings.clearCache') }}
           </ion-button>
         </ion-item>
       </ion-list>
@@ -121,32 +121,32 @@
       <!-- Game Section -->
       <ion-list :inset="true">
         <ion-list-header>
-          <ion-label>Partie</ion-label>
+          <ion-label>{{ t('settings.gameSection') }}</ion-label>
         </ion-list-header>
 
         <ion-item lines="inset">
           <ion-icon :icon="peopleOutline" slot="start" color="tertiary" />
           <ion-label>
-            <h2>Nombre de joueurs</h2>
+            <h2>{{ t('settings.playerCount') }}</h2>
           </ion-label>
           <SettingStepper
             slot="end"
             v-model="settingsStore.gameSettings.playerCount"
             :options="playerCountOptions"
-            label="joueurs"
+            :label="t('common.players')"
           />
         </ion-item>
 
         <ion-item lines="none">
           <ion-icon :icon="heartOutline" slot="start" color="danger" />
           <ion-label>
-            <h2>Points de vie</h2>
+            <h2>{{ t('settings.lifePoints') }}</h2>
           </ion-label>
           <SettingStepper
             slot="end"
             v-model="settingsStore.gameSettings.startingLife"
             :options="startingLifeOptions"
-            label="vie"
+            :label="t('common.life')"
           />
         </ion-item>
       </ion-list>
@@ -154,32 +154,32 @@
       <!-- Rules Section -->
       <ion-list :inset="true">
         <ion-list-header>
-          <ion-label>Regles</ion-label>
+          <ion-label>{{ t('settings.rules') }}</ion-label>
         </ion-list-header>
 
         <ion-item lines="inset">
           <ion-icon :icon="shieldOutline" slot="start" color="warning" />
           <ion-label>
-            <h2>Degats commandant</h2>
+            <h2>{{ t('settings.commanderDamage') }}</h2>
           </ion-label>
           <SettingStepper
             slot="end"
             v-model="settingsStore.gameSettings.commanderDamageThreshold"
             :options="commanderDamageOptions"
-            label="degats commandant"
+            :label="t('settings.commanderDamageLabel')"
           />
         </ion-item>
 
         <ion-item lines="none">
           <ion-icon :icon="skullOutline" slot="start" color="primary" />
           <ion-label>
-            <h2>Seuil poison</h2>
+            <h2>{{ t('settings.poisonThreshold') }}</h2>
           </ion-label>
           <SettingStepper
             slot="end"
             v-model="settingsStore.gameSettings.poisonThreshold"
             :options="poisonOptions"
-            label="poison"
+            :label="t('settings.poisonLabel')"
           />
         </ion-item>
       </ion-list>
@@ -187,56 +187,63 @@
       <!-- App Section -->
       <ion-list :inset="true">
         <ion-list-header>
-          <ion-label>Application</ion-label>
+          <ion-label>{{ t('settings.application') }}</ion-label>
         </ion-list-header>
 
         <ion-item lines="inset">
+          <ion-icon :icon="languageOutline" slot="start" color="tertiary" />
+          <ion-label>
+            <h2>{{ t('settings.language') }}</h2>
+          </ion-label>
+          <ion-select v-model="settingsStore.language" interface="action-sheet" @ionChange="onLanguageChange">
+            <ion-select-option value="fr">Francais</ion-select-option>
+            <ion-select-option value="en">English</ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <ion-item lines="inset">
           <ion-icon :icon="phonePortraitOutline" slot="start" color="medium" />
-          <ion-label>Retour haptique</ion-label>
+          <ion-label>{{ t('settings.hapticFeedback') }}</ion-label>
           <ion-toggle slot="end" v-model="settingsStore.hapticFeedback" />
         </ion-item>
 
         <ion-item lines="inset">
           <ion-icon :icon="volumeHighOutline" slot="start" color="medium" />
           <ion-label>
-            <h2>Sons</h2>
-            <p>Effets sonores en jeu</p>
+            <h2>{{ t('settings.sounds') }}</h2>
+            <p>{{ t('settings.soundsDescription') }}</p>
           </ion-label>
           <ion-toggle slot="end" v-model="settingsStore.soundEnabled" />
         </ion-item>
 
         <ion-item lines="inset">
           <ion-icon :icon="sunnyOutline" slot="start" color="medium" />
-          <ion-label>Ecran toujours allume</ion-label>
+          <ion-label>{{ t('settings.keepScreenOn') }}</ion-label>
           <ion-toggle slot="end" v-model="settingsStore.keepScreenOn" />
         </ion-item>
 
         <ion-item lines="inset">
           <ion-icon :icon="timerOutline" slot="start" color="medium" />
-          <ion-label>Timer de partie</ion-label>
+          <ion-label>{{ t('settings.gameTimer') }}</ion-label>
           <ion-toggle slot="end" v-model="settingsStore.gameSettings.enableTimer" />
         </ion-item>
 
         <ion-item button lines="none" @click="resetSettings" detail>
           <ion-icon :icon="refreshOutline" slot="start" color="danger" />
-          <ion-label color="danger">Reinitialiser les reglages</ion-label>
+          <ion-label color="danger">{{ t('settings.reset') }}</ion-label>
         </ion-item>
       </ion-list>
 
       <!-- Wizards of the Coast fan content disclaimer -->
       <div class="ion-padding ion-text-center" style="opacity: 0.55; font-size: 12px; line-height: 1.5; color: var(--ion-color-medium)">
-        <p>
-          MTG Commander est un contenu de fan non officiel autorise par la
-          Fan Content Policy de Wizards of the Coast. Non approuve ni
-          endosse par Wizards. Certains elements utilises sont la propriete
-          de Wizards of the Coast. &copy;Wizards of the Coast LLC.
-        </p>
+        <p>{{ t('settings.disclaimer') }}</p>
       </div>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import {
   IonPage,
   IonHeader,
@@ -279,8 +286,11 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { useOfflineStore } from '@/stores/offlineStore'
 import SettingStepper from '@/components/ui/SettingStepper.vue'
 
+const { t, locale } = useI18n()
 const settingsStore = useSettingsStore()
 const offlineStore = useOfflineStore()
+
+const currentLocaleCode = computed(() => locale.value === 'en' ? 'en-US' : 'fr-FR')
 
 const playerCountOptions = [2, 3, 4, 5, 6].map((v) => ({ value: v, label: String(v) }))
 const startingLifeOptions = [
@@ -319,14 +329,18 @@ function resetSettings() {
   settingsStore.resetToDefaults()
 }
 
+function onLanguageChange() {
+  locale.value = settingsStore.language
+}
+
 async function confirmClearCache() {
   const alert = await alertController.create({
-    header: 'Vider le cache',
-    message: `Supprimer les ${offlineStore.cardCount.toLocaleString('fr-FR')} cartes stockees localement ?`,
+    header: t('settings.clearCacheConfirmTitle'),
+    message: t('settings.clearCacheConfirmMessage', { count: offlineStore.cardCount.toLocaleString(currentLocaleCode.value) }),
     buttons: [
-      { text: 'Annuler', role: 'cancel' },
+      { text: t('common.cancel'), role: 'cancel' },
       {
-        text: 'Supprimer',
+        text: t('common.delete'),
         role: 'destructive',
         handler: () => offlineStore.clearCache(),
       },

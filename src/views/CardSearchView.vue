@@ -2,12 +2,12 @@
   <ion-page>
     <ion-header>
       <ion-toolbar>
-        <ion-title>Recherche de Cartes</ion-title>
+        <ion-title>{{ t('search.title') }}</ion-title>
       </ion-toolbar>
       <ion-toolbar>
         <ion-searchbar
           v-model="searchQuery"
-          placeholder="Rechercher une carte..."
+          :placeholder="t('search.placeholder')"
           :debounce="300"
           show-clear-button="focus"
           animated
@@ -55,7 +55,7 @@
             </p>
 
             <p v-if="selectedCard.power" class="ion-margin-top" style="color: var(--ion-color-medium)">
-              Force / Endurance : {{ selectedCard.power }}/{{ selectedCard.toughness }}
+              {{ t('search.powerToughness') }} : {{ selectedCard.power }}/{{ selectedCard.toughness }}
             </p>
 
             <div class="flex flex-wrap gap-2 ion-margin-top">
@@ -76,7 +76,7 @@
 
         <ion-button expand="block" fill="outline" class="ion-margin" @click="clearSelection">
           <ion-icon :icon="searchOutline" slot="start" />
-          Nouvelle recherche
+          {{ t('search.newSearch') }}
         </ion-button>
       </div>
 
@@ -86,15 +86,15 @@
         class="flex h-full flex-col items-center justify-center gap-3"
       >
         <ion-icon :icon="searchOutline" style="font-size: 56px; color: var(--ion-color-medium)" />
-        <p style="color: var(--ion-color-medium)">Tapez pour rechercher une carte MTG</p>
-        <p class="text-xs" style="color: var(--ion-color-medium)">Filtre automatique : legal en Commander</p>
+        <p style="color: var(--ion-color-medium)">{{ t('search.emptyState') }}</p>
+        <p class="text-xs" style="color: var(--ion-color-medium)">{{ t('search.autoFilter') }}</p>
         <ion-chip v-if="offlineStore.hasLocalData" color="success" outline>
           <ion-icon :icon="checkmarkCircleOutline" />
-          <ion-label>{{ offlineStore.cardCount.toLocaleString('fr-FR') }} cartes en local</ion-label>
+          <ion-label>{{ t('search.localCards', { count: offlineStore.cardCount.toLocaleString() }) }}</ion-label>
         </ion-chip>
         <ion-chip v-else color="medium" outline>
           <ion-icon :icon="cloudOutline" />
-          <ion-label>Mode API (telecharger dans Reglages)</ion-label>
+          <ion-label>{{ t('search.apiMode') }}</ion-label>
         </ion-chip>
       </div>
 
@@ -108,6 +108,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   IonPage,
   IonHeader,
@@ -139,12 +140,15 @@ import type { ScryfallCard } from '@/types/card'
 import { autocompleteCards, getCardByName, getCardImageUrl } from '@/services/scryfall'
 import { useOfflineStore } from '@/stores/offlineStore'
 
+const { t } = useI18n()
 const offlineStore = useOfflineStore()
 
 const searchQuery = ref('')
 const suggestions = ref<string[]>([])
 const selectedCard = ref<ScryfallCard | null>(null)
 const isLoading = ref(false)
+
+let currentSearchId = 0
 
 const cardImageUrl = computed(() => {
   if (!selectedCard.value) return ''
@@ -159,7 +163,10 @@ async function onSearchInput() {
     return
   }
 
-  suggestions.value = await autocompleteCards(searchQuery.value)
+  const searchId = ++currentSearchId
+  const results = await autocompleteCards(searchQuery.value)
+  if (searchId !== currentSearchId) return // stale result, discard
+  suggestions.value = results
 }
 
 async function selectSuggestion(cardName: string) {
@@ -167,7 +174,10 @@ async function selectSuggestion(cardName: string) {
   suggestions.value = []
   isLoading.value = true
 
-  selectedCard.value = await getCardByName(cardName)
+  const searchId = ++currentSearchId
+  const card = await getCardByName(cardName)
+  if (searchId !== currentSearchId) return // stale result, discard
+  selectedCard.value = card
   isLoading.value = false
 }
 
