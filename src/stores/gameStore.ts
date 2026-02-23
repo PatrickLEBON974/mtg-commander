@@ -141,6 +141,8 @@ export const useGameStore = defineStore('game', () => {
     redoStack.value = [] // Clear redo on new action
   }
 
+  const LIFE_CHANGE_BATCH_MS = 1000
+
   function changeLife(playerId: string, amount: number) {
     if (!currentGame.value) return
     const player = currentGame.value.players.find((p) => p.id === playerId)
@@ -148,7 +150,35 @@ export const useGameStore = defineStore('game', () => {
 
     const { t } = i18n.global
     player.lifeTotal += amount
-    addAction('life_change', playerId, amount, t('game.lifeChange', { name: player.name, sign: amount > 0 ? '+' : '', amount: Math.abs(amount) }))
+
+    // Try to merge with last history entry if same player + life_change + within batch window
+    const history = currentGame.value.history
+    const lastAction = history.length > 0 ? history[history.length - 1] : null
+    const now = Date.now()
+
+    if (
+      lastAction
+      && lastAction.type === 'life_change'
+      && lastAction.playerId === playerId
+      && (now - lastAction.timestamp) < LIFE_CHANGE_BATCH_MS
+    ) {
+      // Merge: accumulate value, update description + timestamp
+      lastAction.value += amount
+      const accumulatedAmount = lastAction.value
+      lastAction.description = t('game.lifeChange', {
+        name: player.name,
+        sign: accumulatedAmount > 0 ? '+' : '',
+        amount: Math.abs(accumulatedAmount),
+      })
+      lastAction.timestamp = now
+      redoStack.value = []
+    } else {
+      addAction('life_change', playerId, amount, t('game.lifeChange', {
+        name: player.name,
+        sign: amount > 0 ? '+' : '',
+        amount: Math.abs(amount),
+      }))
+    }
   }
 
   function dealCommanderDamage(targetPlayerId: string, commanderId: string, amount: number) {
