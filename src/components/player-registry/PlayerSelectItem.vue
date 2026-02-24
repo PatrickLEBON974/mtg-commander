@@ -4,45 +4,48 @@
       {{ playerIndex + 1 }}
     </span>
 
-    <!-- Player selection -->
-    <ion-select
-      :value="modelValue.playerProfileId ?? 'anonymous'"
-      :label="t('players.selectPlayer')"
-      label-placement="stacked"
-      interface="popover"
-      @ionChange="handleProfileChange($event.detail.value)"
-    >
-      <ion-select-option value="anonymous">{{ t('game.defaultPlayerName', { index: playerIndex + 1 }) }}</ion-select-option>
-      <ion-select-option
-        v-for="profile in registryStore.sortedProfiles"
-        :key="profile.id"
-        :value="profile.id"
+    <div class="select-row">
+      <!-- Player selection -->
+      <ion-select
+        class="player-select"
+        :value="modelValue.playerProfileId ?? 'anonymous'"
+        :label="t('players.selectPlayer')"
+        label-placement="stacked"
+        interface="popover"
+        @ionChange="handleProfileChange($event.detail.value)"
       >
-        {{ profile.name }}
-      </ion-select-option>
-    </ion-select>
+        <ion-select-option value="anonymous">{{ t('game.defaultPlayerName', { index: playerIndex + 1 }) }}</ion-select-option>
+        <ion-select-option
+          v-for="profile in registryStore.sortedProfiles"
+          :key="profile.id"
+          :value="profile.id"
+        >
+          {{ profile.name }}
+        </ion-select-option>
+      </ion-select>
+
+      <!-- Deck selection (visible when a registered player with decks is selected) -->
+      <ion-select
+        v-if="modelValue.playerProfileId && selectedProfile && selectedProfile.decks.length > 0"
+        class="deck-select"
+        :value="modelValue.deckId ?? ''"
+        :label="t('players.selectDeck')"
+        label-placement="stacked"
+        interface="popover"
+        @ionChange="handleDeckChange($event.detail.value)"
+      >
+        <ion-select-option value="">{{ t('players.noDeck') }}</ion-select-option>
+        <ion-select-option
+          v-for="deck in selectedProfile.decks"
+          :key="deck.id"
+          :value="deck.id"
+        >
+          {{ deck.name }}
+        </ion-select-option>
+      </ion-select>
+    </div>
 
     <ion-reorder slot="end" />
-  </ion-item>
-
-  <!-- Registered player: deck selection -->
-  <ion-item v-if="modelValue.playerProfileId && selectedProfile && selectedProfile.decks.length > 0" class="nested-item">
-    <ion-select
-      :value="modelValue.deckId ?? ''"
-      :label="t('players.selectDeck')"
-      label-placement="stacked"
-      interface="popover"
-      @ionChange="handleDeckChange($event.detail.value)"
-    >
-      <ion-select-option value="">{{ t('players.noDeck') }}</ion-select-option>
-      <ion-select-option
-        v-for="deck in selectedProfile.decks"
-        :key="deck.id"
-        :value="deck.id"
-      >
-        {{ deck.name }}
-      </ion-select-option>
-    </ion-select>
   </ion-item>
 </template>
 
@@ -133,7 +136,20 @@ function handleDeckChange(deckId: string) {
   -webkit-text-stroke: 1px rgba(0, 0, 0, 0.6);
 }
 
-.nested-item {
-  --padding-start: 48px;
+.select-row {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+}
+
+.player-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.deck-select {
+  flex: 1;
+  min-width: 0;
 }
 </style>
