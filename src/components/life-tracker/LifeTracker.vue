@@ -39,19 +39,28 @@
       @animationend="flashType = null"
     />
 
-    <!-- Zone: Identity — Player Name -->
-    <button
-      class="min-h-[44px] w-full text-center btn-press"
-      :aria-label="t('aria.playerDetails', { name: player.name })"
-      @click="showDetail = true"
-    >
-      <span class="life-tracker-player-name text-xs font-bold uppercase tracking-[0.15em] text-arena-gold-light/80">
-        {{ player.name }}
-      </span>
-      <span v-if="player.commanders.length > 0" class="block truncate text-[10px] text-white/50">
-        {{ player.commanders.map(c => c.cardName).join(' / ') }}
-      </span>
-    </button>
+    <!-- Zone: Identity — Player Name + Menu -->
+    <div class="flex w-full items-center min-h-[44px]">
+      <div class="flex-1 min-w-0 text-center">
+        <span class="life-tracker-player-name text-xs font-bold uppercase tracking-[0.15em] text-arena-gold-light/80">
+          {{ player.name }}
+        </span>
+        <span v-if="player.commanders.length > 0" class="block truncate text-[10px] text-white/50">
+          {{ player.commanders.map(c => c.cardName).join(' / ') }}
+        </span>
+      </div>
+      <button
+        class="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-full btn-press"
+        :aria-label="t('aria.playerDetails', { name: player.name })"
+        @click="showDetail = true"
+      >
+        <svg width="4" height="16" viewBox="0 0 4 16" fill="currentColor" class="text-arena-gold-light/60">
+          <circle cx="2" cy="2" r="1.5" />
+          <circle cx="2" cy="8" r="1.5" />
+          <circle cx="2" cy="14" r="1.5" />
+        </svg>
+      </button>
+    </div>
 
     <!-- Zone: Hero — Life Total + ±1 Buttons -->
     <div class="flex items-center gap-0.5">

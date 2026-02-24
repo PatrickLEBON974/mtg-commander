@@ -337,7 +337,7 @@ function confirmNewGame() {
   showNewGameModal.value = false
   gameStore.settings = { ...settingsStore.gameSettings }
   gameStore.startNewGame()
-  // Apply player names and colors from modal config
+  // Apply player names, colors, and commanders from modal config
   const mapping: Record<string, { playerProfileId: string; deckId?: string }> = {}
   playerConfigs.value.forEach((config, index) => {
     const player = gameStore.currentGame!.players[index]
@@ -348,6 +348,15 @@ function confirmNewGame() {
         mapping[player.id] = {
           playerProfileId: config.playerProfileId,
           deckId: config.deckId,
+        }
+        // Load commanders from selected deck
+        if (config.deckId) {
+          const deck = registryStore.getDeckById(config.playerProfileId, config.deckId)
+          if (deck) {
+            for (const commander of deck.commanders) {
+              gameStore.addPlayerCommander(player.id, commander.name, commander.imageUri)
+            }
+          }
         }
       }
     }
