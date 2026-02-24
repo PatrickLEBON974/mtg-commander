@@ -31,9 +31,10 @@
                 class="player-row"
                 :class="{
                   'player-row--selected': selectedPlayerIds.has(player.id) && !isRolling && !winnerPlayerId,
+                  'player-row--unselected': !selectedPlayerIds.has(player.id) && !isRolling && !winnerPlayerId,
                   'player-row--highlight': highlightedPlayerId === player.id,
                   'player-row--winner': winnerPlayerId === player.id && !isRolling,
-                  'player-row--dimmed': winnerPlayerId && winnerPlayerId !== player.id && !isRolling,
+                  'player-row--dimmed': (winnerPlayerId && winnerPlayerId !== player.id && !isRolling) || (isRolling && !selectedPlayerIds.has(player.id)),
                 }"
                 :disabled="isRolling || !!winnerPlayerId"
                 @click="togglePlayer(player.id)"
@@ -409,6 +410,10 @@ watch(() => props.isOpen, (open) => {
 .player-row--selected {
   background: rgba(232, 96, 10, 0.08);
   border-color: rgba(232, 96, 10, 0.25);
+}
+
+.player-row--unselected {
+  opacity: 0.35;
 }
 
 .player-row--highlight {
