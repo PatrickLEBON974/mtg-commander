@@ -1,18 +1,18 @@
 <template>
   <ion-item>
-    <!-- Commander avatar when a deck with commanders is selected -->
-    <img
-      v-if="selectedDeckCommander"
-      slot="start"
-      class="commander-avatar"
-      :style="{ borderColor: `var(--color-mana-${effectiveColor})` }"
-      :src="selectedDeckCommander.imageUri"
-      :alt="selectedDeckCommander.name"
-    />
-    <!-- Numbered bubble fallback -->
-    <span v-else slot="start" class="player-number-bubble" :style="{ background: `var(--color-mana-${effectiveColor})` }">
-      {{ playerIndex + 1 }}
-    </span>
+    <div slot="start" class="player-start">
+      <span class="player-index">{{ playerIndex + 1 }}</span>
+      <!-- Commander avatar when a deck with commanders is selected -->
+      <img
+        v-if="selectedDeckCommander"
+        class="commander-avatar"
+        :style="{ borderColor: `var(--color-mana-${effectiveColor})` }"
+        :src="selectedDeckCommander.imageUri"
+        :alt="selectedDeckCommander.name"
+      />
+      <!-- Color dot fallback -->
+      <span v-else class="color-dot" :style="{ background: `var(--color-mana-${effectiveColor})` }" />
+    </div>
 
     <div class="select-row">
       <!-- Player selection -->
@@ -139,6 +139,21 @@ function handleDeckChange(deckId: string) {
 </script>
 
 <style scoped>
+.player-start {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 8px;
+}
+
+.player-index {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ion-color-medium);
+  min-width: 14px;
+  text-align: center;
+}
+
 .commander-avatar {
   width: 32px;
   height: 32px;
@@ -146,22 +161,13 @@ function handleDeckChange(deckId: string) {
   object-fit: cover;
   border: 2px solid;
   flex-shrink: 0;
-  margin-right: 8px;
 }
 
-.player-number-bubble {
+.color-dot {
   width: 32px;
   height: 32px;
   border-radius: 50%;
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  color: #fff;
-  -webkit-text-stroke: 1px rgba(0, 0, 0, 0.6);
-  margin-right: 8px;
 }
 
 .select-row {
