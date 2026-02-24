@@ -153,6 +153,8 @@ export default {
     localCards: '{count} cartes en local',
     apiMode: 'Mode API (telecharger dans Reglages)',
     commanderLegality: 'Commander',
+    commanderFilter: 'Commandant',
+    confirmSelection: 'Choisir {name}',
   },
   stats: {
     title: 'Statistiques',

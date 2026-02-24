@@ -195,10 +195,36 @@ export async function searchCardsLocal(
   return (result.values ?? []) as LocalCard[]
 }
 
-export async function autocompleteLocal(query: string, limit = LOCAL_SEARCH_LIMIT): Promise<string[]> {
+export interface LocalSearchFilters {
+  commanderOnly?: boolean
+  colorIdentity?: string[]
+}
+
+export async function autocompleteLocal(
+  query: string,
+  limit = LOCAL_SEARCH_LIMIT,
+  filters: LocalSearchFilters = {},
+): Promise<string[]> {
   if (query.length < 2) return []
 
   const db = await getDb()
+
+  // Build dynamic filter conditions
+  const conditions: string[] = ['c.commander_legal = 1']
+  const filterParams: unknown[] = []
+
+  if (filters.commanderOnly) {
+    conditions.push('c.is_commander = 1')
+  }
+  if (filters.colorIdentity && filters.colorIdentity.length > 0) {
+    const colorClauses = filters.colorIdentity.map(() => 'c.color_identity LIKE ?')
+    conditions.push(`(${colorClauses.join(' OR ')})`)
+    for (const color of filters.colorIdentity) {
+      filterParams.push(`%"${color}"%`)
+    }
+  }
+
+  const filterWhere = conditions.join(' AND ')
 
   if (ftsAvailable) {
     const sanitized = query.replace(/[^\w\s]/g, '').trim()
@@ -209,10 +235,10 @@ export async function autocompleteLocal(query: string, limit = LOCAL_SEARCH_LIMI
        WHERE c.rowid IN (
          SELECT rowid FROM cards_fts WHERE cards_fts MATCH ?
        )
-       AND c.commander_legal = 1
+       AND ${filterWhere}
        ORDER BY c.name
        LIMIT ?;`,
-      [ftsQuery, limit],
+      [ftsQuery, ...filterParams, limit],
     )
     return (result.values ?? []).map((row: Record<string, unknown>) => row.name as string)
   }
@@ -220,12 +246,12 @@ export async function autocompleteLocal(query: string, limit = LOCAL_SEARCH_LIMI
   // LIKE fallback
   const likePattern = `%${query}%`
   const result = await db.query(
-    `SELECT DISTINCT COALESCE(printed_name, name) as display_name FROM cards
-     WHERE (name LIKE ? OR printed_name LIKE ?)
-     AND commander_legal = 1
+    `SELECT DISTINCT COALESCE(c.printed_name, c.name) as display_name FROM cards c
+     WHERE (c.name LIKE ? OR c.printed_name LIKE ?)
+     AND ${filterWhere}
      ORDER BY display_name
      LIMIT ?;`,
-    [likePattern, likePattern, limit],
+    [likePattern, likePattern, ...filterParams, limit],
   )
   return (result.values ?? []).map((row: Record<string, unknown>) => row.display_name as string)
 }
@@ -277,7 +303,11 @@ export async function bulkInsertCards(
 
       const statements = batch.map((card) => {
         const imageUris = card.image_uris ?? card.card_faces?.[0]?.image_uris
-        const isCommander = card.type_line?.includes('Legendary') && card.type_line?.includes('Creature')
+        const oracleText = card.oracle_text ?? card.card_faces?.map((f) => f.oracle_text).join('\n') ?? ''
+        const isCommander =
+          (card.type_line?.includes('Legendary') && card.type_line?.includes('Creature')) ||
+          oracleText.toLowerCase().includes('can be your commander') ||
+          (card.type_line?.includes('Legendary') && card.type_line?.includes('Background'))
         const commanderLegal = card.legalities?.commander === 'legal'
 
         return {

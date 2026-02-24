@@ -48,3 +48,8 @@ export interface CardSearchResult {
   has_more: boolean
   data: ScryfallCard[]
 }
+
+export interface CardSearchFilters {
+  commanderOnly: boolean
+  colorIdentity: string[]
+}

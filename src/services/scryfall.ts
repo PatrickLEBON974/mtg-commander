@@ -1,7 +1,9 @@
-import type { ScryfallCard } from '@/types/card'
+import type { ScryfallCard, CardSearchFilters } from '@/types/card'
 import { getCachedScryfall, setCachedScryfall } from '@/services/persistence'
 import { autocompleteLocal, getCardByNameLocal, type LocalCard } from '@/services/database'
 import { useOfflineStore } from '@/stores/offlineStore'
+
+const DEFAULT_FILTERS: CardSearchFilters = { commanderOnly: false, colorIdentity: [] }
 
 const BASE_URL = 'https://api.scryfall.com'
 const REQUEST_DELAY_MS = 100
@@ -90,25 +92,37 @@ function isOfflineAvailable(): boolean {
   }
 }
 
-export async function autocompleteCards(query: string): Promise<string[]> {
+export async function autocompleteCards(
+  query: string,
+  filters: CardSearchFilters = DEFAULT_FILTERS,
+): Promise<string[]> {
   if (query.length < 2) return []
+
+  const hasActiveFilters = filters.commanderOnly || filters.colorIdentity.length > 0
 
   // Try local DB first
   if (isOfflineAvailable()) {
     try {
-      const localResults = await autocompleteLocal(query)
+      const localResults = await autocompleteLocal(query, undefined, {
+        commanderOnly: filters.commanderOnly,
+        colorIdentity: filters.colorIdentity,
+      })
       if (localResults.length > 0) return localResults
     } catch {
       // Fall through to API
     }
   }
 
-  // Fallback to localStorage cache
+  // For API: use search endpoint when filters are active
+  if (hasActiveFilters) {
+    return searchWithFiltersApi(query, filters)
+  }
+
+  // No filters: use autocomplete endpoint as before
   const cacheKey = `autocomplete:${query.toLowerCase()}`
   const cached = getCachedScryfall(cacheKey) as string[] | null
   if (cached) return cached
 
-  // Fallback to API
   try {
     const encodedQuery = encodeURIComponent(query)
     const response = await throttledFetch(`${BASE_URL}/cards/autocomplete?q=${encodedQuery}`)
@@ -119,6 +133,42 @@ export async function autocompleteCards(query: string): Promise<string[]> {
     const results = data.data ?? []
     setCachedScryfall(cacheKey, results)
     return results
+  } catch {
+    return []
+  }
+}
+
+async function searchWithFiltersApi(query: string, filters: CardSearchFilters): Promise<string[]> {
+  let scryfallQuery = query + ' f:commander'
+
+  if (filters.commanderOnly) {
+    scryfallQuery += ' is:commander'
+  }
+
+  if (filters.colorIdentity.length > 0) {
+    if (filters.colorIdentity.length === 1) {
+      scryfallQuery += ` id>=${filters.colorIdentity[0]!.toLowerCase()}`
+    } else {
+      const colorClauses = filters.colorIdentity.map((c) => `id>=${c.toLowerCase()}`).join(' OR ')
+      scryfallQuery += ` (${colorClauses})`
+    }
+  }
+
+  const cacheKey = `search_filtered:${scryfallQuery.toLowerCase()}`
+  const cached = getCachedScryfall(cacheKey) as string[] | null
+  if (cached) return cached
+
+  try {
+    const encodedQuery = encodeURIComponent(scryfallQuery)
+    const response = await throttledFetch(`${BASE_URL}/cards/search?q=${encodedQuery}&order=name`)
+
+    if (!response.ok) return []
+
+    const data = await response.json()
+    const names: string[] = (data.data ?? []).map((card: { name: string }) => card.name)
+    const uniqueNames = [...new Set(names)]
+    setCachedScryfall(cacheKey, uniqueNames)
+    return uniqueNames
   } catch {
     return []
   }
