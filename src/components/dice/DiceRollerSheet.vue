@@ -22,14 +22,20 @@
             </div>
           </template>
 
-          <!-- Player picker -->
+          <!-- Player picker / roll -->
           <template v-else-if="currentView === 'playerPicker'">
             <div class="player-picker">
               <button
                 v-for="player in gamePlayers"
                 :key="player.id"
                 class="player-row"
-                :class="{ 'player-row--selected': selectedPlayerIds.has(player.id) }"
+                :class="{
+                  'player-row--selected': selectedPlayerIds.has(player.id) && !isRolling && !winnerPlayerId,
+                  'player-row--highlight': highlightedPlayerId === player.id,
+                  'player-row--winner': winnerPlayerId === player.id && !isRolling,
+                  'player-row--dimmed': winnerPlayerId && winnerPlayerId !== player.id && !isRolling,
+                }"
+                :disabled="isRolling || !!winnerPlayerId"
                 @click="togglePlayer(player.id)"
               >
                 <span
@@ -37,14 +43,14 @@
                   :style="{ background: `var(--color-mana-${player.color})` }"
                 />
                 <span class="player-name">{{ player.name }}</span>
-                <span v-if="selectedPlayerIds.has(player.id)" class="player-check">&#10003;</span>
+                <span v-if="selectedPlayerIds.has(player.id) && !isRolling && !winnerPlayerId" class="player-check">&#10003;</span>
               </button>
               <button
                 class="action-btn action-btn--primary roll-btn"
-                :disabled="selectedPlayerIds.size < 2"
+                :disabled="selectedPlayerIds.size < 2 || isRolling"
                 @click="rollPlayer"
               >
-                {{ t('dice.roll') }}
+                {{ winnerPlayerId ? t('dice.reroll') : t('dice.roll') }}
               </button>
             </div>
           </template>
@@ -61,22 +67,6 @@
               </button>
             </div>
           </template>
-
-          <!-- Player result -->
-          <template v-else-if="currentView === 'playerResult'">
-            <div class="result-area">
-              <span
-                class="player-result-dot"
-                :style="{ background: `var(--color-mana-${selectedPlayer?.color})` }"
-              />
-              <div class="result-player-name" ref="resultNumberRef">
-                {{ isRolling ? rollingPlayerName : selectedPlayer?.name }}
-              </div>
-              <button class="action-btn action-btn--primary" @click="rollPlayer">
-                {{ t('dice.reroll') }}
-              </button>
-            </div>
-          </template>
         </div>
       </div>
     </Transition>
@@ -84,11 +74,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, type Component } from 'vue'
+import { ref, computed, watch, nextTick, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
 import gsap from 'gsap'
 import { useGameStore } from '@/stores/gameStore'
-import type { PlayerState } from '@/types/game'
 import IconDie4 from '@/components/icons/dice/IconDie4.vue'
 import IconDie6 from '@/components/icons/dice/IconDie6.vue'
 import IconDie8 from '@/components/icons/dice/IconDie8.vue'
@@ -106,7 +95,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const gameStore = useGameStore()
 
-type ViewState = 'picker' | 'playerPicker' | 'dieResult' | 'playerResult'
+type ViewState = 'picker' | 'playerPicker' | 'dieResult'
 
 interface DieType {
   sides: number
@@ -128,8 +117,8 @@ const displayValue = ref<number>(1)
 const isRolling = ref(false)
 const resultNumberRef = ref<HTMLElement>()
 const selectedPlayerIds = ref<Set<string>>(new Set())
-const selectedPlayer = ref<PlayerState | null>(null)
-const rollingPlayerName = ref('')
+const highlightedPlayerId = ref<string | null>(null)
+const winnerPlayerId = ref<string | null>(null)
 let autoDismissTimer: ReturnType<typeof setTimeout> | null = null
 let rollInterval: ReturnType<typeof setInterval> | null = null
 
@@ -205,11 +194,13 @@ function reroll() {
 
 function openPlayerPicker() {
   currentView.value = 'playerPicker'
-  // Pre-select all players
   selectedPlayerIds.value = new Set(gamePlayers.value.map((p) => p.id))
+  highlightedPlayerId.value = null
+  winnerPlayerId.value = null
 }
 
 function togglePlayer(playerId: string) {
+  if (isRolling.value || winnerPlayerId.value) return
   const newSet = new Set(selectedPlayerIds.value)
   if (newSet.has(playerId)) {
     newSet.delete(playerId)
@@ -225,27 +216,50 @@ function rollPlayer() {
   if (candidates.length < 2) return
 
   isRolling.value = true
-  currentView.value = 'playerResult'
+  winnerPlayerId.value = null
+  highlightedPlayerId.value = null
 
-  const steps = 12
-  const intervalMs = 80
+  // Animate: cycle through players with decelerating speed
+  const totalSteps = 14 + Math.floor(Math.random() * 4) // 14-17 steps
+  const baseInterval = 60
   let step = 0
 
-  rollInterval = setInterval(() => {
+  function tick() {
     const randomIndex = Math.floor(Math.random() * candidates.length)
-    rollingPlayerName.value = candidates[randomIndex]!.name
+    highlightedPlayerId.value = candidates[randomIndex]!.id
     step++
-    if (step >= steps) {
-      if (rollInterval) clearInterval(rollInterval)
-      rollInterval = null
+
+    if (step >= totalSteps) {
+      // Final pick
       const finalIndex = cryptoRandom(candidates.length)
-      selectedPlayer.value = candidates[finalIndex]!
-      rollingPlayerName.value = ''
+      const winner = candidates[finalIndex]!
+      highlightedPlayerId.value = null
+      winnerPlayerId.value = winner.id
       isRolling.value = false
-      animateResult()
+
+      // Bounce the winner row
+      nextTick(() => {
+        const winnerEl = document.querySelector(`.player-row--winner`)
+        if (winnerEl) {
+          gsap.fromTo(
+            winnerEl,
+            { scale: 1.06 },
+            { scale: 1, duration: 0.4, ease: 'back.out(3)' },
+          )
+        }
+      })
+
       startAutoDismiss()
+      return
     }
-  }, intervalMs)
+
+    // Decelerate: intervals get longer toward the end
+    const progress = step / totalSteps
+    const delay = baseInterval + progress * progress * 200
+    rollInterval = setTimeout(tick, delay) as unknown as ReturnType<typeof setInterval>
+  }
+
+  tick()
 }
 
 // --- Shared ---
@@ -277,7 +291,7 @@ function clearAutoDismiss() {
 function cleanup() {
   clearAutoDismiss()
   if (rollInterval) {
-    clearInterval(rollInterval)
+    clearTimeout(rollInterval as unknown as number)
     rollInterval = null
   }
 }
@@ -287,8 +301,8 @@ function resetState() {
   selectedDieSides.value = null
   rollResult.value = null
   isRolling.value = false
-  selectedPlayer.value = null
-  rollingPlayerName.value = ''
+  highlightedPlayerId.value = null
+  winnerPlayerId.value = null
 }
 
 function handleClose() {
@@ -381,16 +395,36 @@ watch(() => props.isOpen, (open) => {
   padding: 10px 12px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
-  border: 1.5px solid transparent;
+  border: 2px solid transparent;
   color: var(--text-primary, #fff);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: all 150ms ease;
+  transition: all 120ms ease;
+}
+
+.player-row:disabled {
+  cursor: default;
 }
 
 .player-row--selected {
-  background: rgba(232, 96, 10, 0.1);
-  border-color: rgba(232, 96, 10, 0.3);
+  background: rgba(232, 96, 10, 0.08);
+  border-color: rgba(232, 96, 10, 0.25);
+}
+
+.player-row--highlight {
+  background: rgba(232, 96, 10, 0.2);
+  border-color: var(--color-accent, #e8600a);
+  box-shadow: 0 0 12px rgba(232, 96, 10, 0.4);
+}
+
+.player-row--winner {
+  background: rgba(232, 96, 10, 0.2);
+  border-color: var(--color-accent, #e8600a);
+  box-shadow: 0 0 16px rgba(232, 96, 10, 0.5), 0 0 32px rgba(232, 96, 10, 0.2);
+}
+
+.player-row--dimmed {
+  opacity: 0.35;
 }
 
 .player-dot {
@@ -445,21 +479,6 @@ watch(() => props.isOpen, (open) => {
   text-shadow: 0 0 20px rgba(232, 96, 10, 0.6), 0 0 40px rgba(232, 96, 10, 0.3);
   font-variant-numeric: tabular-nums;
   line-height: 1;
-}
-
-.player-result-dot {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-}
-
-.result-player-name {
-  font-size: 28px;
-  font-weight: 900;
-  color: #fff;
-  text-shadow: 0 0 20px rgba(232, 96, 10, 0.6), 0 0 40px rgba(232, 96, 10, 0.3);
-  line-height: 1;
-  text-align: center;
 }
 
 .action-btn {
