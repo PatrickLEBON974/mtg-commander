@@ -46,8 +46,8 @@
       :class="isSidewaysCard ? 'inset-x-0 top-0 h-1/2' : 'inset-y-0 left-0 w-1/2'"
       :aria-label="t('aria.decreaseLife', { name: player.name })"
       data-sound="none"
-      @click="changeLifeBy(-1)"
-      @touchstart.passive="startLifeRepeat(-1)"
+      @click="changeLifeBy(isSidewaysCard ? topZoneLifeAmount : -1)"
+      @touchstart.passive="startLifeRepeat(isSidewaysCard ? topZoneLifeAmount : -1)"
       @touchend.passive="stopLifeRepeat"
       @touchcancel.passive="stopLifeRepeat"
     />
@@ -56,8 +56,8 @@
       :class="isSidewaysCard ? 'inset-x-0 bottom-0 h-1/2' : 'inset-y-0 right-0 w-1/2'"
       :aria-label="t('aria.increaseLife', { name: player.name })"
       data-sound="none"
-      @click="changeLifeBy(1)"
-      @touchstart.passive="startLifeRepeat(1)"
+      @click="changeLifeBy(isSidewaysCard ? bottomZoneLifeAmount : 1)"
+      @touchstart.passive="startLifeRepeat(isSidewaysCard ? bottomZoneLifeAmount : 1)"
       @touchend.passive="stopLifeRepeat"
       @touchcancel.passive="stopLifeRepeat"
     />
@@ -525,6 +525,11 @@ const hasTimerFlashEffect = computed(() =>
 // Card orientation — sideways cards (90°/270°) use top/bottom tap zones instead of left/right
 const isSidewaysCard = computed(() => props.cardRotation === 90 || props.cardRotation === 270)
 
+// At 90° CW, CSS "top" maps to screen RIGHT (player's right = +1), so we invert.
+// At 270°, CSS "top" maps to screen LEFT (player's left = -1), no inversion needed.
+const topZoneLifeAmount = computed(() => props.cardRotation === 90 ? 1 : -1)
+const bottomZoneLifeAmount = computed(() => props.cardRotation === 90 ? -1 : 1)
+
 // Priority system
 const isActivePlayer = computed(() => props.player.id === gameStore.currentTurnPlayer?.id)
 const isNextPlayer = computed(() => props.player.id === gameStore.nextTurnPlayer?.id)
@@ -663,9 +668,11 @@ function onLifeTouchMove(event: TouchEvent) {
   if (lifeDragActive) {
     event.preventDefault()
     // Use dominant axis: up/right = gain, down/left = loss
+    // At 90° rotation, Y axis is inverted (screen down = player's right = +life)
+    const yMultiplier = props.cardRotation === 90 ? 1 : -1
     const rawAmount = Math.abs(deltaX) > Math.abs(deltaY)
       ? deltaX / LIFE_DRAG_PIXELS_PER_POINT
-      : -deltaY / LIFE_DRAG_PIXELS_PER_POINT
+      : (yMultiplier * deltaY) / LIFE_DRAG_PIXELS_PER_POINT
     lifeDragPendingAmount.value = Math.round(rawAmount)
   }
 }
