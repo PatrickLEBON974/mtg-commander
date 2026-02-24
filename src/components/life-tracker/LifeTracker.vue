@@ -41,6 +41,7 @@
 
     <!-- Zone: Identity — Player Name + Menu -->
     <div class="flex w-full items-center min-h-[44px]">
+      <div class="w-7 flex-shrink-0" aria-hidden="true" />
       <div class="flex-1 min-w-0 text-center">
         <span class="life-tracker-player-name text-xs font-bold uppercase tracking-[0.15em] text-arena-gold-light/80">
           {{ player.name }}

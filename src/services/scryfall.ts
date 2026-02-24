@@ -3,7 +3,17 @@ import { getCachedScryfall, setCachedScryfall } from '@/services/persistence'
 import { autocompleteLocal, getCardByNameLocal, type LocalCard } from '@/services/database'
 import { useOfflineStore } from '@/stores/offlineStore'
 
-const DEFAULT_FILTERS: CardSearchFilters = { commanderOnly: false, colorIdentity: [] }
+const DEFAULT_FILTERS: CardSearchFilters = {
+  commanderOnly: false,
+  colorIdentity: [],
+  cardTypes: [],
+  cmcValues: [],
+  rarities: [],
+  powerMin: null,
+  powerMax: null,
+  toughnessMin: null,
+  toughnessMax: null,
+}
 
 const BASE_URL = 'https://api.scryfall.com'
 const REQUEST_DELAY_MS = 100
@@ -98,7 +108,15 @@ export async function autocompleteCards(
 ): Promise<string[]> {
   if (query.length < 2) return []
 
-  const hasActiveFilters = filters.commanderOnly || filters.colorIdentity.length > 0
+  const hasActiveFilters = filters.commanderOnly ||
+    filters.colorIdentity.length > 0 ||
+    filters.cardTypes.length > 0 ||
+    filters.cmcValues.length > 0 ||
+    filters.rarities.length > 0 ||
+    filters.powerMin != null ||
+    filters.powerMax != null ||
+    filters.toughnessMin != null ||
+    filters.toughnessMax != null
 
   // Try local DB first
   if (isOfflineAvailable()) {
@@ -106,6 +124,13 @@ export async function autocompleteCards(
       const localResults = await autocompleteLocal(query, undefined, {
         commanderOnly: filters.commanderOnly,
         colorIdentity: filters.colorIdentity,
+        cardTypes: filters.cardTypes,
+        cmcValues: filters.cmcValues,
+        rarities: filters.rarities,
+        powerMin: filters.powerMin,
+        powerMax: filters.powerMax,
+        toughnessMin: filters.toughnessMin,
+        toughnessMax: filters.toughnessMax,
       })
       if (localResults.length > 0) return localResults
     } catch {
@@ -153,6 +178,45 @@ async function searchWithFiltersApi(query: string, filters: CardSearchFilters): 
       scryfallQuery += ` (${colorClauses})`
     }
   }
+
+  if (filters.cardTypes.length > 0) {
+    if (filters.cardTypes.length === 1) {
+      scryfallQuery += ` t:${filters.cardTypes[0]!.toLowerCase()}`
+    } else {
+      const typeClauses = filters.cardTypes.map((t) => `t:${t.toLowerCase()}`).join(' OR ')
+      scryfallQuery += ` (${typeClauses})`
+    }
+  }
+
+  if (filters.cmcValues.length > 0) {
+    const cmcClauses: string[] = []
+    for (const val of filters.cmcValues) {
+      if (val >= 8) {
+        cmcClauses.push('cmc>=8')
+      } else {
+        cmcClauses.push(`cmc=${val}`)
+      }
+    }
+    if (cmcClauses.length === 1) {
+      scryfallQuery += ` ${cmcClauses[0]}`
+    } else {
+      scryfallQuery += ` (${cmcClauses.join(' OR ')})`
+    }
+  }
+
+  if (filters.rarities.length > 0) {
+    if (filters.rarities.length === 1) {
+      scryfallQuery += ` r:${filters.rarities[0]}`
+    } else {
+      const rarityClauses = filters.rarities.map((r) => `r:${r}`).join(' OR ')
+      scryfallQuery += ` (${rarityClauses})`
+    }
+  }
+
+  if (filters.powerMin != null) scryfallQuery += ` pow>=${filters.powerMin}`
+  if (filters.powerMax != null) scryfallQuery += ` pow<=${filters.powerMax}`
+  if (filters.toughnessMin != null) scryfallQuery += ` tou>=${filters.toughnessMin}`
+  if (filters.toughnessMax != null) scryfallQuery += ` tou<=${filters.toughnessMax}`
 
   const cacheKey = `search_filtered:${scryfallQuery.toLowerCase()}`
   const cached = getCachedScryfall(cacheKey) as string[] | null

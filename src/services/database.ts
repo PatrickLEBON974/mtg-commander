@@ -198,6 +198,13 @@ export async function searchCardsLocal(
 export interface LocalSearchFilters {
   commanderOnly?: boolean
   colorIdentity?: string[]
+  cardTypes?: string[]
+  cmcValues?: number[]
+  rarities?: string[]
+  powerMin?: number | null
+  powerMax?: number | null
+  toughnessMin?: number | null
+  toughnessMax?: number | null
 }
 
 export async function autocompleteLocal(
@@ -222,6 +229,50 @@ export async function autocompleteLocal(
     for (const color of filters.colorIdentity) {
       filterParams.push(`%"${color}"%`)
     }
+  }
+
+  if (filters.cardTypes && filters.cardTypes.length > 0) {
+    const typeClauses = filters.cardTypes.map(() => 'c.type_line LIKE ?')
+    conditions.push(`(${typeClauses.join(' OR ')})`)
+    for (const cardType of filters.cardTypes) {
+      filterParams.push(`%${cardType}%`)
+    }
+  }
+
+  if (filters.cmcValues && filters.cmcValues.length > 0) {
+    const cmcClauses: string[] = []
+    const regularValues = filters.cmcValues.filter((v) => v < 8)
+    const has8Plus = filters.cmcValues.includes(8)
+    if (regularValues.length > 0) {
+      cmcClauses.push(`c.cmc IN (${regularValues.map(() => '?').join(', ')})`)
+      filterParams.push(...regularValues)
+    }
+    if (has8Plus) {
+      cmcClauses.push('c.cmc >= 8')
+    }
+    conditions.push(`(${cmcClauses.join(' OR ')})`)
+  }
+
+  if (filters.rarities && filters.rarities.length > 0) {
+    conditions.push(`c.rarity IN (${filters.rarities.map(() => '?').join(', ')})`)
+    filterParams.push(...filters.rarities)
+  }
+
+  if (filters.powerMin != null) {
+    conditions.push("c.power IS NOT NULL AND c.power GLOB '[0-9]*' AND CAST(c.power AS REAL) >= ?")
+    filterParams.push(filters.powerMin)
+  }
+  if (filters.powerMax != null) {
+    conditions.push("c.power IS NOT NULL AND c.power GLOB '[0-9]*' AND CAST(c.power AS REAL) <= ?")
+    filterParams.push(filters.powerMax)
+  }
+  if (filters.toughnessMin != null) {
+    conditions.push("c.toughness IS NOT NULL AND c.toughness GLOB '[0-9]*' AND CAST(c.toughness AS REAL) >= ?")
+    filterParams.push(filters.toughnessMin)
+  }
+  if (filters.toughnessMax != null) {
+    conditions.push("c.toughness IS NOT NULL AND c.toughness GLOB '[0-9]*' AND CAST(c.toughness AS REAL) <= ?")
+    filterParams.push(filters.toughnessMax)
   }
 
   const filterWhere = conditions.join(' AND ')

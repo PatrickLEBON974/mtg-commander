@@ -52,4 +52,11 @@ export interface CardSearchResult {
 export interface CardSearchFilters {
   commanderOnly: boolean
   colorIdentity: string[]
+  cardTypes: string[]
+  cmcValues: number[]
+  rarities: string[]
+  powerMin: number | null
+  powerMax: number | null
+  toughnessMin: number | null
+  toughnessMax: number | null
 }
