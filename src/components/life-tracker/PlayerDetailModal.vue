@@ -64,11 +64,13 @@
           <IconExperience :size="16" class="text-arena-blue" />
           {{ t('playerDetail.experience') }}
         </span>
-        <NumberStepper
-          :model-value="player.experienceCounters"
-          :min="0"
-          @update:model-value="setExperience"
-        />
+        <div data-sound="none">
+          <NumberStepper
+            :model-value="player.experienceCounters"
+            :min="0"
+            @update:model-value="setExperience"
+          />
+        </div>
       </div>
 
       <!-- Energy -->
@@ -77,11 +79,13 @@
           <IconEnergy :size="16" class="text-arena-gold" />
           {{ t('playerDetail.energy') }}
         </span>
-        <NumberStepper
-          :model-value="player.energyCounters"
-          :min="0"
-          @update:model-value="setEnergy"
-        />
+        <div data-sound="none">
+          <NumberStepper
+            :model-value="player.energyCounters"
+            :min="0"
+            @update:model-value="setEnergy"
+          />
+        </div>
       </div>
 
       <!-- Monarch -->
@@ -90,7 +94,7 @@
           <IconCrown :size="16" color="#f0d078" />
           {{ t('playerDetail.monarch') }}
         </span>
-        <ion-toggle :checked="player.isMonarch" @ionChange="toggleMonarch" />
+        <ion-toggle :checked="player.isMonarch" data-sound="none" @ionChange="toggleMonarch" />
       </div>
 
       <!-- Initiative -->
@@ -99,7 +103,7 @@
           <IconShield :size="16" />
           {{ t('playerDetail.initiative') }}
         </span>
-        <ion-toggle :checked="player.hasInitiative" @ionChange="toggleInitiative" />
+        <ion-toggle :checked="player.hasInitiative" data-sound="none" @ionChange="toggleInitiative" />
       </div>
     </div>
 
@@ -154,6 +158,7 @@ import IconEnergy from '@/components/icons/game/IconEnergy.vue'
 import IconCrown from '@/components/icons/game/IconCrown.vue'
 import IconShield from '@/components/icons/game/IconShield.vue'
 import IconSwordSingle from '@/components/icons/game/IconSwordSingle.vue'
+import { playExperienceChange, playEnergyChange, playCommanderCast, playInitiative } from '@/services/sounds'
 
 const props = defineProps<{
   isOpen: boolean
@@ -183,16 +188,23 @@ function removeCommander(commanderIndex: number) {
 
 function setExperience(newValue: number) {
   const delta = newValue - props.player.experienceCounters
-  if (delta !== 0) gameStore.changeExperience(props.player.id, delta)
+  if (delta !== 0) {
+    gameStore.changeExperience(props.player.id, delta)
+    playExperienceChange()
+  }
 }
 
 function setEnergy(newValue: number) {
   const delta = newValue - props.player.energyCounters
-  if (delta !== 0) gameStore.changeEnergy(props.player.id, delta)
+  if (delta !== 0) {
+    gameStore.changeEnergy(props.player.id, delta)
+    playEnergyChange()
+  }
 }
 
 function castCommanderAction(commanderIndex: number) {
   gameStore.castCommander(props.player.id, commanderIndex)
+  playCommanderCast()
 }
 
 function toggleMonarch() {
@@ -201,6 +213,7 @@ function toggleMonarch() {
 
 function toggleInitiative() {
   gameStore.toggleInitiative(props.player.id)
+  playInitiative()
 }
 
 function resolveCommanderName(commanderId: string): string {

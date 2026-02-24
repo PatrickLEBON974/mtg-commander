@@ -39,8 +39,31 @@
       @animationend="flashType = null"
     />
 
+    <!-- Full-card tap zones: left/top = -1, right/bottom = +1 -->
+    <!-- Adapts orientation based on card rotation (sideways cards use top/bottom split) -->
+    <button
+      class="life-tap-zone absolute z-[2]"
+      :class="isSidewaysCard ? 'inset-x-0 top-0 h-1/2' : 'inset-y-0 left-0 w-1/2'"
+      :aria-label="t('aria.decreaseLife', { name: player.name })"
+      data-sound="none"
+      @click="changeLifeBy(-1)"
+      @touchstart.passive="startLifeRepeat(-1)"
+      @touchend.passive="stopLifeRepeat"
+      @touchcancel.passive="stopLifeRepeat"
+    />
+    <button
+      class="life-tap-zone absolute z-[2]"
+      :class="isSidewaysCard ? 'inset-x-0 bottom-0 h-1/2' : 'inset-y-0 right-0 w-1/2'"
+      :aria-label="t('aria.increaseLife', { name: player.name })"
+      data-sound="none"
+      @click="changeLifeBy(1)"
+      @touchstart.passive="startLifeRepeat(1)"
+      @touchend.passive="stopLifeRepeat"
+      @touchcancel.passive="stopLifeRepeat"
+    />
+
     <!-- Zone: Identity — Player Name + Menu -->
-    <div class="flex w-full items-center min-h-[44px]">
+    <div class="pointer-events-none relative z-[3] flex w-full items-center min-h-[44px]">
       <div class="w-7 flex-shrink-0" aria-hidden="true" />
       <div class="flex-1 min-w-0 text-center">
         <span class="life-tracker-player-name text-xs font-bold uppercase tracking-[0.15em] text-arena-gold-light/80">
@@ -51,7 +74,7 @@
         </span>
       </div>
       <button
-        class="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-full btn-press"
+        class="pointer-events-auto flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-full btn-press"
         :aria-label="t('aria.playerDetails', { name: player.name })"
         @click="showDetail = true"
       >
@@ -63,105 +86,78 @@
       </button>
     </div>
 
-    <!-- Zone: Hero — Life Total + ±1 Buttons -->
-    <div class="flex items-center gap-0.5">
-      <button
-        class="life-tracker-btn-minus group flex min-h-[48px] min-w-[48px] items-center justify-center rounded-full"
-        :aria-label="t('aria.decreaseLife', { name: player.name })"
-        @click="changeLifeBy(-1)"
-        @touchstart.passive="startLifeRepeat(-1)"
-        @touchend.passive="stopLifeRepeat"
-        @touchcancel.passive="stopLifeRepeat"
+    <!-- Zone: Hero — Life Total (tap zones are full-card background) -->
+    <div
+      class="pointer-events-auto relative z-[3]"
+      @touchstart.passive="onLifeTouchStart"
+      @touchmove="onLifeTouchMove"
+      @touchend.passive="onLifeTouchEnd"
+      @touchcancel.passive="onLifeTouchCancel"
+    >
+      <span
+        class="life-tracker-life-total block select-none text-center text-6xl font-bold leading-none tabular-nums"
+        :class="lifeColorClass"
+        role="status"
+        :aria-label="t('aria.lifePoints', { name: player.name, life: player.lifeTotal })"
+        @click="openLifeNumpad"
       >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" class="text-life-negative drop-shadow-sm transition-transform duration-150 group-active:scale-90">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" opacity="0.3" />
-          <path d="M7.5 12h9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
-        </svg>
-      </button>
+        {{ animatedLife }}
+      </span>
 
-      <div
-        class="relative min-w-[5rem]"
-        @touchstart.passive="onLifeTouchStart"
-        @touchmove="onLifeTouchMove"
-        @touchend.passive="onLifeTouchEnd"
-        @touchcancel.passive="onLifeTouchCancel"
+      <!-- Life drag indicator -->
+      <span
+        v-if="lifeDragPendingAmount !== 0"
+        class="absolute -top-5 left-1/2 -translate-x-1/2 text-lg font-bold drop-shadow-lg"
+        :class="lifeDragPendingAmount > 0 ? 'text-life-positive' : 'text-life-negative'"
       >
-        <!-- Life total display (tap to open numpad) -->
-        <span
-          class="life-tracker-life-total block select-none text-center text-6xl font-bold leading-none tabular-nums"
-          :class="lifeColorClass"
-          role="status"
-          :aria-label="t('aria.lifePoints', { name: player.name, life: player.lifeTotal })"
-          @click="openLifeNumpad"
-        >
-          {{ animatedLife }}
-        </span>
-
-        <!-- Life drag indicator -->
-        <span
-          v-if="lifeDragPendingAmount !== 0"
-          class="absolute -top-5 left-1/2 -translate-x-1/2 text-lg font-bold drop-shadow-lg"
-          :class="lifeDragPendingAmount > 0 ? 'text-life-positive' : 'text-life-negative'"
-        >
-          {{ lifeDragPendingAmount > 0 ? '+' : '' }}{{ lifeDragPendingAmount }}
-        </span>
-      </div>
-
-      <button
-        class="life-tracker-btn-plus group flex min-h-[48px] min-w-[48px] items-center justify-center rounded-full"
-        :aria-label="t('aria.increaseLife', { name: player.name })"
-        @click="changeLifeBy(1)"
-        @touchstart.passive="startLifeRepeat(1)"
-        @touchend.passive="stopLifeRepeat"
-        @touchcancel.passive="stopLifeRepeat"
-      >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" class="text-life-positive drop-shadow-sm transition-transform duration-150 group-active:scale-90">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" opacity="0.3" />
-          <path d="M12 7.5v9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
-          <path d="M7.5 12h9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
-        </svg>
-      </button>
+        {{ lifeDragPendingAmount > 0 ? '+' : '' }}{{ lifeDragPendingAmount }}
+      </span>
     </div>
 
-    <!-- Zone: Timer — Promoted with icons -->
-    <div class="life-tracker-timer-zone mt-1 flex items-center justify-center gap-3 rounded-lg px-3 py-1.5">
-      <!-- Total play time -->
+    <!-- Zone: Timer -->
+    <div
+      class="life-tracker-timer-zone pointer-events-none relative z-[3] mt-1 flex items-center justify-center gap-3 rounded-lg px-3 py-1.5"
+      :class="[
+        hasTimerFlashEffect ? 'timer-aggressive-flash' : '',
+      ]"
+    >
+      <!-- Total play time (always visible) -->
+      <div class="flex items-center gap-1">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" class="text-white/50">
+          <circle cx="12" cy="13" r="9" stroke="currentColor" stroke-width="2.5" />
+          <path d="M12 9v4l2.5 2.5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M9 2h6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+        </svg>
+        <span class="font-mono text-sm font-bold tabular-nums" :class="hasActiveTurn ? 'text-white/50' : 'text-white/30'">{{ formattedTotalPlayTime }}</span>
+      </div>
+
+      <div class="h-3 w-px bg-white/10" />
+
+      <!-- Round time -->
       <div class="flex items-center gap-1.5">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" class="text-white/30">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="text-white/40">
           <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" />
           <path d="M12 7v5l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
-        <span class="font-mono text-sm tabular-nums text-white/50" :title="t('game.totalPlayTime')">{{ formattedPlayerTotalTime }}</span>
-      </div>
-      <!-- Separator -->
-      <div class="h-3 w-px bg-white/10" />
-      <!-- Turn time -->
-      <div class="flex items-center gap-1.5">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" :class="isCurrentTurn ? 'text-arena-gold' : 'text-white/25'">
-          <circle cx="12" cy="14" r="8" stroke="currentColor" stroke-width="2" />
-          <path d="M12 10v4l2.5 2.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-          <path d="M16.5 5.5L18 4M7.5 5.5L6 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-          <path d="M12 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-        </svg>
-        <span
-          class="font-mono text-sm font-semibold tabular-nums"
-          :class="isCurrentTurn ? 'text-arena-gold-light' : 'text-white/35'"
-          :title="t('game.turnTime')"
-        >
-          {{ formattedPlayerTurnTime }}
+        <span v-if="!hasActiveTurn" class="font-mono text-sm tabular-nums text-white/50">
+          {{ formattedRoundTime }}
+        </span>
+        <span v-else class="font-mono text-sm font-semibold tabular-nums" :class="roundTimeDisplayClass">
+          {{ formattedRoundTime }}
         </span>
       </div>
     </div>
 
     <!-- Zone: Damage — Poison + Commander on dedicated row -->
-    <div class="mt-1 flex items-center justify-center gap-2">
+    <div class="pointer-events-none relative z-[3] mt-1 flex items-center justify-center gap-2">
       <!-- Poison -->
       <button
-        class="flex min-h-[40px] min-w-[40px] items-center justify-center gap-0.5 rounded-lg px-2 py-1 btn-press"
+        class="pointer-events-auto flex min-h-[40px] min-w-[40px] items-center justify-center gap-0.5 rounded-lg px-2 py-1 btn-press"
         :class="[
           player.poisonCounters > 0 ? 'bg-poison/20 ring-1 ring-poison/20' : 'bg-white/5',
         ]"
         :aria-label="t('aria.poison', { count: player.poisonCounters })"
+        data-sound="none"
         @click="changePoisonBy(1)"
         @contextmenu.prevent="changePoisonBy(-1)"
         @touchstart.passive="startPoisonLongPress"
@@ -176,7 +172,7 @@
 
       <!-- Commander damage (tap to open modal, drag to another player) -->
       <button
-        class="flex min-h-[40px] min-w-[40px] items-center justify-center gap-0.5 rounded-lg px-2 py-1 btn-press"
+        class="pointer-events-auto flex min-h-[40px] min-w-[40px] items-center justify-center gap-0.5 rounded-lg px-2 py-1 btn-press"
         :class="[
           totalCommanderDamage > 0 ? 'bg-commander-damage/20 ring-1 ring-commander-damage/20' : 'bg-white/5',
         ]"
@@ -195,11 +191,11 @@
     </div>
 
     <!-- Zone: Status — Other counters + Actions -->
-    <div class="mt-auto flex flex-wrap items-center justify-center gap-1.5">
+    <div class="pointer-events-none relative z-[3] mt-auto flex flex-wrap items-center justify-center gap-1.5">
       <!-- Experience (visible if > 0) -->
       <button
         v-if="player.experienceCounters > 0"
-        class="flex min-h-[32px] items-center gap-0.5 rounded-lg bg-arena-blue/20 ring-1 ring-arena-blue/20 px-2 py-1 btn-press"
+        class="pointer-events-auto flex min-h-[32px] items-center gap-0.5 rounded-lg bg-arena-blue/20 ring-1 ring-arena-blue/20 px-2 py-1 btn-press"
         @click="showDetail = true"
       >
         <IconExperience :size="12" class="text-arena-blue" />
@@ -209,7 +205,7 @@
       <!-- Energy (visible if > 0) -->
       <button
         v-if="player.energyCounters > 0"
-        class="flex min-h-[32px] items-center gap-0.5 rounded-lg bg-arena-gold/20 ring-1 ring-arena-gold/20 px-2 py-1 btn-press"
+        class="pointer-events-auto flex min-h-[32px] items-center gap-0.5 rounded-lg bg-arena-gold/20 ring-1 ring-arena-gold/20 px-2 py-1 btn-press"
         @click="showDetail = true"
       >
         <IconEnergy :size="12" class="text-arena-gold" />
@@ -242,10 +238,11 @@
       <div v-if="showAnyActionButton" class="h-4 w-px bg-white/10" />
 
       <!-- Action buttons (merged into same row) -->
-      <div v-if="showEndTurnButton" class="relative">
+      <div v-if="showEndTurnButton" class="pointer-events-auto relative">
         <button
           class="group flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg bg-life-negative/10 btn-press"
           :aria-label="t('game.endTurn')"
+          data-sound="none"
           @click="handleAdvanceTurn"
           @touchstart.passive="showActionTooltip('endTurn')"
           @touchend.passive="hideActionTooltip"
@@ -263,10 +260,31 @@
         </Transition>
       </div>
 
-      <div v-if="showStartTurnButton" class="relative">
+      <div v-if="showReclaimTurnButton" class="pointer-events-auto relative">
+        <button
+          class="group flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg bg-arena-orange/15 btn-press"
+          :aria-label="t('game.reclaimPriority')"
+          @click="handleReleasePriority"
+          @touchstart.passive="showActionTooltip('reclaimPriority')"
+          @touchend.passive="hideActionTooltip"
+          @touchcancel.passive="hideActionTooltip"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="text-arena-orange drop-shadow-sm transition-transform duration-150 group-active:scale-90">
+            <path d="M4 12a8 8 0 0 1 14-5.3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            <path d="M15 3l3 3.7-4 .3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <circle cx="12" cy="12" r="3" fill="currentColor" opacity="0.3" />
+          </svg>
+        </button>
+        <Transition name="tooltip-pop">
+          <span v-if="activeTooltip === 'reclaimPriority'" class="action-tooltip">{{ t('game.reclaimPriority') }}</span>
+        </Transition>
+      </div>
+
+      <div v-if="showStartTurnButton" class="pointer-events-auto relative">
         <button
           class="group flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg bg-life-positive/15 btn-press"
           :aria-label="t('game.startTurn')"
+          data-sound="none"
           @click="handleAdvanceTurn"
           @touchstart.passive="showActionTooltip('startTurn')"
           @touchend.passive="hideActionTooltip"
@@ -282,7 +300,7 @@
         </Transition>
       </div>
 
-      <div v-if="showRespondButton" class="relative">
+      <div v-if="showRespondButton" class="pointer-events-auto relative">
         <button
           class="group flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg bg-mana-blue/20 btn-press"
           :aria-label="t('game.respond')"
@@ -301,7 +319,7 @@
         </Transition>
       </div>
 
-      <div v-if="showReleasePriorityButton" class="relative">
+      <div v-if="showReleasePriorityButton" class="pointer-events-auto relative">
         <button
           class="group flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg bg-arena-gold-light/15 btn-press"
           :aria-label="t('game.releasePriority')"
@@ -377,7 +395,7 @@ import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { isDragLocked } from '@/composables/useDragLock'
 import { tapFeedback, lifeFeedback, heavyFeedback, warningFeedback } from '@/services/haptics'
-import { playLifeChange, playLargeLifeChange, playPoisonChange, playPlayerDeath, playMonarchCrown } from '@/services/sounds'
+import { playLifeChange, playLargeLifeChange, playPoisonChange, playPlayerDeath, playMonarchCrown, playTurnAdvance } from '@/services/sounds'
 import { formatMsToTimer } from '@/utils/time'
 import { LOW_LIFE_WARNING_THRESHOLD, LARGE_LIFE_CHANGE_THRESHOLD, LONG_PRESS_DURATION_MS, FLOAT_ANIMATION_DELAY_MS, MAX_COMMANDERS_PER_PLAYER } from '@/config/gameConstants'
 import { useAnimatedNumber } from '@/composables/useAnimatedNumber'
@@ -399,6 +417,7 @@ import IconSkull from '@/components/icons/game/IconSkull.vue'
 const props = defineProps<{
   player: PlayerState
   isCurrentTurn: boolean
+  cardRotation?: number
   commanderDamageAttackerId?: string | null
 }>()
 
@@ -437,17 +456,74 @@ const dangerPulseClass = computed(() => {
   return ''
 })
 
-// Per-player time tracking
-const playerTotalPlayTimeMs = computed(() =>
+// Total play time — cumulative time across the entire game (never resets)
+const totalPlayTimeMs = computed(() =>
   gameStore.currentGame?.playerPlayTimeMs?.[props.player.id] ?? 0,
 )
+const formattedTotalPlayTime = computed(() => formatMsToTimer(totalPlayTimeMs.value))
 
-const playerTurnTimeMs = computed(() =>
-  gameStore.currentGame?.playerTurnTimeMs?.[props.player.id] ?? 0,
+// Round time — per-turn timer that resets each turn
+const currentRoundTimeMs = computed(() =>
+  gameStore.currentGame?.playerRoundTimeMs?.[props.player.id] ?? 0,
+)
+const turnTimerLimitSeconds = computed(() => settingsStore.gameSettings.turnTimerSeconds)
+const roundTimeRemainingSeconds = computed(() =>
+  turnTimerLimitSeconds.value - (currentRoundTimeMs.value / 1000),
 )
 
-const formattedPlayerTotalTime = computed(() => formatMsToTimer(playerTotalPlayTimeMs.value))
-const formattedPlayerTurnTime = computed(() => formatMsToTimer(playerTurnTimeMs.value))
+const formattedRoundTime = computed(() => {
+  // Without turn timer: count-up (elapsed round time)
+  if (!settingsStore.gameSettings.enableTurnTimer) {
+    return formatMsToTimer(currentRoundTimeMs.value)
+  }
+  // With turn timer: countdown from limit
+  const remaining = roundTimeRemainingSeconds.value
+  if (remaining >= 0) {
+    const minutes = Math.floor(remaining / 60)
+    const seconds = Math.floor(remaining % 60)
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  }
+  // Overtime: show negative
+  const overtime = Math.abs(remaining)
+  const minutes = Math.floor(overtime / 60)
+  const seconds = Math.floor(overtime % 60)
+  return `-${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+})
+
+// Clock owner: does this player currently "own the clock"?
+// Either it is their turn, or they took priority from someone.
+const isClockOwner = computed(() =>
+  props.player.id === gameStore.effectivePriorityPlayer?.id,
+)
+
+// Active turn: should both timers (round time + total play time) be visible?
+const hasActiveTurn = computed(() =>
+  isClockOwner.value || props.isCurrentTurn,
+)
+
+// Round time display styling (priority-aware)
+const roundTimeDisplayClass = computed(() => {
+  if (!isClockOwner.value) {
+    // Your turn but someone else took priority → dimmed
+    return 'text-white/25'
+  }
+  // Without turn timer: neutral color (count-up mode)
+  if (!settingsStore.gameSettings.enableTurnTimer) {
+    return 'text-white/60'
+  }
+  // With turn timer: countdown colors
+  if (roundTimeRemainingSeconds.value <= 0) return 'text-life-negative animate-pulse font-bold'
+  if (roundTimeRemainingSeconds.value <= 60) return 'text-life-negative'
+  return 'text-arena-gold-light'
+})
+
+// Timer flash effect — triggered by rules engine when time is critical
+const hasTimerFlashEffect = computed(() =>
+  gameStore.currentGame?.activeFlashPlayerIds?.includes(props.player.id) ?? false,
+)
+
+// Card orientation — sideways cards (90°/270°) use top/bottom tap zones instead of left/right
+const isSidewaysCard = computed(() => props.cardRotation === 90 || props.cardRotation === 270)
 
 // Priority system
 const isActivePlayer = computed(() => props.player.id === gameStore.currentTurnPlayer?.id)
@@ -477,14 +553,19 @@ const showRespondButton = computed(() =>
 const showReleasePriorityButton = computed(() =>
   isPriorityTaken.value && hasPriority.value && !isActivePlayer.value,
 )
+const showReclaimTurnButton = computed(() =>
+  isActivePlayer.value && isPriorityTaken.value,
+)
 
 const showAnyActionButton = computed(() =>
   showEndTurnButton.value || showStartTurnButton.value ||
-  showRespondButton.value || showReleasePriorityButton.value,
+  showRespondButton.value || showReleasePriorityButton.value ||
+  showReclaimTurnButton.value,
 )
 
 function handleAdvanceTurn() {
   gameStore.advanceTurn()
+  playTurnAdvance()
   if (settingsStore.hapticFeedback) tapFeedback()
   emit('turnAdvanced')
   emit('stateChanged')
@@ -1054,5 +1135,30 @@ function onDetailClose() {
 .tooltip-pop-leave-to {
   opacity: 0;
   transform: translateX(-50%) scale(0.85) translateY(4px);
+}
+
+/* Aggressive flash — triggered by rules engine */
+@keyframes timer-aggressive-flash {
+  0%, 100% { border-color: rgba(239, 68, 68, 0.3); }
+  25% { border-color: rgba(239, 68, 68, 0.9); }
+  50% { border-color: rgba(239, 68, 68, 0.3); }
+  75% { border-color: rgba(239, 68, 68, 0.9); }
+}
+.timer-aggressive-flash {
+  animation: timer-aggressive-flash 0.6s ease-in-out infinite;
+  border: 2px solid rgba(239, 68, 68, 0.3);
+}
+
+/* Full-card life tap zones */
+.life-tap-zone {
+  appearance: none;
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.life-tap-zone:active {
+  background: rgba(255, 255, 255, 0.04);
 }
 </style>

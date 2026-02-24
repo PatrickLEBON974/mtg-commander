@@ -9,6 +9,7 @@ import router from './router'
 import i18n from './i18n'
 import { useOfflineStore } from './stores/offlineStore'
 import { useSettingsStore } from './stores/settingsStore'
+import { preloadSounds } from './services/sounds'
 
 import './assets/main.css'
 
@@ -43,7 +44,7 @@ router.isReady().then(async () => {
 
   // Sync i18n locale with user settings
   const settingsStore = useSettingsStore()
-  ;(i18n.global.locale as Ref<string>).value = settingsStore.language
+  ;(i18n.global.locale as unknown as Ref<string>).value = settingsStore.language
 
   // Sync html lang attribute with locale
   document.documentElement.lang = settingsStore.language
@@ -51,9 +52,12 @@ router.isReady().then(async () => {
     () => settingsStore.language,
     (newLang) => {
       document.documentElement.lang = newLang
-      ;(i18n.global.locale as Ref<string>).value = newLang
+      ;(i18n.global.locale as unknown as Ref<string>).value = newLang
     },
   )
+
+  // Preload sound effects (non-blocking, needs user gesture on mobile)
+  preloadSounds()
 
   // Init offline database (non-blocking)
   const offlineStore = useOfflineStore()

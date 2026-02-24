@@ -3,10 +3,10 @@
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-button :disabled="!gameStore.canUndo" :aria-label="t('game.undo')" @click="handleUndo">
+          <ion-button :disabled="!gameStore.canUndo" :aria-label="t('game.undo')" data-sound="none" @click="handleUndo">
             <ion-icon :icon="arrowUndoOutline" />
           </ion-button>
-          <ion-button :disabled="!gameStore.canRedo" :aria-label="t('game.redo')" @click="handleRedo">
+          <ion-button :disabled="!gameStore.canRedo" :aria-label="t('game.redo')" data-sound="none" @click="handleRedo">
             <ion-icon :icon="arrowRedoOutline" />
           </ion-button>
         </ion-buttons>
@@ -24,7 +24,7 @@
           <ion-button :aria-label="t('game.history')" @click="showHistory = true">
             <ion-icon :icon="listOutline" />
           </ion-button>
-          <ion-button :aria-label="t('game.nextTurn')" @click="handleAdvanceTurn">
+          <ion-button :aria-label="t('game.nextTurn')" data-sound="none" @click="handleAdvanceTurn">
             <ion-icon :icon="playForwardOutline" />
           </ion-button>
           <ion-button :aria-label="t('game.endGame')" @click="confirmEndGame">
@@ -84,6 +84,7 @@
               class="h-full"
               :style="cardRotationStyle(index)"
               :player="player"
+              :card-rotation="getCardRotation(index)"
               :is-current-turn="player.id === gameStore.currentTurnPlayer?.id"
               :commander-damage-attacker-id="commanderDragState?.targetPlayerId === player.id ? commanderDragState.attackerPlayerId : null"
               @state-changed="onPlayerStateChanged"
@@ -218,12 +219,14 @@ import { usePlayerRegistryStore } from '@/stores/playerRegistryStore'
 import type { LayoutMode } from '@/services/persistence'
 import LifeTracker from '@/components/life-tracker/LifeTracker.vue'
 import GameTimer from '@/components/game-timer/GameTimer.vue'
+import { useGameClock } from '@/composables/useGameClock'
 import GameHistoryModal from '@/components/life-tracker/GameHistoryModal.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import IllustrationEmptyGame from '@/components/icons/illustrations/IllustrationEmptyGame.vue'
 import IconDie from '@/components/icons/dice/IconDie.vue'
 import DiceRollerSheet from '@/components/dice/DiceRollerSheet.vue'
 import SaveAnonymousPlayerModal from '@/components/player-registry/SaveAnonymousPlayerModal.vue'
+import { playTurnAdvance, playUndo, playEndGame } from '@/services/sounds'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -231,6 +234,9 @@ const gameStore = useGameStore()
 const multiplayerStore = useMultiplayerStore()
 const settingsStore = useSettingsStore()
 const registryStore = usePlayerRegistryStore()
+// Initialize the single game clock (singleton — drives all timers)
+useGameClock()
+
 const showHistory = ref(false)
 const showLayoutPicker = ref(false)
 const showDiceRoller = ref(false)
@@ -426,6 +432,7 @@ function handleUndo() {
   const actionToUndo = history && history.length > 0 ? history[history.length - 1] : null
 
   gameStore.undoLastAction()
+  playUndo()
 
   if (multiplayerStore.isMultiplayer) {
     multiplayerStore.pushLocalPlayerState()
@@ -441,6 +448,7 @@ function handleRedo() {
   const actionToRedo = gameStore.nextRedoAction
 
   gameStore.redoLastAction()
+  playUndo()
 
   if (multiplayerStore.isMultiplayer) {
     multiplayerStore.pushLocalPlayerState()
@@ -453,6 +461,7 @@ function handleRedo() {
 
 function handleAdvanceTurn() {
   gameStore.advanceTurn()
+  playTurnAdvance()
   syncTurnAdvance()
 }
 
@@ -475,6 +484,7 @@ async function confirmEndGame() {
           ) ?? []
 
           gameStore.endGame()
+          playEndGame()
 
           const toast = await toastController.create({
             message: t('game.gameRecorded'),

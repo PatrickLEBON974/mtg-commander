@@ -124,6 +124,7 @@
             class="flex-[2] rounded-xl py-3.5 text-center text-base font-bold text-white transition-all duration-150 active:scale-[0.97]"
             :class="damageAmount > 0 ? 'bg-commander-damage' : 'bg-white/10 text-white/30'"
             :disabled="damageAmount <= 0"
+            data-sound="none"
             @click="confirmDamage"
           >
             {{ t('commanderDamage.deal', { amount: damageAmount }) }}
@@ -143,6 +144,7 @@ import { QUICK_COMMANDER_DAMAGE_OPTIONS } from '@/config/gameConstants'
 import AppModal from '@/components/ui/AppModal.vue'
 import NumberStepper from '@/components/ui/NumberStepper.vue'
 import IconSwordSingle from '@/components/icons/game/IconSwordSingle.vue'
+import { playCommanderDamage } from '@/services/sounds'
 
 const props = defineProps<{
   isOpen: boolean
@@ -222,6 +224,7 @@ function selectAttacker(player: PlayerState) {
 
 function confirmDamage() {
   if (damageAmount.value <= 0) return
+  playCommanderDamage()
   gameStore.dealCommanderDamage(props.targetPlayer.id, commanderId.value, damageAmount.value)
   resetSelection()
   emit('close')

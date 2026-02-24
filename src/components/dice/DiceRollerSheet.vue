@@ -17,6 +17,7 @@
                 v-for="die in dieTypes"
                 :key="die.sides"
                 class="die-button"
+                data-sound="none"
                 @click="rollDie(die.sides)"
               >
                 <component :is="die.icon" :size="32" />
@@ -55,6 +56,7 @@
               </button>
               <button
                 class="action-btn action-btn--primary roll-btn"
+                data-sound="none"
                 :disabled="selectedPlayerIds.size < 2 || isRolling"
                 @click="rollPlayer"
               >
@@ -70,7 +72,7 @@
               <div class="result-number" ref="resultNumberRef">
                 {{ displayValue }}
               </div>
-              <button class="action-btn action-btn--primary" @click="reroll">
+              <button class="action-btn action-btn--primary" data-sound="none" @click="reroll">
                 {{ t('dice.reroll') }}
               </button>
             </div>
@@ -91,6 +93,7 @@ import IconDie6 from '@/components/icons/dice/IconDie6.vue'
 import IconDie8 from '@/components/icons/dice/IconDie8.vue'
 import IconDie20 from '@/components/icons/dice/IconDie20.vue'
 import IconPeople from '@/components/icons/nav/IconPeople.vue'
+import { playDiceRoll, playVictory } from '@/services/sounds'
 
 const props = defineProps<{
   isOpen: boolean
@@ -176,6 +179,7 @@ function rollDie(sides: number) {
   selectedDieSides.value = sides
   isRolling.value = true
   currentView.value = 'dieResult'
+  playDiceRoll()
 
   const steps = 10
   const intervalMs = 60
@@ -252,6 +256,7 @@ function rollPlayer() {
       highlightedPlayerId.value = null
       winnerPlayerId.value = winner.id
       isRolling.value = false
+      playVictory()
 
       // Bounce the winner row
       nextTick(() => {

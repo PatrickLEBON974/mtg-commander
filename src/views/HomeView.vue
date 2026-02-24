@@ -132,11 +132,50 @@
             />
           </ion-item>
 
-          <ion-item lines="none">
+          <ion-item :lines="settingsStore.gameSettings.enableTimer ? 'inset' : 'none'">
             <ion-icon :icon="timerOutline" slot="start" color="medium" />
             <ion-label>{{ t('home.gameTimer') }}</ion-label>
             <ion-toggle slot="end" v-model="settingsStore.gameSettings.enableTimer" />
           </ion-item>
+
+          <!-- Turn timer (nested under game timer) -->
+          <template v-if="settingsStore.gameSettings.enableTimer">
+            <ion-item :lines="settingsStore.gameSettings.enableTurnTimer ? 'inset' : 'none'">
+              <ion-icon :icon="hourglassOutline" slot="start" color="medium" />
+              <ion-label>{{ t('home.turnTimer') }}</ion-label>
+              <ion-toggle slot="end" v-model="settingsStore.gameSettings.enableTurnTimer" />
+            </ion-item>
+
+            <ion-item v-if="settingsStore.gameSettings.enableTurnTimer" lines="inset">
+              <ion-icon :icon="timeOutline" slot="start" color="medium" />
+              <ion-label>{{ t('home.turnDuration') }}</ion-label>
+              <SettingStepper
+                slot="end"
+                v-model="settingsStore.gameSettings.turnTimerSeconds"
+                :options="turnTimerOptions"
+                :label="t('home.turnDuration')"
+              />
+            </ion-item>
+
+            <!-- Timer rules toggles (per-game activation) -->
+            <template v-if="settingsStore.gameSettings.enableTurnTimer && settingsStore.timerRules.length > 0">
+              <ion-list-header>
+                <ion-label class="text-sm">{{ t('home.timerRules') }}</ion-label>
+              </ion-list-header>
+              <ion-item
+                v-for="rule in settingsStore.timerRules"
+                :key="rule.id"
+                :lines="rule === settingsStore.timerRules[settingsStore.timerRules.length - 1] ? 'none' : 'inset'"
+              >
+                <ion-label>{{ rule.name }}</ion-label>
+                <ion-toggle
+                  slot="end"
+                  :checked="settingsStore.gameSettings.activeTimerRuleIds.includes(rule.id)"
+                  @ionChange="toggleTimerRule(rule.id, $event.detail.checked)"
+                />
+              </ion-item>
+            </template>
+          </template>
         </ion-list>
 
         <ion-list :inset="true">
@@ -183,7 +222,7 @@
         </ion-reorder-group>
 
         <div class="p-4">
-          <ion-button expand="block" color="primary" @click="confirmNewGame">
+          <ion-button expand="block" color="primary" data-sound="none" @click="confirmNewGame">
             <ion-icon :icon="playOutline" slot="start" />
             {{ t('home.newGame') }}
           </ion-button>
@@ -280,12 +319,15 @@ import {
   addOutline,
   heartOutline,
   timerOutline,
+  hourglassOutline,
+  timeOutline,
   shieldOutline,
   skullOutline,
 } from 'ionicons/icons'
 import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { usePageEnterAnimation } from '@/composables/usePageEnterAnimation'
+import { playGameStart } from '@/services/sounds'
 import AppModal from '@/components/ui/AppModal.vue'
 import SettingStepper from '@/components/ui/SettingStepper.vue'
 import DividerOrnament from '@/components/icons/decorative/DividerOrnament.vue'
@@ -315,6 +357,14 @@ const poisonOptions = computed(() => [
   { value: 15, label: '15' },
   { value: 20, label: '20' },
 ])
+
+const turnTimerOptions = [
+  { value: 60, label: '1:00' },
+  { value: 90, label: '1:30' },
+  { value: 120, label: '2:00' },
+  { value: 180, label: '3:00' },
+  { value: 300, label: '5:00' },
+]
 
 const showNewGameOption = ref(false)
 const showNewGameModal = ref(false)
@@ -356,10 +406,20 @@ function handleReorder(event: CustomEvent) {
 
 usePageEnterAnimation()
 
+function toggleTimerRule(ruleId: string, isActive: boolean) {
+  const activeIds = settingsStore.gameSettings.activeTimerRuleIds
+  if (isActive && !activeIds.includes(ruleId)) {
+    activeIds.push(ruleId)
+  } else if (!isActive) {
+    settingsStore.gameSettings.activeTimerRuleIds = activeIds.filter((id) => id !== ruleId)
+  }
+}
+
 function confirmNewGame() {
   showNewGameModal.value = false
   gameStore.settings = { ...settingsStore.gameSettings }
   gameStore.startNewGame()
+  playGameStart()
   // Apply player names, colors, and commanders from modal config
   const mapping: Record<string, { playerProfileId: string; deckId?: string }> = {}
   playerConfigs.value.forEach((config, index) => {

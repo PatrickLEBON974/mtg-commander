@@ -8,4 +8,7 @@
 <script setup lang="ts">
 import { IonApp, IonRouterOutlet } from '@ionic/vue'
 import SplashOverlay from '@/components/SplashOverlay.vue'
+import { useGlobalClickSound } from '@/composables/useGlobalClickSound'
+
+useGlobalClickSound()
 </script>
