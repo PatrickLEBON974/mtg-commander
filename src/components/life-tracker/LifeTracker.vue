@@ -39,25 +39,22 @@
       @animationend="flashType = null"
     />
 
-    <!-- Full-card tap zones: left/top = -1, right/bottom = +1 -->
-    <!-- Adapts orientation based on card rotation (sideways cards use top/bottom split) -->
+    <!-- Full-card tap zones: left = -1, right = +1 (always left/right, even when card is rotated) -->
     <button
-      class="life-tap-zone absolute z-[2]"
-      :class="isSidewaysCard ? 'inset-x-0 top-0 h-1/2' : 'inset-y-0 left-0 w-1/2'"
+      class="life-tap-zone absolute inset-y-0 left-0 z-[2] w-1/2"
       :aria-label="t('aria.decreaseLife', { name: player.name })"
       data-sound="none"
-      @click="changeLifeBy(isSidewaysCard ? topZoneLifeAmount : -1)"
-      @touchstart.passive="startLifeRepeat(isSidewaysCard ? topZoneLifeAmount : -1)"
+      @click="changeLifeBy(-1)"
+      @touchstart.passive="startLifeRepeat(-1)"
       @touchend.passive="stopLifeRepeat"
       @touchcancel.passive="stopLifeRepeat"
     />
     <button
-      class="life-tap-zone absolute z-[2]"
-      :class="isSidewaysCard ? 'inset-x-0 bottom-0 h-1/2' : 'inset-y-0 right-0 w-1/2'"
+      class="life-tap-zone absolute inset-y-0 right-0 z-[2] w-1/2"
       :aria-label="t('aria.increaseLife', { name: player.name })"
       data-sound="none"
-      @click="changeLifeBy(isSidewaysCard ? bottomZoneLifeAmount : 1)"
-      @touchstart.passive="startLifeRepeat(isSidewaysCard ? bottomZoneLifeAmount : 1)"
+      @click="changeLifeBy(1)"
+      @touchstart.passive="startLifeRepeat(1)"
       @touchend.passive="stopLifeRepeat"
       @touchcancel.passive="stopLifeRepeat"
     />
@@ -393,14 +390,17 @@ import { useI18n } from 'vue-i18n'
 import type { PlayerState } from '@/types/game'
 import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { isDragLocked } from '@/composables/useDragLock'
 import { tapFeedback, lifeFeedback, heavyFeedback, warningFeedback } from '@/services/haptics'
-import { playLifeChange, playLargeLifeChange, playPoisonChange, playPlayerDeath, playMonarchCrown, playTurnAdvance } from '@/services/sounds'
-import { formatMsToTimer } from '@/utils/time'
-import { LOW_LIFE_WARNING_THRESHOLD, LARGE_LIFE_CHANGE_THRESHOLD, LONG_PRESS_DURATION_MS, FLOAT_ANIMATION_DELAY_MS, MAX_COMMANDERS_PER_PLAYER } from '@/config/gameConstants'
+import { playLifeChange, playLargeLifeChange, playPoisonChange, playPlayerDeath, playMonarchCrown } from '@/services/sounds'
+import { LOW_LIFE_WARNING_THRESHOLD, LARGE_LIFE_CHANGE_THRESHOLD, LONG_PRESS_DURATION_MS, FLOAT_ANIMATION_DELAY_MS } from '@/config/gameConstants'
 import { useAnimatedNumber } from '@/composables/useAnimatedNumber'
 import { useCelebration } from '@/composables/useCelebration'
 import { useFloatingNumbers } from '@/composables/useFloatingNumbers'
+import { useLifeDragGesture } from '@/composables/useLifeDragGesture'
+import { useCommanderDragDrop } from '@/composables/useCommanderDragDrop'
+import { usePlayerTimerDisplay } from '@/composables/usePlayerTimerDisplay'
+import { useTurnActions } from '@/composables/useTurnActions'
+import { useActionTooltip } from '@/composables/useActionTooltip'
 import LifeNumpad from './LifeNumpad.vue'
 import PlayerDetailModal from './PlayerDetailModal.vue'
 import CommanderDamageModal from './CommanderDamageModal.vue'
@@ -417,7 +417,6 @@ import IconSkull from '@/components/icons/game/IconSkull.vue'
 const props = defineProps<{
   player: PlayerState
   isCurrentTurn: boolean
-  cardRotation?: number
   commanderDamageAttackerId?: string | null
 }>()
 
@@ -434,7 +433,6 @@ const settingsStore = useSettingsStore()
 const panelRef = ref<HTMLElement>()
 const showLifeNumpad = ref(false)
 const showDetail = ref(false)
-const showCommanderDamage = ref(false)
 const flashType = ref<'positive' | 'negative' | null>(null)
 
 const { monarchCrown, playerEliminated } = useCelebration()
@@ -445,148 +443,60 @@ const { addFloat } = useFloatingNumbers({
 
 const animatedLife = useAnimatedNumber(() => props.player.lifeTotal)
 
+// --- Composables ---
+
+const {
+  formattedTotalPlayTime, formattedRoundTime, hasActiveTurn,
+  roundTimeDisplayClass, hasTimerFlashEffect,
+} = usePlayerTimerDisplay({
+  playerId: () => props.player.id,
+  isCurrentTurn: () => props.isCurrentTurn,
+})
+
+const {
+  isActivePlayer, isPriorityTaken, hasPriority,
+  showMarchingBorder, turnBorderClass,
+  showEndTurnButton, showStartTurnButton, showRespondButton,
+  showReleasePriorityButton, showReclaimTurnButton, showAnyActionButton,
+  handleAdvanceTurn, handleRespond, handleReleasePriority,
+} = useTurnActions({
+  playerId: () => props.player.id,
+  onStateChanged: () => emit('stateChanged'),
+  onTurnAdvanced: () => emit('turnAdvanced'),
+})
+
+const {
+  showCommanderDamage, commanderDamageInitialAttackerId,
+  onCommanderClick, onCommanderTouchStart, onCommanderTouchMove,
+  onCommanderTouchEnd, onCommanderTouchCancel, onCommanderDamageClose,
+  cleanup: cleanupCommanderDrag,
+} = useCommanderDragDrop({
+  playerId: () => props.player.id,
+  attackerIdProp: () => props.commanderDamageAttackerId,
+  onDragDrop: (targetPlayerId) => emit('commanderDragDrop', targetPlayerId),
+  onStateChanged: () => emit('stateChanged'),
+})
+
+const {
+  lifeDragPendingAmount, isDragging,
+  onLifeTouchStart, onLifeTouchMove, onLifeTouchEnd, onLifeTouchCancel,
+} = useLifeDragGesture({
+  onLifeChange: (amount) => changeLifeBy(amount),
+})
+
+const { activeTooltip, showActionTooltip, hideActionTooltip } = useActionTooltip()
+
+// --- Computed state ---
+
 const totalCommanderDamage = computed(() =>
   Object.values(props.player.commanderDamageReceived).reduce((sum, damage) => sum + damage, 0),
 )
 
-// Low-life danger pulse
 const dangerPulseClass = computed(() => {
   if (props.player.lifeTotal <= 0) return ''
   if (props.player.lifeTotal <= LOW_LIFE_WARNING_THRESHOLD) return 'danger-pulse'
   return ''
 })
-
-// Total play time — cumulative time across the entire game (never resets)
-const totalPlayTimeMs = computed(() =>
-  gameStore.currentGame?.playerPlayTimeMs?.[props.player.id] ?? 0,
-)
-const formattedTotalPlayTime = computed(() => formatMsToTimer(totalPlayTimeMs.value))
-
-// Round time — per-turn timer that resets each turn
-const currentRoundTimeMs = computed(() =>
-  gameStore.currentGame?.playerRoundTimeMs?.[props.player.id] ?? 0,
-)
-const turnTimerLimitSeconds = computed(() => settingsStore.gameSettings.turnTimerSeconds)
-const roundTimeRemainingSeconds = computed(() =>
-  turnTimerLimitSeconds.value - (currentRoundTimeMs.value / 1000),
-)
-
-const formattedRoundTime = computed(() => {
-  // Without turn timer: count-up (elapsed round time)
-  if (!settingsStore.gameSettings.enableTurnTimer) {
-    return formatMsToTimer(currentRoundTimeMs.value)
-  }
-  // With turn timer: countdown from limit
-  const remaining = roundTimeRemainingSeconds.value
-  if (remaining >= 0) {
-    const minutes = Math.floor(remaining / 60)
-    const seconds = Math.floor(remaining % 60)
-    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-  }
-  // Overtime: show negative
-  const overtime = Math.abs(remaining)
-  const minutes = Math.floor(overtime / 60)
-  const seconds = Math.floor(overtime % 60)
-  return `-${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-})
-
-// Clock owner: does this player currently "own the clock"?
-// Either it is their turn, or they took priority from someone.
-const isClockOwner = computed(() =>
-  props.player.id === gameStore.effectivePriorityPlayer?.id,
-)
-
-// Active turn: should both timers (round time + total play time) be visible?
-const hasActiveTurn = computed(() =>
-  isClockOwner.value || props.isCurrentTurn,
-)
-
-// Round time display styling (priority-aware)
-const roundTimeDisplayClass = computed(() => {
-  if (!isClockOwner.value) {
-    // Your turn but someone else took priority → dimmed
-    return 'text-white/25'
-  }
-  // Without turn timer: neutral color (count-up mode)
-  if (!settingsStore.gameSettings.enableTurnTimer) {
-    return 'text-white/60'
-  }
-  // With turn timer: countdown colors
-  if (roundTimeRemainingSeconds.value <= 0) return 'text-life-negative animate-pulse font-bold'
-  if (roundTimeRemainingSeconds.value <= 60) return 'text-life-negative'
-  return 'text-arena-gold-light'
-})
-
-// Timer flash effect — triggered by rules engine when time is critical
-const hasTimerFlashEffect = computed(() =>
-  gameStore.currentGame?.activeFlashPlayerIds?.includes(props.player.id) ?? false,
-)
-
-// Card orientation — sideways cards (90°/270°) use top/bottom tap zones instead of left/right
-const isSidewaysCard = computed(() => props.cardRotation === 90 || props.cardRotation === 270)
-
-// At 90° CW, CSS "top" maps to screen RIGHT (player's right = +1), so we invert.
-// At 270°, CSS "top" maps to screen LEFT (player's left = -1), no inversion needed.
-const topZoneLifeAmount = computed(() => props.cardRotation === 90 ? 1 : -1)
-const bottomZoneLifeAmount = computed(() => props.cardRotation === 90 ? -1 : 1)
-
-// Priority system
-const isActivePlayer = computed(() => props.player.id === gameStore.currentTurnPlayer?.id)
-const isNextPlayer = computed(() => props.player.id === gameStore.nextTurnPlayer?.id)
-const isPriorityTaken = computed(() =>
-  gameStore.currentGame?.priorityPlayerId != null,
-)
-const hasPriority = computed(() => {
-  const effectiveId = gameStore.currentGame?.priorityPlayerId ?? gameStore.currentTurnPlayer?.id
-  return props.player.id === effectiveId
-})
-
-// Turn / priority border + rotating glow (glow tied to isCurrentTurn like the timer)
-const showMarchingBorder = computed(() => hasPriority.value && isPriorityTaken.value && !isActivePlayer.value)
-const turnBorderClass = computed(() => {
-  if (isActivePlayer.value) return 'border-arena-orange/70'
-  if (showMarchingBorder.value) return 'border-transparent'
-  return 'border-white/[0.04]'
-})
-
-// Button visibility
-const showEndTurnButton = computed(() => isActivePlayer.value)
-const showStartTurnButton = computed(() => isNextPlayer.value && !isActivePlayer.value && !isPriorityTaken.value)
-const showRespondButton = computed(() =>
-  !isActivePlayer.value && !hasPriority.value,
-)
-const showReleasePriorityButton = computed(() =>
-  isPriorityTaken.value && hasPriority.value && !isActivePlayer.value,
-)
-const showReclaimTurnButton = computed(() =>
-  isActivePlayer.value && isPriorityTaken.value,
-)
-
-const showAnyActionButton = computed(() =>
-  showEndTurnButton.value || showStartTurnButton.value ||
-  showRespondButton.value || showReleasePriorityButton.value ||
-  showReclaimTurnButton.value,
-)
-
-function handleAdvanceTurn() {
-  gameStore.advanceTurn()
-  playTurnAdvance()
-  if (settingsStore.hapticFeedback) tapFeedback()
-  emit('turnAdvanced')
-  emit('stateChanged')
-}
-
-function handleRespond() {
-  gameStore.takePriority(props.player.id)
-  if (settingsStore.hapticFeedback) tapFeedback()
-  emit('stateChanged')
-}
-
-function handleReleasePriority() {
-  gameStore.releasePriority()
-  if (settingsStore.hapticFeedback) tapFeedback()
-  emit('stateChanged')
-}
 
 const playerBgClass = computed(() => {
   const colorMap: Record<string, string> = {
@@ -614,6 +524,8 @@ const deathReason = computed(() => {
   return null
 })
 
+// --- Watchers ---
+
 watch(deathReason, (newValue, oldValue) => {
   if (newValue && !oldValue) {
     playerEliminated()
@@ -632,98 +544,31 @@ onUnmounted(() => {
   cancelPoisonLongPress()
   stopLifeRepeat()
   hideActionTooltip()
-  isDragLocked.value = false
+  cleanupCommanderDrag()
 })
 
-// --- Life drag gesture ---
-
-let lifeDragActive = false
-let lifeDragStartX = 0
-let lifeDragStartY = 0
-const lifeDragPendingAmount = ref(0)
-const LIFE_DRAG_PIXELS_PER_POINT = 25
-const LIFE_DRAG_THRESHOLD = 10
-
-function onLifeTouchStart(event: TouchEvent) {
-  const touch = event.touches[0]
-  if (!touch) return
-  lifeDragActive = false
-  lifeDragStartX = touch.clientX
-  lifeDragStartY = touch.clientY
-  lifeDragPendingAmount.value = 0
-}
-
-function onLifeTouchMove(event: TouchEvent) {
-  const touch = event.touches[0]
-  if (!touch) return
-
-  const deltaX = touch.clientX - lifeDragStartX
-  const deltaY = touch.clientY - lifeDragStartY
-
-  if (!lifeDragActive && Math.hypot(deltaX, deltaY) > LIFE_DRAG_THRESHOLD) {
-    lifeDragActive = true
-    isDragLocked.value = true
-  }
-
-  if (lifeDragActive) {
-    event.preventDefault()
-    // Use dominant axis: up/right = gain, down/left = loss
-    // At 90° rotation, Y axis is inverted (screen down = player's right = +life)
-    const yMultiplier = props.cardRotation === 90 ? 1 : -1
-    const rawAmount = Math.abs(deltaX) > Math.abs(deltaY)
-      ? deltaX / LIFE_DRAG_PIXELS_PER_POINT
-      : (yMultiplier * deltaY) / LIFE_DRAG_PIXELS_PER_POINT
-    lifeDragPendingAmount.value = Math.round(rawAmount)
-  }
-}
-
-function onLifeTouchEnd() {
-  if (lifeDragActive && lifeDragPendingAmount.value !== 0) {
-    changeLifeBy(lifeDragPendingAmount.value)
-  }
-  lifeDragActive = false
-  isDragLocked.value = false
-  lifeDragPendingAmount.value = 0
-}
-
-function onLifeTouchCancel() {
-  lifeDragActive = false
-  isDragLocked.value = false
-  lifeDragPendingAmount.value = 0
-}
+// --- Life interactions ---
 
 function changeLifeBy(amount: number) {
   gameStore.changeLife(props.player.id, amount)
-
-  // Flash effect
   flashType.value = amount > 0 ? 'positive' : 'negative'
-
-  // Floating number (slightly delayed for choreography)
   setTimeout(() => addFloat(amount, 'life'), FLOAT_ANIMATION_DELAY_MS)
 
-  // Haptic feedback
   if (settingsStore.hapticFeedback) {
     const newLife = props.player.lifeTotal
-    if (newLife <= 0) {
-      warningFeedback()
-    } else if (Math.abs(amount) >= LARGE_LIFE_CHANGE_THRESHOLD) {
-      heavyFeedback()
-    } else {
-      lifeFeedback()
-    }
+    if (newLife <= 0) warningFeedback()
+    else if (Math.abs(amount) >= LARGE_LIFE_CHANGE_THRESHOLD) heavyFeedback()
+    else lifeFeedback()
   }
 
-  // Sound effect
   if (Math.abs(amount) >= LARGE_LIFE_CHANGE_THRESHOLD) {
     playLargeLifeChange(amount > 0)
   } else {
     playLifeChange(amount > 0)
   }
-
   emit('stateChanged')
 }
 
-// Long-press repeat for ±1 buttons
 const LIFE_REPEAT_DELAY_MS = 400
 const LIFE_REPEAT_INTERVAL_MS = 100
 let lifeRepeatDelayTimer: ReturnType<typeof setTimeout> | null = null
@@ -738,31 +583,25 @@ function startLifeRepeat(amount: number) {
 }
 
 function stopLifeRepeat() {
-  if (lifeRepeatDelayTimer) {
-    clearTimeout(lifeRepeatDelayTimer)
-    lifeRepeatDelayTimer = null
-  }
-  if (lifeRepeatIntervalTimer) {
-    clearInterval(lifeRepeatIntervalTimer)
-    lifeRepeatIntervalTimer = null
-  }
+  if (lifeRepeatDelayTimer) { clearTimeout(lifeRepeatDelayTimer); lifeRepeatDelayTimer = null }
+  if (lifeRepeatIntervalTimer) { clearInterval(lifeRepeatIntervalTimer); lifeRepeatIntervalTimer = null }
 }
 
 function openLifeNumpad() {
-  if (lifeDragActive) return
+  if (isDragging()) return
   showLifeNumpad.value = true
 }
 
 function confirmLifeNumpad(newLife: number) {
   showLifeNumpad.value = false
-  if (newLife !== props.player.lifeTotal) {
-    changeLifeBy(newLife - props.player.lifeTotal)
-  }
+  if (newLife !== props.player.lifeTotal) changeLifeBy(newLife - props.player.lifeTotal)
 }
 
 function cancelLifeNumpad() {
   showLifeNumpad.value = false
 }
+
+// --- Poison ---
 
 function changePoisonBy(amount: number) {
   gameStore.changePoison(props.player.id, amount)
@@ -772,7 +611,6 @@ function changePoisonBy(amount: number) {
   emit('stateChanged')
 }
 
-// Long-press to decrement poison on mobile (no right-click on touch)
 let poisonLongPressTimer: ReturnType<typeof setTimeout> | null = null
 function startPoisonLongPress() {
   poisonLongPressTimer = setTimeout(() => {
@@ -782,220 +620,10 @@ function startPoisonLongPress() {
   }, LONG_PRESS_DURATION_MS)
 }
 function cancelPoisonLongPress() {
-  if (poisonLongPressTimer) {
-    clearTimeout(poisonLongPressTimer)
-    poisonLongPressTimer = null
-  }
+  if (poisonLongPressTimer) { clearTimeout(poisonLongPressTimer); poisonLongPressTimer = null }
 }
 
-// --- Commander damage drag-drop ---
-
-const commanderDamageInitialAttackerId = ref<string | null>(null)
-let commanderDragActive = false
-let commanderDragStartX = 0
-let commanderDragStartY = 0
-let commanderDragIndicator: HTMLElement | null = null
-const DRAG_THRESHOLD = 10
-
-// Watch external prop to open modal with pre-selected attacker
-watch(() => props.commanderDamageAttackerId, (attackerId) => {
-  if (attackerId) {
-    commanderDamageInitialAttackerId.value = attackerId
-    showCommanderDamage.value = true
-  }
-})
-
-function onCommanderClick() {
-  // Only open on tap, not after drag
-  if (!commanderDragActive) {
-    commanderDamageInitialAttackerId.value = null
-    showCommanderDamage.value = true
-  }
-}
-
-function onCommanderTouchStart(event: TouchEvent) {
-  const touch = event.touches[0]
-  if (!touch) return
-  commanderDragActive = false
-  commanderDragStartX = touch.clientX
-  commanderDragStartY = touch.clientY
-}
-
-function onCommanderTouchMove(event: TouchEvent) {
-  const touch = event.touches[0]
-  if (!touch) return
-
-  const deltaX = touch.clientX - commanderDragStartX
-  const deltaY = touch.clientY - commanderDragStartY
-
-  if (!commanderDragActive && Math.hypot(deltaX, deltaY) > DRAG_THRESHOLD) {
-    commanderDragActive = true
-    isDragLocked.value = true
-    createCommanderDragIndicator()
-  }
-
-  if (commanderDragActive) {
-    event.preventDefault()
-    moveCommanderDragIndicator(touch.clientX, touch.clientY)
-    highlightDropTarget(touch.clientX, touch.clientY)
-  }
-}
-
-function onCommanderTouchEnd(event: TouchEvent) {
-  if (commanderDragActive) {
-    const touch = event.changedTouches[0]
-    if (touch) {
-      const targetPlayerId = findDropTarget(touch.clientX, touch.clientY)
-      if (targetPlayerId && targetPlayerId !== props.player.id) {
-        emit('commanderDragDrop', targetPlayerId)
-      }
-    }
-    clearDropHighlights()
-    removeCommanderDragIndicator()
-    commanderDragActive = false
-    isDragLocked.value = false
-    return
-  }
-  commanderDragActive = false
-}
-
-function onCommanderTouchCancel() {
-  clearDropHighlights()
-  removeCommanderDragIndicator()
-  commanderDragActive = false
-  isDragLocked.value = false
-}
-
-function createSwordSvg(): SVGSVGElement {
-  const svgNS = 'http://www.w3.org/2000/svg'
-  const svg = document.createElementNS(svgNS, 'svg')
-  svg.setAttribute('width', '28')
-  svg.setAttribute('height', '28')
-  svg.setAttribute('viewBox', '0 0 24 24')
-  svg.setAttribute('fill', 'none')
-
-  const blade = document.createElementNS(svgNS, 'path')
-  blade.setAttribute('d', 'M12 2l2 10-2 2-2-2 2-10z')
-  blade.setAttribute('fill', 'white')
-  blade.setAttribute('opacity', '0.15')
-
-  const shaft = document.createElementNS(svgNS, 'path')
-  shaft.setAttribute('d', 'M12 2v12')
-  shaft.setAttribute('stroke', 'white')
-  shaft.setAttribute('stroke-width', '1.5')
-  shaft.setAttribute('stroke-linecap', 'round')
-
-  const guard = document.createElementNS(svgNS, 'path')
-  guard.setAttribute('d', 'M8 14h8')
-  guard.setAttribute('stroke', 'white')
-  guard.setAttribute('stroke-width', '2')
-  guard.setAttribute('stroke-linecap', 'round')
-
-  const handle = document.createElementNS(svgNS, 'path')
-  handle.setAttribute('d', 'M12 14v5')
-  handle.setAttribute('stroke', 'white')
-  handle.setAttribute('stroke-width', '2')
-  handle.setAttribute('stroke-linecap', 'round')
-
-  const pommel = document.createElementNS(svgNS, 'circle')
-  pommel.setAttribute('cx', '12')
-  pommel.setAttribute('cy', '20')
-  pommel.setAttribute('r', '1.2')
-  pommel.setAttribute('fill', 'white')
-
-  svg.append(blade, shaft, guard, handle, pommel)
-  return svg
-}
-
-function createCommanderDragIndicator() {
-  commanderDragIndicator = document.createElement('div')
-  const swordSvg = createSwordSvg()
-  // Shift sword up 2px to visually center (blade is taller than handle)
-  swordSvg.style.transform = 'translateY(-2px)'
-  commanderDragIndicator.appendChild(swordSvg)
-  Object.assign(commanderDragIndicator.style, {
-    position: 'fixed',
-    zIndex: '100',
-    pointerEvents: 'none',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '52px',
-    height: '52px',
-    borderRadius: '50%',
-    backgroundColor: 'rgba(245, 158, 11, 0.9)',
-    boxShadow: '0 4px 20px rgba(245, 158, 11, 0.4), 0 2px 8px rgba(0,0,0,0.5)',
-    transform: 'translate(-50%, -50%)',
-  })
-  document.body.appendChild(commanderDragIndicator)
-}
-
-function moveCommanderDragIndicator(x: number, y: number) {
-  if (commanderDragIndicator) {
-    commanderDragIndicator.style.left = `${x}px`
-    commanderDragIndicator.style.top = `${y}px`
-  }
-}
-
-function removeCommanderDragIndicator() {
-  commanderDragIndicator?.remove()
-  commanderDragIndicator = null
-}
-
-function findDropTarget(x: number, y: number): string | null {
-  // Temporarily hide indicator to get element underneath
-  if (commanderDragIndicator) commanderDragIndicator.style.display = 'none'
-  const element = document.elementFromPoint(x, y)
-  if (commanderDragIndicator) commanderDragIndicator.style.display = ''
-
-  const commanderButton = element?.closest('[data-commander-player]') as HTMLElement | null
-  return commanderButton?.dataset.commanderPlayer ?? null
-}
-
-function highlightDropTarget(x: number, y: number) {
-  clearDropHighlights()
-  if (commanderDragIndicator) commanderDragIndicator.style.display = 'none'
-  const element = document.elementFromPoint(x, y)
-  if (commanderDragIndicator) commanderDragIndicator.style.display = ''
-
-  const playerPanel = element?.closest('[data-commander-player]') as HTMLElement | null
-  if (playerPanel && playerPanel.dataset.commanderPlayer !== props.player.id) {
-    playerPanel.style.boxShadow = 'inset 0 0 0 3px var(--color-commander-damage), 0 0 24px rgba(245, 158, 11, 0.3)'
-  }
-}
-
-function clearDropHighlights() {
-  document.querySelectorAll('[data-commander-player]').forEach((el) => {
-    ;(el as HTMLElement).style.boxShadow = ''
-  })
-}
-
-function onCommanderDamageClose() {
-  showCommanderDamage.value = false
-  commanderDamageInitialAttackerId.value = null
-  emit('stateChanged')
-}
-
-// --- Long-press tooltip for icon-only action buttons ---
-
-type ActionTooltipKey = 'endTurn' | 'startTurn' | 'respond' | 'releasePriority'
-const activeTooltip = ref<ActionTooltipKey | null>(null)
-let tooltipTimer: ReturnType<typeof setTimeout> | null = null
-
-function showActionTooltip(key: ActionTooltipKey) {
-  tooltipTimer = setTimeout(() => {
-    activeTooltip.value = key
-    if (settingsStore.hapticFeedback) tapFeedback()
-  }, LONG_PRESS_DURATION_MS)
-}
-
-function hideActionTooltip() {
-  if (tooltipTimer) {
-    clearTimeout(tooltipTimer)
-    tooltipTimer = null
-  }
-  activeTooltip.value = null
-}
+// --- Misc actions ---
 
 function revertDeath() {
   gameStore.undoUntilPlayerAlive(props.player.id)

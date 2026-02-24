@@ -29,8 +29,9 @@ export interface GameState {
   isRunning: boolean
   history: GameAction[]
   playerPlayTimeMs: Record<string, number>
-  playerTurnTimeMs: Record<string, number>
+  playerRoundTimeMs: Record<string, number>
   priorityPlayerId: string | null
+  activeFlashPlayerIds: string[]
 }
 
 export interface GameAction {
@@ -41,7 +42,10 @@ export interface GameAction {
   targetPlayerId?: string
   commanderId?: string
   value: number
-  description: string
+  /** i18n key (e.g. 'game.lifeChange') — components translate at render time */
+  descriptionKey: string
+  /** Interpolation params for the i18n key (e.g. { name, amount }) */
+  descriptionParams?: Record<string, string | number>
   previousValue?: number // stores previous state for undo (e.g., previous turn index)
 }
 
@@ -66,6 +70,38 @@ export interface GameSettings {
   enableTimer: boolean
   enableTurnTimer: boolean
   turnTimerSeconds: number
+  activeTimerRuleIds: string[]
+}
+
+// ─── Timer Rules ─────────────────────────────────────────────────────
+
+export type RuleTriggerType =
+  | 'timer_b_remaining'   // Timer B has <= X seconds left
+  | 'timer_b_expired'     // Timer B hit 0
+  | 'timer_a_exceeded'    // Timer A total exceeds X seconds
+
+export type RuleEffectType =
+  | 'overtime_display'    // Show -00:15 format
+  | 'repeated_buzz'       // Haptic vibration (repeating)
+  | 'aggressive_flash'    // Card border aggressive blink
+  | 'play_sound'          // Play alert tone
+
+export interface TimerRuleTrigger {
+  type: RuleTriggerType
+  thresholdSeconds: number
+}
+
+export interface TimerRuleEffect {
+  type: RuleEffectType
+  repeatIntervalSeconds?: number  // for repeated_buzz (default 30)
+  soundType?: 'warning' | 'urgent'  // for play_sound
+}
+
+export interface TimerRule {
+  id: string
+  name: string
+  trigger: TimerRuleTrigger
+  effect: TimerRuleEffect
 }
 
 export const DEFAULT_GAME_SETTINGS: GameSettings = {
@@ -76,6 +112,7 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   enableTimer: true,
   enableTurnTimer: false,
   turnTimerSeconds: 120,
+  activeTimerRuleIds: [],
 }
 
 /** Empty counter defaults for new PlayerState creation */

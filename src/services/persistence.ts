@@ -28,7 +28,28 @@ export function saveGameState(gameState: GameState | null) {
 }
 
 export function loadGameState(): GameState | null {
-  return readLocalStorageJson<GameState | null>(GAME_STATE_KEY, null)
+  const gameState = readLocalStorageJson<GameState | null>(GAME_STATE_KEY, null)
+  if (gameState) {
+    migrateGameActions(gameState)
+  }
+  return gameState
+}
+
+/**
+ * Migrate legacy GameAction entries that used a pre-translated `description`
+ * string to the new `descriptionKey` / `descriptionParams` format.
+ * Old actions without a `descriptionKey` get a literal fallback so the
+ * history modal can still render them.
+ */
+function migrateGameActions(gameState: GameState): void {
+  for (const action of gameState.history) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const legacyAction = action as any
+    if (!action.descriptionKey && legacyAction.description) {
+      action.descriptionKey = legacyAction.description
+      delete legacyAction.description
+    }
+  }
 }
 
 export function saveSettings(settings: GameSettings) {

@@ -2,32 +2,11 @@ import { useSettingsStore } from '@/stores/settingsStore'
 
 // ---------------------------------------------------------------------------
 // Sound file registry — all CC0 / royalty-free (Kenney.nl + sox-generated)
+// SoundName is derived from the keys below so adding a new entry is all that's
+// needed — the type stays in sync automatically.
 // ---------------------------------------------------------------------------
 
-type SoundName =
-  | 'lifeGain'
-  | 'lifeLoss'
-  | 'largeLifeGain'
-  | 'largeLifeLoss'
-  | 'poison'
-  | 'experience'
-  | 'energy'
-  | 'playerDeath'
-  | 'monarchCrown'
-  | 'initiative'
-  | 'commanderCast'
-  | 'commanderDamage'
-  | 'timerWarning'
-  | 'timerUrgent'
-  | 'diceRoll'
-  | 'gameStart'
-  | 'endGame'
-  | 'victory'
-  | 'turnAdvance'
-  | 'undo'
-  | 'uiClick'
-
-const SOUND_FILES: Record<SoundName, string> = {
+const SOUND_FILES = {
   lifeGain:        '/sounds/life-gain.mp3',
   lifeLoss:        '/sounds/life-loss.mp3',
   largeLifeGain:   '/sounds/large-life-gain.mp3',
@@ -49,7 +28,10 @@ const SOUND_FILES: Record<SoundName, string> = {
   turnAdvance:     '/sounds/turn-advance.mp3',
   undo:            '/sounds/undo.mp3',
   uiClick:         '/sounds/ui-click.mp3',
-}
+} as const
+
+/** Union of all registered sound names, derived from SOUND_FILES keys */
+export type SoundName = keyof typeof SOUND_FILES
 
 // Pool size per sound — allows rapid re-triggers without clipping
 const POOL_SIZE = 3

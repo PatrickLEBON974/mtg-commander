@@ -11,17 +11,15 @@ import { DEFAULT_GAME_SETTINGS } from '@/types/game'
 import { COMMANDER_TAX_PER_CAST, GAME_STATE_SAVE_DEBOUNCE_MS, PLAYER_COLORS } from '@/config/gameConstants'
 import { saveGameState, loadGameState } from '@/services/persistence'
 import { useStatsStore } from '@/stores/statsStore'
-import i18n from '@/i18n'
 
 function generateId(): string {
   return crypto.randomUUID()
 }
 
 function createPlayer(index: number, settings: GameSettings): PlayerState {
-  const { t } = i18n.global
   return {
     id: generateId(),
-    name: t('game.defaultPlayerName', { index: index + 1 }),
+    name: `Player ${index + 1}`,
     color: PLAYER_COLORS[index % PLAYER_COLORS.length]!,
     lifeTotal: settings.startingLife,
     // Fresh objects per player — DO NOT spread EMPTY_PLAYER_COUNTERS
@@ -142,8 +140,9 @@ export const useGameStore = defineStore('game', () => {
       isRunning: true,
       history: [],
       playerPlayTimeMs: {},
-      playerTurnTimeMs: {},
+      playerRoundTimeMs: {},
       priorityPlayerId: null,
+      activeFlashPlayerIds: [],
     }
   }
 
@@ -151,7 +150,8 @@ export const useGameStore = defineStore('game', () => {
     type: GameActionType,
     playerId: string,
     value: number,
-    description: string,
+    descriptionKey: string,
+    descriptionParams?: Record<string, string | number>,
     targetPlayerId?: string,
     commanderId?: string,
     previousValue?: number,
@@ -166,7 +166,8 @@ export const useGameStore = defineStore('game', () => {
       targetPlayerId,
       commanderId,
       value,
-      description,
+      descriptionKey,
+      descriptionParams,
       previousValue,
     }
     currentGame.value.history.push(action)
@@ -180,7 +181,6 @@ export const useGameStore = defineStore('game', () => {
     const player = currentGame.value.players.find((p) => p.id === playerId)
     if (!player) return
 
-    const { t } = i18n.global
     player.lifeTotal += amount
 
     // Try to merge with last history entry if same player + life_change + within batch window
@@ -194,22 +194,22 @@ export const useGameStore = defineStore('game', () => {
       && lastAction.playerId === playerId
       && (now - lastAction.timestamp) < LIFE_CHANGE_BATCH_MS
     ) {
-      // Merge: accumulate value, update description + timestamp
+      // Merge: accumulate value, update params + timestamp
       lastAction.value += amount
       const accumulatedAmount = lastAction.value
-      lastAction.description = t('game.lifeChange', {
+      lastAction.descriptionParams = {
         name: player.name,
         sign: accumulatedAmount > 0 ? '+' : '',
         amount: Math.abs(accumulatedAmount),
-      })
+      }
       lastAction.timestamp = now
       redoStack.value = []
     } else {
-      addAction('life_change', playerId, amount, t('game.lifeChange', {
+      addAction('life_change', playerId, amount, 'game.lifeChange', {
         name: player.name,
         sign: amount > 0 ? '+' : '',
         amount: Math.abs(amount),
-      }))
+      })
     }
   }
 
@@ -222,12 +222,12 @@ export const useGameStore = defineStore('game', () => {
     targetPlayer.commanderDamageReceived[commanderId] = currentDamage + amount
     targetPlayer.lifeTotal -= amount
 
-    const { t } = i18n.global
     addAction(
       'commander_damage',
       targetPlayerId,
       amount,
-      t('game.commanderDamage', { name: targetPlayer.name, amount }),
+      'game.commanderDamage',
+      { name: targetPlayer.name, amount },
       targetPlayerId,
       commanderId,
     )
@@ -244,9 +244,13 @@ export const useGameStore = defineStore('game', () => {
     const player = currentGame.value.players.find((p) => p.id === playerId)
     if (!player) return
 
-    const { t } = i18n.global
     player[counterKey] = Math.max(0, player[counterKey] + amount)
-    addAction(actionType, playerId, amount, t('game.counterChange', { name: player.name, sign: amount > 0 ? '+' : '', amount: Math.abs(amount), counter: counterLabel }))
+    addAction(actionType, playerId, amount, 'game.counterChange', {
+      name: player.name,
+      sign: amount > 0 ? '+' : '',
+      amount: Math.abs(amount),
+      counter: counterLabel,
+    })
   }
 
   function changePoison(playerId: string, amount: number) {
@@ -266,13 +270,17 @@ export const useGameStore = defineStore('game', () => {
     const player = currentGame.value.players.find((p) => p.id === playerId)
     if (!player || !player.commanders[commanderIndex]) return
 
-    const { t } = i18n.global
     player.commanders[commanderIndex].castCount++
     addAction(
       'commander_cast',
       playerId,
       commanderIndex,
-      t('game.commanderCast', { name: player.name, cardName: player.commanders[commanderIndex].cardName, tax: (player.commanders[commanderIndex].castCount - 1) * COMMANDER_TAX_PER_CAST }),
+      'game.commanderCast',
+      {
+        name: player.name,
+        cardName: player.commanders[commanderIndex].cardName,
+        tax: (player.commanders[commanderIndex].castCount - 1) * COMMANDER_TAX_PER_CAST,
+      },
     )
   }
 
@@ -300,8 +308,8 @@ export const useGameStore = defineStore('game', () => {
     playerId: string,
     statusKey: 'isMonarch' | 'hasInitiative',
     actionType: GameActionType,
-    gainKey: string,
-    loseKey: string,
+    gainDescriptionKey: string,
+    loseDescriptionKey: string,
   ) {
     if (!currentGame.value) return
     const player = currentGame.value.players.find((p) => p.id === playerId)
@@ -315,14 +323,12 @@ export const useGameStore = defineStore('game', () => {
     if (!hadStatus) {
       player[statusKey] = true
     }
-    const { t } = i18n.global
     addAction(
       actionType,
       playerId,
       hadStatus ? 0 : 1,
-      hadStatus
-        ? t(loseKey, { name: player.name })
-        : t(gainKey, { name: player.name }),
+      hadStatus ? loseDescriptionKey : gainDescriptionKey,
+      { name: player.name },
       previousHolderId,
     )
   }
@@ -402,8 +408,16 @@ export const useGameStore = defineStore('game', () => {
     currentGame.value.currentTurnPlayerIndex = nextIndex
     const turnPlayer = currentGame.value.players[nextIndex]
     if (turnPlayer) {
-      const { t } = i18n.global
-      addAction('turn_advance', turnPlayer.id, currentGame.value.turnNumber, t('game.turn', { n: currentGame.value.turnNumber }), undefined, undefined, previousTurnIndex)
+      addAction(
+        'turn_advance',
+        turnPlayer.id,
+        currentGame.value.turnNumber,
+        'game.turn',
+        { n: currentGame.value.turnNumber },
+        undefined,
+        undefined,
+        previousTurnIndex,
+      )
     }
   }
 
@@ -597,7 +611,7 @@ export const useGameStore = defineStore('game', () => {
     // Record game results
     try {
       const statsStore = useStatsStore()
-      const gameDurationMs = Date.now() - currentGame.value.startedAt
+      const gameDurationMs = currentGame.value.elapsedMs
 
       for (const player of currentGame.value.players) {
         const profileInfo = playerProfileMapping.value[player.id]
@@ -609,6 +623,7 @@ export const useGameStore = defineStore('game', () => {
           result: isPlayerDead(player) ? 'loss' : 'win',
           turnsPlayed: currentGame.value.turnNumber,
           gameDurationMs,
+          playerPlayTimeMs: currentGame.value.playerPlayTimeMs?.[player.id] ?? 0,
           playedAt: Date.now(),
           playerProfileId: profileInfo?.playerProfileId,
           deckId: profileInfo?.deckId,

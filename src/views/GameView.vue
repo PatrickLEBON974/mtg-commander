@@ -84,7 +84,6 @@
               class="h-full"
               :style="cardRotationStyle(index)"
               :player="player"
-              :card-rotation="getCardRotation(index)"
               :is-current-turn="player.id === gameStore.currentTurnPlayer?.id"
               :commander-damage-attacker-id="commanderDragState?.targetPlayerId === player.id ? commanderDragState.attackerPlayerId : null"
               @state-changed="onPlayerStateChanged"
@@ -220,6 +219,7 @@ import type { LayoutMode } from '@/services/persistence'
 import LifeTracker from '@/components/life-tracker/LifeTracker.vue'
 import GameTimer from '@/components/game-timer/GameTimer.vue'
 import { useGameClock } from '@/composables/useGameClock'
+import { usePlayerGridLayout } from '@/composables/usePlayerGridLayout'
 import GameHistoryModal from '@/components/life-tracker/GameHistoryModal.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import IllustrationEmptyGame from '@/components/icons/illustrations/IllustrationEmptyGame.vue'
@@ -236,6 +236,8 @@ const settingsStore = useSettingsStore()
 const registryStore = usePlayerRegistryStore()
 // Initialize the single game clock (singleton — drives all timers)
 useGameClock()
+
+const { playerGridClass, gridStyle, cardOuterClasses, cardOuterStyle, cardRotationStyle } = usePlayerGridLayout()
 
 const showHistory = ref(false)
 const showLayoutPicker = ref(false)
@@ -272,130 +274,6 @@ function handleCommanderDragDrop(attackerPlayerId: string, targetPlayerId: strin
 function selectLayoutMode(mode: LayoutMode) {
   settingsStore.layoutMode = mode
   showLayoutPicker.value = false
-}
-
-const isStarLayout = computed(() => {
-  const playerCount = gameStore.currentGame?.players.length ?? 4
-  return settingsStore.layoutMode === 'star' && playerCount === 4
-})
-
-const playerGridClass = computed(() => {
-  const playerCount = gameStore.currentGame?.players.length ?? 4
-
-  // 4 players and star use inline grid-template-areas
-  if (isStarLayout.value || playerCount === 4) return ''
-
-  if (playerCount <= 2) return 'grid-cols-1 grid-rows-2'
-  if (playerCount === 3) return 'grid-cols-2 grid-rows-2'
-  return 'grid-cols-2 grid-rows-3'
-})
-
-const gridStyle = computed(() => {
-  const playerCount = gameStore.currentGame?.players.length ?? 4
-
-  if (isStarLayout.value) {
-    return {
-      gridTemplateAreas: '". north ." "west . east" ". south ."',
-      gridTemplateColumns: '1fr 1fr 1fr',
-      gridTemplateRows: '1fr 1fr 1fr',
-    }
-  }
-
-  // 4 players: clockwise order TL(0) → TR(1) → BR(2) → BL(3)
-  if (playerCount === 4) {
-    return {
-      gridTemplateAreas: '"p0 p1" "p3 p2"',
-      gridTemplateColumns: '1fr 1fr',
-      gridTemplateRows: '1fr 1fr',
-    }
-  }
-
-  return {}
-})
-
-function getGridArea(index: number): string | undefined {
-  const playerCount = gameStore.currentGame?.players.length ?? 4
-
-  if (isStarLayout.value) {
-    return ['north', 'east', 'south', 'west'][index]
-  }
-
-  if (playerCount === 4) {
-    return `p${index}`
-  }
-
-  return undefined
-}
-
-function getCardRotation(index: number): number {
-  const mode = settingsStore.layoutMode
-  const playerCount = gameStore.currentGame?.players.length ?? 4
-
-  if (mode === 'default') return 0
-
-  // Star with 4 players: N=180, E=270, S=0, W=90
-  if (mode === 'star' && playerCount === 4) {
-    return [180, 270, 0, 90][index] ?? 0
-  }
-
-  // Face-to-face side (4 players clockwise): TL=90, TR=270, BR=270, BL=90
-  if (mode === 'faceToFaceSide') {
-    if (playerCount === 4) return [90, 270, 270, 90][index] ?? 90
-    return index % 2 === 0 ? 90 : 270
-  }
-
-  // Face-to-face: top row (first half) → 180°, bottom row → 0°
-  const halfCount = Math.ceil(playerCount / 2)
-  return index < halfCount ? 180 : 0
-}
-
-function cardOuterClasses(index: number): string[] {
-  const classes: string[] = []
-  const rotation = getCardRotation(index)
-  const playerCount = gameStore.currentGame?.players.length ?? 0
-
-  // 3-player col-span
-  if (playerCount === 3 && index === 2 && !isStarLayout.value) {
-    classes.push('col-span-2')
-  }
-
-  // Side cards need flex centering for dimension swap
-  if (rotation === 90 || rotation === 270) {
-    classes.push('flex', 'items-center', 'justify-center')
-  }
-
-  return classes
-}
-
-function cardOuterStyle(index: number): Record<string, string> {
-  const style: Record<string, string> = {}
-
-  const area = getGridArea(index)
-  if (area) style.gridArea = area
-
-  // Side cards need size containment for cqw/cqh units
-  const rotation = getCardRotation(index)
-  if (rotation === 90 || rotation === 270) {
-    style.containerType = 'size'
-  }
-
-  return style
-}
-
-function cardRotationStyle(index: number): Record<string, string> {
-  const rotation = getCardRotation(index)
-  if (rotation === 0) return {}
-  if (rotation === 180) return { transform: 'rotate(180deg)' }
-
-  // 90 or 270: swap dimensions using container query units
-  // Parent has container-type: size, so cqw = parent width, cqh = parent height
-  // After rotation, visual width = original height and vice versa
-  return {
-    width: '100cqh',
-    height: '100cqw',
-    flexShrink: '0',
-    transform: `rotate(${rotation}deg)`,
-  }
 }
 
 // --- Game actions ---

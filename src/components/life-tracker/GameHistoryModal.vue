@@ -4,7 +4,7 @@
       <ion-item v-for="action in reversedHistory" :key="action.id">
         <ion-icon :icon="actionIcon(action.type)" slot="start" :color="actionColor(action.type)" />
         <ion-label>
-          <h3>{{ action.description }}</h3>
+          <h3>{{ translateActionDescription(action) }}</h3>
           <p>{{ formatRelativeTime(action.timestamp, gameStore.currentGame?.startedAt ?? action.timestamp) }}</p>
         </ion-label>
       </ion-item>
@@ -36,7 +36,7 @@ import {
 } from 'ionicons/icons'
 import { useGameStore } from '@/stores/gameStore'
 import { formatRelativeTime } from '@/utils/time'
-import type { GameActionType } from '@/types/game'
+import type { GameAction, GameActionType } from '@/types/game'
 import AppModal from '@/components/ui/AppModal.vue'
 
 defineProps<{
@@ -82,6 +82,11 @@ function actionColor(type: GameActionType): string {
     turn_advance: 'medium',
   }
   return colorMap[type] ?? 'medium'
+}
+
+/** Translate an action's i18n key at render time so language changes apply instantly */
+function translateActionDescription(action: GameAction): string {
+  return t(action.descriptionKey, action.descriptionParams ?? {})
 }
 
 </script>
