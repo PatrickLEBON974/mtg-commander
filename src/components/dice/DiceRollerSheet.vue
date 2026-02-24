@@ -228,8 +228,8 @@ watch(() => props.isOpen, (open) => {
 
 .close-btn {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: -12px;
+  right: -12px;
   width: 28px;
   height: 28px;
   display: flex;
