@@ -274,6 +274,8 @@ export default {
     rollD20: 'D20',
     result: 'Result',
     reroll: 'Reroll',
+    player: 'Player',
+    roll: 'Roll',
   },
   errors: {
     firebaseNotConfigured: 'Firebase not configured. Add VITE_FIREBASE_* variables to .env',
