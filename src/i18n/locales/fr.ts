@@ -27,6 +27,7 @@ export default {
     newGame: 'Nouvelle Partie',
     resumeGame: 'Reprendre la Partie',
     multiplayer: 'Multijoueur',
+    managePlayers: 'Gerer les joueurs',
     quickSettings: 'Configuration rapide',
     players: 'Joueurs',
     life: 'Vie',

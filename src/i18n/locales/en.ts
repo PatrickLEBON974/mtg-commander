@@ -27,6 +27,7 @@ export default {
     newGame: 'New Game',
     resumeGame: 'Resume Game',
     multiplayer: 'Multiplayer',
+    managePlayers: 'Manage players',
     quickSettings: 'Quick settings',
     players: 'Players',
     life: 'Life',

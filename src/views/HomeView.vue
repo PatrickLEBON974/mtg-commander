@@ -67,6 +67,17 @@
           <ion-icon :icon="peopleOutline" slot="start" />
           {{ t('home.multiplayer') }}
         </ion-button>
+
+        <ion-button
+          expand="block"
+          size="large"
+          fill="outline"
+          color="tertiary"
+          @click="showPlayersModal = true"
+        >
+          <ion-icon :icon="peopleCircleOutline" slot="start" />
+          {{ t('home.managePlayers') }}
+        </ion-button>
       </div>
 
       <!-- Empty state illustration when no active game -->
@@ -156,6 +167,66 @@
           </ion-button>
         </div>
       </AppModal>
+
+      <!-- Players Registry Modal -->
+      <AppModal :is-open="showPlayersModal" :title="t('players.title')" @close="showPlayersModal = false">
+        <div v-if="registryStore.playerProfiles.length === 0" class="flex flex-col items-center justify-center gap-3 py-12">
+          <IllustrationNoPlayers :size="100" />
+          <div class="text-center text-text-secondary">
+            <p>{{ t('players.emptyState') }}</p>
+            <p class="text-xs">{{ t('players.emptyStateHint') }}</p>
+          </div>
+          <ion-button class="mt-2" color="primary" @click="showPlayerProfileModal = true">
+            <ion-icon :icon="addOutline" slot="start" />
+            {{ t('players.addPlayer') }}
+          </ion-button>
+        </div>
+
+        <template v-else>
+          <ion-list :inset="true">
+            <ion-item
+              v-for="profile in registryStore.sortedProfiles"
+              :key="profile.id"
+              button
+              :detail="true"
+              @click="openProfileDetail(profile.id)"
+            >
+              <span
+                slot="start"
+                class="mana-dot"
+                :style="{ background: `var(--color-mana-${profile.preferredColor})` }"
+              />
+              <ion-label>
+                <h2>{{ profile.name }}</h2>
+                <p>{{ t('players.deckCount', { count: profile.decks.length }, profile.decks.length) }}</p>
+              </ion-label>
+            </ion-item>
+          </ion-list>
+
+          <div class="flex justify-center pb-4">
+            <ion-button fill="clear" color="primary" @click="showPlayerProfileModal = true">
+              <ion-icon :icon="addOutline" slot="start" />
+              {{ t('players.addPlayer') }}
+            </ion-button>
+          </div>
+        </template>
+
+        <template #after-content>
+          <PlayerProfileModal
+            :is-open="showPlayerProfileModal"
+            :profile-id="editingProfileId"
+            @close="closePlayerProfileModal"
+          />
+
+          <PlayerProfileDetail
+            :is-open="showDetailModal"
+            :profile-id="detailProfileId"
+            @close="showDetailModal = false"
+            @edit="editProfile"
+            @delete="deleteProfile"
+          />
+        </template>
+      </AppModal>
     </ion-content>
   </ion-page>
 </template>
@@ -183,6 +254,8 @@ import {
   playOutline,
   returnUpForwardOutline,
   peopleOutline,
+  peopleCircleOutline,
+  addOutline,
   heartOutline,
   timerOutline,
   shieldOutline,
@@ -195,7 +268,11 @@ import AppModal from '@/components/ui/AppModal.vue'
 import SettingStepper from '@/components/ui/SettingStepper.vue'
 import DividerOrnament from '@/components/icons/decorative/DividerOrnament.vue'
 import IllustrationEmptyGame from '@/components/icons/illustrations/IllustrationEmptyGame.vue'
+import IllustrationNoPlayers from '@/components/icons/illustrations/IllustrationNoPlayers.vue'
 import PlayerSelectItem from '@/components/player-registry/PlayerSelectItem.vue'
+import PlayerProfileModal from '@/components/player-registry/PlayerProfileModal.vue'
+import PlayerProfileDetail from '@/components/player-registry/PlayerProfileDetail.vue'
+import { usePlayerRegistryStore } from '@/stores/playerRegistryStore'
 import type { PlayerConfigExtended } from '@/components/player-registry/PlayerSelectItem.vue'
 import { PLAYER_COUNT_OPTIONS, STARTING_LIFE_OPTIONS, PLAYER_COLORS } from '@/config/gameConstants'
 
@@ -203,6 +280,7 @@ const { t } = useI18n()
 const router = useRouter()
 const gameStore = useGameStore()
 const settingsStore = useSettingsStore()
+const registryStore = usePlayerRegistryStore()
 
 const commanderDamageOptions = computed(() => [
   { value: 0, label: t('common.off') },
@@ -217,6 +295,11 @@ const poisonOptions = computed(() => [
 ])
 
 const showNewGameModal = ref(false)
+const showPlayersModal = ref(false)
+const showPlayerProfileModal = ref(false)
+const editingProfileId = ref<string | undefined>(undefined)
+const showDetailModal = ref(false)
+const detailProfileId = ref<string | undefined>(undefined)
 
 let nextConfigId = 0
 const playerConfigs = ref<PlayerConfigExtended[]>([])
@@ -276,5 +359,56 @@ function confirmNewGame() {
 function resumeGame() {
   router.push('/game')
 }
+
+// --- Player registry modal ---
+
+function openProfileDetail(profileId: string) {
+  detailProfileId.value = profileId
+  showDetailModal.value = true
+}
+
+function editProfile(profileId: string) {
+  showDetailModal.value = false
+  editingProfileId.value = profileId
+  showPlayerProfileModal.value = true
+}
+
+function closePlayerProfileModal() {
+  showPlayerProfileModal.value = false
+  editingProfileId.value = undefined
+}
+
+async function deleteProfile(profileId: string) {
+  const { alertController } = await import('@ionic/vue')
+  const profile = registryStore.getProfileById(profileId)
+  if (!profile) return
+
+  const alert = await alertController.create({
+    header: t('players.deletePlayer'),
+    message: t('players.deletePlayerConfirm', { name: profile.name }),
+    buttons: [
+      { text: t('common.cancel'), role: 'cancel' },
+      {
+        text: t('common.delete'),
+        role: 'destructive',
+        handler: () => {
+          showDetailModal.value = false
+          registryStore.deletePlayerProfile(profileId)
+        },
+      },
+    ],
+  })
+  await alert.present()
+}
 </script>
+
+<style scoped>
+.mana-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-right: 8px;
+}
+</style>
 
