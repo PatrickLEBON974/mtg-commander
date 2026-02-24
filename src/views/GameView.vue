@@ -197,6 +197,7 @@ import { arrowUndoOutline, arrowRedoOutline, playForwardOutline, listOutline, fl
 import { useGameStore } from '@/stores/gameStore'
 import { useMultiplayerStore } from '@/stores/multiplayerStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { usePlayerRegistryStore } from '@/stores/playerRegistryStore'
 import type { LayoutMode } from '@/services/persistence'
 import LifeTracker from '@/components/life-tracker/LifeTracker.vue'
 import GameTimer from '@/components/game-timer/GameTimer.vue'
@@ -209,6 +210,7 @@ const router = useRouter()
 const gameStore = useGameStore()
 const multiplayerStore = useMultiplayerStore()
 const settingsStore = useSettingsStore()
+const registryStore = usePlayerRegistryStore()
 const showHistory = ref(false)
 const showLayoutPicker = ref(false)
 
@@ -432,8 +434,12 @@ async function confirmEndGame() {
         text: t('common.confirm'),
         role: 'confirm',
         handler: async () => {
+          // Collect anonymous players before ending (for save proposal)
+          const anonymousPlayers = gameStore.currentGame?.players.filter(
+            (player) => !gameStore.playerProfileMapping[player.id],
+          ) ?? []
+
           gameStore.endGame()
-          gameStore.resetGame()
 
           const toast = await toastController.create({
             message: t('game.gameRecorded'),
@@ -442,11 +448,35 @@ async function confirmEndGame() {
             color: 'success',
           })
           await toast.present()
+
+          // Propose to save anonymous players
+          for (const player of anonymousPlayers) {
+            await proposeAnonymousSave(player.name, player.color)
+          }
+
+          gameStore.resetGame()
         },
       },
     ],
   })
   await alert.present()
+}
+
+async function proposeAnonymousSave(playerName: string, playerColor: import('@/types/game').ManaColor) {
+  const saveAlert = await alertController.create({
+    header: t('players.saveAnonymous'),
+    message: t('players.saveAnonymousMessage', { name: playerName }),
+    buttons: [
+      { text: t('common.cancel'), role: 'cancel' },
+      {
+        text: t('players.save'),
+        handler: () => {
+          registryStore.addPlayerProfile(playerName, playerColor)
+        },
+      },
+    ],
+  })
+  await saveAlert.present()
 }
 
 function onPlayerStateChanged() {

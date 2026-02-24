@@ -139,11 +139,13 @@
         </ion-list-header>
 
         <ion-reorder-group :disabled="false" @ionItemReorder="handleReorder($event)">
-          <ion-item v-for="player in playerConfigs" :key="player.id">
-            <span slot="start" class="mana-dot" :style="{ background: `var(--color-mana-${player.color})` }" />
-            <ion-input v-model="player.name" :maxlength="PLAYER_NAME_MAX_LENGTH" :clear-input="true" />
-            <ion-reorder slot="end" />
-          </ion-item>
+          <PlayerSelectItem
+            v-for="(player, index) in playerConfigs"
+            :key="player.id"
+            :model-value="player"
+            :player-index="index"
+            @update:model-value="playerConfigs[index] = $event"
+          />
         </ion-reorder-group>
 
         <div class="p-4">
@@ -175,8 +177,6 @@ import {
   IonToggle,
   IonListHeader,
   IonReorderGroup,
-  IonReorder,
-  IonInput,
 } from '@ionic/vue'
 import {
   playOutline,
@@ -194,8 +194,9 @@ import AppModal from '@/components/ui/AppModal.vue'
 import SettingStepper from '@/components/ui/SettingStepper.vue'
 import DividerOrnament from '@/components/icons/decorative/DividerOrnament.vue'
 import IllustrationEmptyGame from '@/components/icons/illustrations/IllustrationEmptyGame.vue'
-import { PLAYER_COUNT_OPTIONS, STARTING_LIFE_OPTIONS, PLAYER_COLORS, PLAYER_NAME_MAX_LENGTH } from '@/config/gameConstants'
-import type { ManaColor } from '@/types/game'
+import PlayerSelectItem from '@/components/player-registry/PlayerSelectItem.vue'
+import type { PlayerConfigExtended } from '@/components/player-registry/PlayerSelectItem.vue'
+import { PLAYER_COUNT_OPTIONS, STARTING_LIFE_OPTIONS, PLAYER_COLORS } from '@/config/gameConstants'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -217,12 +218,7 @@ const poisonOptions = computed(() => [
 const showNewGameModal = ref(false)
 
 let nextConfigId = 0
-interface PlayerConfig {
-  id: number
-  name: string
-  color: ManaColor
-}
-const playerConfigs = ref<PlayerConfig[]>([])
+const playerConfigs = ref<PlayerConfigExtended[]>([])
 
 watch(() => settingsStore.gameSettings.playerCount, (count) => {
   const existing = playerConfigs.value
@@ -240,7 +236,7 @@ watch(() => settingsStore.gameSettings.playerCount, (count) => {
 }, { immediate: true })
 
 function handleReorder(event: CustomEvent) {
-  const movedItem = playerConfigs.value.splice(event.detail.from, 1)[0]
+  const movedItem = playerConfigs.value.splice(event.detail.from, 1)[0]!
   playerConfigs.value.splice(event.detail.to, 0, movedItem)
   event.detail.complete(false)
 }
@@ -252,13 +248,21 @@ function confirmNewGame() {
   gameStore.settings = { ...settingsStore.gameSettings }
   gameStore.startNewGame()
   // Apply player names and colors from modal config
+  const mapping: Record<string, { playerProfileId: string; deckId?: string }> = {}
   playerConfigs.value.forEach((config, index) => {
     const player = gameStore.currentGame!.players[index]
     if (player) {
       player.name = config.name
       player.color = config.color
+      if (config.playerProfileId) {
+        mapping[player.id] = {
+          playerProfileId: config.playerProfileId,
+          deckId: config.deckId,
+        }
+      }
     }
   })
+  gameStore.setPlayerProfileMapping(mapping)
   router.push('/game')
 }
 

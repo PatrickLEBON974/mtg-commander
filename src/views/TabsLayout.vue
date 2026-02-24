@@ -45,12 +45,14 @@ import gsap from 'gsap'
 import { isDragLocked } from '@/composables/useDragLock'
 import { prefersReducedMotion } from '@/utils/motion'
 import HomeView from '@/views/HomeView.vue'
+import PlayersView from '@/views/PlayersView.vue'
 import GameView from '@/views/GameView.vue'
 import CardSearchView from '@/views/CardSearchView.vue'
 import StatsView from '@/views/StatsView.vue'
 import SettingsView from '@/views/SettingsView.vue'
 
 import IconHome from '@/components/icons/nav/IconHome.vue'
+import IconPeople from '@/components/icons/nav/IconPeople.vue'
 import IconSwords from '@/components/icons/nav/IconSwords.vue'
 import IconSearch from '@/components/icons/nav/IconSearch.vue'
 import IconScroll from '@/components/icons/nav/IconScroll.vue'
@@ -70,6 +72,7 @@ interface TabDef {
 
 const TABS: TabDef[] = [
   { name: 'home', path: '/home', iconComponent: IconHome, labelKey: 'tabs.home', component: HomeView },
+  { name: 'players', path: '/players', iconComponent: IconPeople, labelKey: 'tabs.players', component: PlayersView },
   { name: 'game', path: '/game', iconComponent: IconSwords, labelKey: 'tabs.game', component: GameView },
   { name: 'search', path: '/search', iconComponent: IconSearch, labelKey: 'tabs.cards', component: CardSearchView },
   { name: 'stats', path: '/stats', iconComponent: IconScroll, labelKey: 'tabs.stats', component: StatsView },

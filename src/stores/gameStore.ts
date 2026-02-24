@@ -6,7 +6,6 @@ import type {
   GameAction,
   GameActionType,
   GameSettings,
-  ManaColor,
 } from '@/types/game'
 import { DEFAULT_GAME_SETTINGS, EMPTY_PLAYER_COUNTERS } from '@/types/game'
 import { COMMANDER_TAX_PER_CAST, GAME_STATE_SAVE_DEBOUNCE_MS, PLAYER_COLORS } from '@/config/gameConstants'
@@ -29,10 +28,23 @@ function createPlayer(index: number, settings: GameSettings): PlayerState {
   }
 }
 
+const PROFILE_MAPPING_KEY = 'mtg_commander_game_profile_mapping'
+
+function loadProfileMapping(): Record<string, { playerProfileId: string; deckId?: string }> {
+  const stored = localStorage.getItem(PROFILE_MAPPING_KEY)
+  if (!stored) return {}
+  try {
+    return JSON.parse(stored) ?? {}
+  } catch {
+    return {}
+  }
+}
+
 export const useGameStore = defineStore('game', () => {
   const currentGame = ref<GameState | null>(null)
   const settings = ref<GameSettings>({ ...DEFAULT_GAME_SETTINGS })
   const redoStack = ref<GameAction[]>([])
+  const playerProfileMapping = ref<Record<string, { playerProfileId: string; deckId?: string }>>(loadProfileMapping())
 
   // Restore saved game on init
   const savedGame = loadGameState()
@@ -55,6 +67,18 @@ export const useGameStore = defineStore('game', () => {
     },
     { deep: true },
   )
+
+  watch(
+    playerProfileMapping,
+    (mapping) => {
+      localStorage.setItem(PROFILE_MAPPING_KEY, JSON.stringify(mapping))
+    },
+    { deep: true },
+  )
+
+  function setPlayerProfileMapping(mapping: Record<string, { playerProfileId: string; deckId?: string }>) {
+    playerProfileMapping.value = mapping
+  }
 
   const isGameActive = computed(() => currentGame.value !== null)
   const currentTurnPlayer = computed(() => {
@@ -568,6 +592,7 @@ export const useGameStore = defineStore('game', () => {
       const gameDurationMs = Date.now() - currentGame.value.startedAt
 
       for (const player of currentGame.value.players) {
+        const profileInfo = playerProfileMapping.value[player.id]
         statsStore.recordGame({
           gameId: currentGame.value.id,
           playerId: player.id,
@@ -577,6 +602,8 @@ export const useGameStore = defineStore('game', () => {
           turnsPlayed: currentGame.value.turnNumber,
           gameDurationMs,
           playedAt: Date.now(),
+          playerProfileId: profileInfo?.playerProfileId,
+          deckId: profileInfo?.deckId,
         })
       }
     } catch {
@@ -586,6 +613,8 @@ export const useGameStore = defineStore('game', () => {
 
   function resetGame() {
     currentGame.value = null
+    playerProfileMapping.value = {}
+    localStorage.removeItem(PROFILE_MAPPING_KEY)
   }
 
   return {
@@ -623,5 +652,7 @@ export const useGameStore = defineStore('game', () => {
     redoLastAction,
     endGame,
     resetGame,
+    playerProfileMapping,
+    setPlayerProfileMapping,
   }
 })

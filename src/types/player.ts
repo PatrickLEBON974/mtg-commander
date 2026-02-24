@@ -9,4 +9,6 @@ export interface GameRecord {
   turnsPlayed: number
   gameDurationMs: number
   playedAt: number
+  playerProfileId?: string
+  deckId?: string
 }

@@ -24,6 +24,8 @@ export const MAX_RECENT_GAMES = 10
 export const SCRYFALL_CACHE_MAX_ENTRIES = 50
 export const LOCAL_SEARCH_LIMIT = 50
 export const MAX_LOCAL_PLAYERS_PER_DEVICE = 3
+export const MAX_PLAYER_PROFILES = 20
+export const MAX_DECKS_PER_PLAYER = 20
 export const MAX_ROOM_CODE_ATTEMPTS = 5
 
 // ─── Quick increment options ────────────────────────────────────────
