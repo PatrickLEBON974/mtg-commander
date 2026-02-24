@@ -2,7 +2,14 @@
   <Teleport to="body">
     <Transition name="dice-popup" @enter="onEnter" @leave="onLeave">
       <div v-if="isOpen" class="dice-overlay" @click.self="handleClose">
-        <div class="dice-popup">
+        <div class="dice-popup" @click="clearAutoDismiss">
+          <!-- Back button -->
+          <button v-if="currentView !== 'picker'" class="back-btn" @click="goBack">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+
           <!-- Die type picker -->
           <template v-if="currentView === 'picker'">
             <div class="dice-row">
@@ -12,11 +19,11 @@
                 class="die-button"
                 @click="rollDie(die.sides)"
               >
-                <component :is="die.icon" :size="36" />
+                <component :is="die.icon" :size="32" />
                 <span class="die-label">{{ die.label }}</span>
               </button>
               <button class="die-button" @click="openPlayerPicker">
-                <IconPeople :size="36" />
+                <IconPeople :size="32" />
                 <span class="die-label">{{ t('dice.player') }}</span>
               </button>
             </div>
@@ -263,6 +270,18 @@ function rollPlayer() {
   tick()
 }
 
+// --- Navigation ---
+
+function goBack() {
+  cleanup()
+  currentView.value = 'picker'
+  selectedDieSides.value = null
+  rollResult.value = null
+  isRolling.value = false
+  highlightedPlayerId.value = null
+  winnerPlayerId.value = null
+}
+
 // --- Shared ---
 
 function animateResult() {
@@ -330,7 +349,9 @@ watch(() => props.isOpen, (open) => {
   align-items: flex-start;
   justify-content: center;
   padding-top: calc(var(--ion-safe-area-top, 44px) + 56px);
-  background: rgba(0, 0, 0, 0.35);
+  padding-left: 16px;
+  padding-right: 16px;
+  background: rgba(0, 0, 0, 0.5);
 }
 
 .dice-popup {
@@ -343,11 +364,42 @@ watch(() => props.isOpen, (open) => {
     0 12px 40px rgba(0, 0, 0, 0.5),
     0 0 20px rgba(232, 96, 10, 0.08);
   min-width: 240px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - var(--ion-safe-area-top, 44px) - 100px);
+  overflow-y: auto;
 }
+
+/* --- Back button --- */
+
+.back-btn {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  color: var(--color-arena-gold-light, #f0d078);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 150ms ease, transform 150ms ease;
+  z-index: 1;
+}
+
+.back-btn:active {
+  transform: scale(0.9);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* --- Die picker --- */
 
 .dice-row {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
 .die-button {
@@ -357,7 +409,9 @@ watch(() => props.isOpen, (open) => {
   justify-content: center;
   gap: 4px;
   flex: 1;
-  padding: 12px 8px;
+  padding: 14px 4px;
+  min-height: 48px;
+  min-width: 44px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -374,10 +428,10 @@ watch(() => props.isOpen, (open) => {
 }
 
 .die-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  opacity: 0.7;
+  opacity: 0.8;
 }
 
 /* --- Player picker --- */
@@ -385,15 +439,17 @@ watch(() => props.isOpen, (open) => {
 .player-picker {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-width: 200px;
+  gap: 8px;
+  min-width: 220px;
+  padding-top: 28px;
 }
 
 .player-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 14px 16px;
+  min-height: 48px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
   border: 2px solid transparent;
@@ -452,10 +508,12 @@ watch(() => props.isOpen, (open) => {
 }
 
 .roll-btn {
-  margin-top: 6px;
+  margin-top: 4px;
   width: 100%;
-  padding: 10px;
+  padding: 14px;
+  min-height: 48px;
   text-align: center;
+  font-size: 15px;
 }
 
 .roll-btn:disabled {
@@ -470,7 +528,7 @@ watch(() => props.isOpen, (open) => {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 8px 0;
+  padding: 24px 16px 8px;
 }
 
 .result-die-icon {
@@ -487,15 +545,16 @@ watch(() => props.isOpen, (open) => {
 }
 
 .action-btn {
-  padding: 6px 16px;
-  border-radius: 10px;
-  font-size: 13px;
+  padding: 12px 28px;
+  border-radius: 12px;
+  font-size: 14px;
   font-weight: 600;
+  min-height: 44px;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: all 150ms ease;
   border: none;
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
 .action-btn--primary {
@@ -506,5 +565,6 @@ watch(() => props.isOpen, (open) => {
 
 .action-btn--primary:active {
   background: rgba(232, 96, 10, 0.3);
+  transform: scale(0.95);
 }
 </style>
