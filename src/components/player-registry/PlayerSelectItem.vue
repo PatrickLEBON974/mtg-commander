@@ -1,6 +1,16 @@
 <template>
   <ion-item>
-    <span slot="start" class="player-number-bubble" :style="{ background: `var(--color-mana-${effectiveColor})` }">
+    <!-- Commander avatar when a deck with commanders is selected -->
+    <img
+      v-if="selectedDeckCommander"
+      slot="start"
+      class="commander-avatar"
+      :style="{ borderColor: `var(--color-mana-${effectiveColor})` }"
+      :src="selectedDeckCommander.imageUri"
+      :alt="selectedDeckCommander.name"
+    />
+    <!-- Numbered bubble fallback -->
+    <span v-else slot="start" class="player-number-bubble" :style="{ background: `var(--color-mana-${effectiveColor})` }">
       {{ playerIndex + 1 }}
     </span>
 
@@ -91,6 +101,13 @@ const effectiveColor = computed(() => {
   return props.modelValue.color
 })
 
+const selectedDeckCommander = computed(() => {
+  if (!props.modelValue.deckId || !selectedProfile.value) return undefined
+  const deck = registryStore.getDeckById(selectedProfile.value.id, props.modelValue.deckId)
+  if (!deck || deck.commanders.length === 0) return undefined
+  return deck.commanders[0]
+})
+
 function handleProfileChange(profileId: string) {
   if (profileId === 'anonymous') {
     emit('update:modelValue', {
@@ -122,6 +139,16 @@ function handleDeckChange(deckId: string) {
 </script>
 
 <style scoped>
+.commander-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid;
+  flex-shrink: 0;
+  margin-right: 8px;
+}
+
 .player-number-bubble {
   width: 24px;
   height: 24px;
