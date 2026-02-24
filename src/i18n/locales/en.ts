@@ -264,6 +264,15 @@ export default {
     commanderDamage: 'Commander damage: {damage}',
     playerEliminated: '{name} eliminated: {reason}',
   },
+  dice: {
+    title: 'Dice',
+    rollD4: 'D4',
+    rollD6: 'D6',
+    rollD8: 'D8',
+    rollD20: 'D20',
+    result: 'Result',
+    reroll: 'Reroll',
+  },
   errors: {
     firebaseNotConfigured: 'Firebase not configured. Add VITE_FIREBASE_* variables to .env',
   },

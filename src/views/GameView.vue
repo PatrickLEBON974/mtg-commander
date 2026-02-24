@@ -12,6 +12,10 @@
         </ion-buttons>
         <ion-title>{{ t('game.title') }}</ion-title>
         <ion-buttons slot="end">
+          <!-- Dice roller -->
+          <ion-button v-if="gameStore.isGameActive" @click="showDiceRoller = true">
+            <IconDie :size="20" />
+          </ion-button>
           <!-- Layout mode picker -->
           <ion-button v-if="gameStore.isGameActive" @click="showLayoutPicker = true">
             <ion-icon :icon="gridOutline" />
@@ -174,6 +178,9 @@
         </div>
       </div>
     </AppModal>
+
+    <!-- Dice roller -->
+    <DiceRollerSheet :is-open="showDiceRoller" @close="showDiceRoller = false" />
   </ion-page>
 </template>
 
@@ -204,6 +211,8 @@ import GameTimer from '@/components/game-timer/GameTimer.vue'
 import GameHistoryModal from '@/components/life-tracker/GameHistoryModal.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import IllustrationEmptyGame from '@/components/icons/illustrations/IllustrationEmptyGame.vue'
+import IconDie from '@/components/icons/dice/IconDie.vue'
+import DiceRollerSheet from '@/components/dice/DiceRollerSheet.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -213,6 +222,7 @@ const settingsStore = useSettingsStore()
 const registryStore = usePlayerRegistryStore()
 const showHistory = ref(false)
 const showLayoutPicker = ref(false)
+const showDiceRoller = ref(false)
 
 // --- Commander drag-drop ---
 
