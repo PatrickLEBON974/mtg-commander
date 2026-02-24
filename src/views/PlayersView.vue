@@ -146,5 +146,6 @@ async function deleteProfile(profileId: string) {
   height: 12px;
   border-radius: 50%;
   flex-shrink: 0;
+  margin-right: 8px;
 }
 </style>

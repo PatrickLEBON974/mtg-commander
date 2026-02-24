@@ -271,11 +271,3 @@ function resumeGame() {
 }
 </script>
 
-<style scoped>
-.mana-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-</style>

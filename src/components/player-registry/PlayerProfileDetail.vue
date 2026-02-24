@@ -208,6 +208,7 @@ async function confirmDeleteDeck(deckId: string) {
   height: 16px;
   border-radius: 50%;
   flex-shrink: 0;
+  margin-right: 8px;
 }
 
 .deck-stats-item {

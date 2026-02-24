@@ -134,6 +134,7 @@ function handleDeckChange(deckId: string) {
   font-weight: 700;
   color: #fff;
   -webkit-text-stroke: 1px rgba(0, 0, 0, 0.6);
+  margin-right: 8px;
 }
 
 .select-row {
