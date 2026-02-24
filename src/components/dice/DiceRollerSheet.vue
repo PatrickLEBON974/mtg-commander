@@ -257,7 +257,7 @@ function rollPlayer() {
         }
       })
 
-      startAutoDismiss()
+      startAutoReturn()
       return
     }
 
@@ -299,6 +299,13 @@ function startAutoDismiss() {
   autoDismissTimer = setTimeout(() => {
     handleClose()
   }, 4000)
+}
+
+function startAutoReturn() {
+  clearAutoDismiss()
+  autoDismissTimer = setTimeout(() => {
+    goBack()
+  }, 3000)
 }
 
 function clearAutoDismiss() {
