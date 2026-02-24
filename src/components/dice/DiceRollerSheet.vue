@@ -1,54 +1,50 @@
 <template>
-  <AppModal
-    :is-open="isOpen"
-    :initial-breakpoint="0.45"
-    :breakpoints="[0, 0.45]"
-    @close="handleClose"
-  >
-    <div class="dice-sheet">
-      <!-- Die type picker -->
-      <template v-if="rollResult === null && !isRolling">
-        <h3 class="sheet-title">{{ t('dice.title') }}</h3>
-        <div class="dice-grid">
-          <button
-            v-for="die in dieTypes"
-            :key="die.sides"
-            class="die-button"
-            @click="rollDie(die.sides)"
-          >
-            <component :is="die.icon" :size="48" />
-            <span class="die-label">{{ die.label }}</span>
-          </button>
-        </div>
-      </template>
+  <Teleport to="body">
+    <Transition name="dice-popup" @enter="onEnter" @leave="onLeave">
+      <div v-if="isOpen" class="dice-overlay" @click.self="handleClose">
+        <div class="dice-popup" ref="popupRef">
+          <!-- Die type picker -->
+          <template v-if="rollResult === null && !isRolling">
+            <div class="dice-row">
+              <button
+                v-for="die in dieTypes"
+                :key="die.sides"
+                class="die-button"
+                @click="rollDie(die.sides)"
+              >
+                <component :is="die.icon" :size="36" />
+                <span class="die-label">{{ die.label }}</span>
+              </button>
+            </div>
+          </template>
 
-      <!-- Roll result -->
-      <template v-else>
-        <div class="result-area">
-          <component :is="currentDieIcon" :size="32" class="result-die-icon" />
-          <div class="result-number" ref="resultNumberRef">
-            {{ displayValue }}
-          </div>
-          <div class="result-actions">
-            <ion-button fill="outline" color="primary" @click="reroll">
-              {{ t('dice.reroll') }}
-            </ion-button>
-            <ion-button fill="clear" color="medium" @click="resetToSelection">
-              {{ t('common.back') }}
-            </ion-button>
-          </div>
+          <!-- Roll result -->
+          <template v-else>
+            <div class="result-area">
+              <component :is="currentDieIcon" :size="24" class="result-die-icon" />
+              <div class="result-number" ref="resultNumberRef">
+                {{ displayValue }}
+              </div>
+              <div class="result-actions">
+                <button class="action-btn action-btn--primary" @click="reroll">
+                  {{ t('dice.reroll') }}
+                </button>
+                <button class="action-btn action-btn--secondary" @click="resetToSelection">
+                  {{ t('common.back') }}
+                </button>
+              </div>
+            </div>
+          </template>
         </div>
-      </template>
-    </div>
-  </AppModal>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { IonButton } from '@ionic/vue'
 import gsap from 'gsap'
-import AppModal from '@/components/ui/AppModal.vue'
 import IconDie4 from '@/components/icons/dice/IconDie4.vue'
 import IconDie6 from '@/components/icons/dice/IconDie6.vue'
 import IconDie8 from '@/components/icons/dice/IconDie8.vue'
@@ -82,6 +78,7 @@ const rollResult = ref<number | null>(null)
 const displayValue = ref<number>(1)
 const isRolling = ref(false)
 const resultNumberRef = ref<HTMLElement>()
+const popupRef = ref<HTMLElement>()
 let autoDismissTimer: ReturnType<typeof setTimeout> | null = null
 let rollInterval: ReturnType<typeof setInterval> | null = null
 
@@ -89,6 +86,32 @@ const currentDieIcon = computed(() => {
   const die = dieTypes.find((d) => d.sides === selectedDieSides.value)
   return die?.icon ?? IconDie6
 })
+
+function onEnter(el: Element, done: () => void) {
+  const popup = (el as HTMLElement).querySelector('.dice-popup')
+  gsap.fromTo(
+    el,
+    { opacity: 0 },
+    { opacity: 1, duration: 0.2 },
+  )
+  if (popup) {
+    gsap.fromTo(
+      popup,
+      { scale: 0.8, opacity: 0, y: -20 },
+      { scale: 1, opacity: 1, y: 0, duration: 0.3, ease: 'back.out(2)', onComplete: done },
+    )
+  } else {
+    done()
+  }
+}
+
+function onLeave(el: Element, done: () => void) {
+  const popup = (el as HTMLElement).querySelector('.dice-popup')
+  if (popup) {
+    gsap.to(popup, { scale: 0.8, opacity: 0, y: -10, duration: 0.2, ease: 'power2.in' })
+  }
+  gsap.to(el, { opacity: 0, duration: 0.2, onComplete: done })
+}
 
 function cryptoRandom(sides: number): number {
   const array = new Uint32Array(1)
@@ -100,7 +123,7 @@ function rollDie(sides: number) {
   clearAutoDismiss()
   selectedDieSides.value = sides
   isRolling.value = true
-  rollResult.value = 1 // show result area
+  rollResult.value = 1
 
   const steps = 10
   const intervalMs = 60
@@ -112,7 +135,6 @@ function rollDie(sides: number) {
     if (step >= steps) {
       if (rollInterval) clearInterval(rollInterval)
       rollInterval = null
-      // Final fair value
       const finalValue = cryptoRandom(sides)
       displayValue.value = finalValue
       rollResult.value = finalValue
@@ -175,7 +197,6 @@ function handleClose() {
   emit('close')
 }
 
-// Reset state when modal opens
 watch(() => props.isOpen, (open) => {
   if (open) {
     rollResult.value = null
@@ -188,24 +209,31 @@ watch(() => props.isOpen, (open) => {
 </script>
 
 <style scoped>
-.dice-sheet {
-  padding: 20px 16px 32px;
+.dice-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: calc(var(--ion-safe-area-top, 44px) + 56px);
+  background: rgba(0, 0, 0, 0.35);
 }
 
-.sheet-title {
-  text-align: center;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary, #fff);
-  margin-bottom: 20px;
+.dice-popup {
+  background: var(--ion-color-step-100, #1c2138);
+  border: 1px solid rgba(212, 168, 67, 0.15);
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(232, 96, 10, 0.08);
+  min-width: 240px;
 }
 
-.dice-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  max-width: 280px;
-  margin: 0 auto;
+.dice-row {
+  display: flex;
+  gap: 8px;
 }
 
 .die-button {
@@ -213,11 +241,12 @@ watch(() => props.isOpen, (open) => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 16px;
-  border-radius: 16px;
-  background: var(--ion-color-step-50, #1a1f35);
-  border: 1px solid rgba(212, 168, 67, 0.12);
+  gap: 4px;
+  flex: 1;
+  padding: 12px 8px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   color: var(--text-primary, #fff);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -225,34 +254,35 @@ watch(() => props.isOpen, (open) => {
 }
 
 .die-button:active {
-  transform: scale(0.95);
+  transform: scale(0.93);
   background: rgba(232, 96, 10, 0.15);
   box-shadow: 0 0 12px rgba(232, 96, 10, 0.3);
 }
 
 .die-label {
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
+  opacity: 0.7;
 }
 
 .result-area {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 16px 0;
+  gap: 8px;
+  padding: 8px 0;
 }
 
 .result-die-icon {
-  opacity: 0.5;
+  opacity: 0.4;
 }
 
 .result-number {
-  font-size: 72px;
+  font-size: 56px;
   font-weight: 900;
   color: #fff;
-  text-shadow: 0 0 24px rgba(232, 96, 10, 0.6), 0 0 48px rgba(232, 96, 10, 0.3);
+  text-shadow: 0 0 20px rgba(232, 96, 10, 0.6), 0 0 40px rgba(232, 96, 10, 0.3);
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
@@ -260,6 +290,36 @@ watch(() => props.isOpen, (open) => {
 .result-actions {
   display: flex;
   gap: 8px;
-  margin-top: 8px;
+  margin-top: 4px;
+}
+
+.action-btn {
+  padding: 6px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: all 150ms ease;
+  border: none;
+}
+
+.action-btn--primary {
+  background: rgba(232, 96, 10, 0.15);
+  color: var(--color-accent, #e8600a);
+  border: 1px solid rgba(232, 96, 10, 0.3);
+}
+
+.action-btn--primary:active {
+  background: rgba(232, 96, 10, 0.3);
+}
+
+.action-btn--secondary {
+  background: transparent;
+  color: var(--text-secondary, #8a8f98);
+}
+
+.action-btn--secondary:active {
+  background: rgba(255, 255, 255, 0.05);
 }
 </style>
