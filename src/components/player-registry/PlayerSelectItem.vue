@@ -1,6 +1,8 @@
 <template>
   <ion-item>
-    <span slot="start" class="mana-dot" :style="{ background: `var(--color-mana-${effectiveColor})` }" />
+    <span slot="start" class="player-number-bubble" :style="{ background: `var(--color-mana-${effectiveColor})` }">
+      {{ playerIndex + 1 }}
+    </span>
 
     <!-- Player selection -->
     <ion-select
@@ -10,7 +12,7 @@
       interface="popover"
       @ionChange="handleProfileChange($event.detail.value)"
     >
-      <ion-select-option value="anonymous">{{ t('players.anonymous') }}</ion-select-option>
+      <ion-select-option value="anonymous">{{ t('game.defaultPlayerName', { index: playerIndex + 1 }) }}</ion-select-option>
       <ion-select-option
         v-for="profile in registryStore.sortedProfiles"
         :key="profile.id"
@@ -21,17 +23,6 @@
     </ion-select>
 
     <ion-reorder slot="end" />
-  </ion-item>
-
-  <!-- Anonymous: name input -->
-  <ion-item v-if="!modelValue.playerProfileId" class="nested-item">
-    <ion-input
-      :value="modelValue.name"
-      :maxlength="PLAYER_NAME_MAX_LENGTH"
-      :clear-input="true"
-      :placeholder="t('game.defaultPlayerName', { index: playerIndex + 1 })"
-      @ionInput="handleNameInput($event.detail.value ?? '')"
-    />
   </ion-item>
 
   <!-- Registered player: deck selection -->
@@ -60,13 +51,11 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   IonItem,
-  IonInput,
   IonSelect,
   IonSelectOption,
   IonReorder,
 } from '@ionic/vue'
 import { usePlayerRegistryStore } from '@/stores/playerRegistryStore'
-import { PLAYER_NAME_MAX_LENGTH } from '@/config/gameConstants'
 import type { ManaColor } from '@/types/game'
 
 export interface PlayerConfigExtended {
@@ -127,23 +116,24 @@ function handleDeckChange(deckId: string) {
   })
 }
 
-function handleNameInput(value: string) {
-  emit('update:modelValue', {
-    ...props.modelValue,
-    name: value,
-  })
-}
 </script>
 
 <style scoped>
-.mana-dot {
-  width: 12px;
-  height: 12px;
+.player-number-bubble {
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .nested-item {
-  --padding-start: 36px;
+  --padding-start: 48px;
 }
 </style>
