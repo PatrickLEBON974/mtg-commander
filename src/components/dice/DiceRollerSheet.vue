@@ -3,6 +3,12 @@
     <Transition name="dice-popup" @enter="onEnter" @leave="onLeave">
       <div v-if="isOpen" class="dice-overlay" @click.self="handleClose">
         <div class="dice-popup" ref="popupRef">
+          <button class="close-btn" @click="handleClose" aria-label="Close">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          </button>
+
           <!-- Die type picker -->
           <template v-if="rollResult === null && !isRolling">
             <div class="dice-row">
@@ -25,14 +31,9 @@
               <div class="result-number" ref="resultNumberRef">
                 {{ displayValue }}
               </div>
-              <div class="result-actions">
-                <button class="action-btn action-btn--primary" @click="reroll">
-                  {{ t('dice.reroll') }}
-                </button>
-                <button class="action-btn action-btn--secondary" @click="resetToSelection">
-                  {{ t('common.back') }}
-                </button>
-              </div>
+              <button class="action-btn action-btn--primary" @click="reroll">
+                {{ t('dice.reroll') }}
+              </button>
             </div>
           </template>
         </div>
@@ -160,17 +161,10 @@ function reroll() {
   rollDie(selectedDieSides.value)
 }
 
-function resetToSelection() {
-  cleanup()
-  rollResult.value = null
-  selectedDieSides.value = null
-  isRolling.value = false
-}
-
 function startAutoDismiss() {
   clearAutoDismiss()
   autoDismissTimer = setTimeout(() => {
-    resetToSelection()
+    handleClose()
   }, 4000)
 }
 
@@ -221,6 +215,7 @@ watch(() => props.isOpen, (open) => {
 }
 
 .dice-popup {
+  position: relative;
   background: var(--ion-color-step-100, #1c2138);
   border: 1px solid rgba(212, 168, 67, 0.15);
   border-radius: 20px;
@@ -229,6 +224,28 @@ watch(() => props.isOpen, (open) => {
     0 12px 40px rgba(0, 0, 0, 0.5),
     0 0 20px rgba(232, 96, 10, 0.08);
   min-width: 240px;
+}
+
+.close-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary, #8a8f98);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 150ms ease;
+}
+
+.close-btn:active {
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .dice-row {
@@ -287,12 +304,6 @@ watch(() => props.isOpen, (open) => {
   line-height: 1;
 }
 
-.result-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 4px;
-}
-
 .action-btn {
   padding: 6px 16px;
   border-radius: 10px;
@@ -302,6 +313,7 @@ watch(() => props.isOpen, (open) => {
   -webkit-tap-highlight-color: transparent;
   transition: all 150ms ease;
   border: none;
+  margin-top: 4px;
 }
 
 .action-btn--primary {
@@ -312,14 +324,5 @@ watch(() => props.isOpen, (open) => {
 
 .action-btn--primary:active {
   background: rgba(232, 96, 10, 0.3);
-}
-
-.action-btn--secondary {
-  background: transparent;
-  color: var(--text-secondary, #8a8f98);
-}
-
-.action-btn--secondary:active {
-  background: rgba(255, 255, 255, 0.05);
 }
 </style>
