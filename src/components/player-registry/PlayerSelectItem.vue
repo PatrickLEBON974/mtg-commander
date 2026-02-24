@@ -130,7 +130,7 @@ function handleDeckChange(deckId: string) {
   font-size: 12px;
   font-weight: 700;
   color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  -webkit-text-stroke: 1px rgba(0, 0, 0, 0.6);
 }
 
 .nested-item {
