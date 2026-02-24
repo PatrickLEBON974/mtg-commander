@@ -144,6 +144,7 @@
             :key="player.id"
             :model-value="player"
             :player-index="index"
+            :used-profile-ids="usedProfileIds"
             @update:model-value="playerConfigs[index] = $event"
           />
         </ion-reorder-group>
@@ -219,6 +220,12 @@ const showNewGameModal = ref(false)
 
 let nextConfigId = 0
 const playerConfigs = ref<PlayerConfigExtended[]>([])
+
+const usedProfileIds = computed(() =>
+  playerConfigs.value
+    .map((config) => config.playerProfileId)
+    .filter((id): id is string => id !== undefined),
+)
 
 watch(() => settingsStore.gameSettings.playerCount, (count) => {
   const existing = playerConfigs.value

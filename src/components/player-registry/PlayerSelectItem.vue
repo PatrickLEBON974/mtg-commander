@@ -26,7 +26,7 @@
       >
         <ion-select-option value="anonymous">{{ t('game.defaultPlayerName', { index: playerIndex + 1 }) }}</ion-select-option>
         <ion-select-option
-          v-for="profile in registryStore.sortedProfiles"
+          v-for="profile in availableProfiles"
           :key="profile.id"
           :value="profile.id"
         >
@@ -82,6 +82,7 @@ export interface PlayerConfigExtended {
 const props = defineProps<{
   modelValue: PlayerConfigExtended
   playerIndex: number
+  usedProfileIds?: string[]
 }>()
 
 const emit = defineEmits<{
@@ -90,6 +91,13 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const registryStore = usePlayerRegistryStore()
+
+const availableProfiles = computed(() => {
+  const used = new Set(props.usedProfileIds ?? [])
+  return registryStore.sortedProfiles.filter(
+    (profile) => !used.has(profile.id) || profile.id === props.modelValue.playerProfileId,
+  )
+})
 
 const selectedProfile = computed(() => {
   if (!props.modelValue.playerProfileId) return undefined
