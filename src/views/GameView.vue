@@ -181,6 +181,16 @@
 
     <!-- Dice roller -->
     <DiceRollerSheet :is-open="showDiceRoller" @close="showDiceRoller = false" />
+
+    <!-- Save anonymous player modal (sequential, one at a time) -->
+    <SaveAnonymousPlayerModal
+      :is-open="showSaveAnonymousModal"
+      :player-name="currentAnonymousPlayer?.name ?? ''"
+      :player-color="currentAnonymousPlayer?.color ?? 'white'"
+      :commanders="currentAnonymousPlayer?.commanders ?? []"
+      @save="handleSaveAnonymousPlayer"
+      @skip="handleSkipAnonymousPlayer"
+    />
   </ion-page>
 </template>
 
@@ -213,6 +223,7 @@ import AppModal from '@/components/ui/AppModal.vue'
 import IllustrationEmptyGame from '@/components/icons/illustrations/IllustrationEmptyGame.vue'
 import IconDie from '@/components/icons/dice/IconDie.vue'
 import DiceRollerSheet from '@/components/dice/DiceRollerSheet.vue'
+import SaveAnonymousPlayerModal from '@/components/player-registry/SaveAnonymousPlayerModal.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -223,6 +234,20 @@ const registryStore = usePlayerRegistryStore()
 const showHistory = ref(false)
 const showLayoutPicker = ref(false)
 const showDiceRoller = ref(false)
+
+// --- Anonymous player save queue ---
+interface AnonymousPlayerCommander {
+  cardName: string
+  imageUri?: string
+}
+interface AnonymousPlayerEntry {
+  name: string
+  color: import('@/types/game').ManaColor
+  commanders: AnonymousPlayerCommander[]
+}
+const anonymousPlayerQueue = ref<AnonymousPlayerEntry[]>([])
+const showSaveAnonymousModal = ref(false)
+const currentAnonymousPlayer = computed(() => anonymousPlayerQueue.value[0] ?? null)
 
 // --- Commander drag-drop ---
 
@@ -459,12 +484,20 @@ async function confirmEndGame() {
           })
           await toast.present()
 
-          // Propose to save anonymous players
-          for (const player of anonymousPlayers) {
-            await proposeAnonymousSave(player.name, player.color)
+          // Queue anonymous players for sequential save proposal
+          if (anonymousPlayers.length > 0) {
+            anonymousPlayerQueue.value = anonymousPlayers.map((player) => ({
+              name: player.name,
+              color: player.color,
+              commanders: player.commanders.map((commander) => ({
+                cardName: commander.cardName,
+                imageUri: commander.imageUri,
+              })),
+            }))
+            showSaveAnonymousModal.value = true
+          } else {
+            gameStore.resetGame()
           }
-
-          gameStore.resetGame()
         },
       },
     ],
@@ -472,21 +505,58 @@ async function confirmEndGame() {
   await alert.present()
 }
 
-async function proposeAnonymousSave(playerName: string, playerColor: import('@/types/game').ManaColor) {
-  const saveAlert = await alertController.create({
-    header: t('players.saveAnonymous'),
-    message: t('players.saveAnonymousMessage', { name: playerName }),
-    buttons: [
-      { text: t('common.cancel'), role: 'cancel' },
-      {
-        text: t('players.save'),
-        handler: () => {
-          registryStore.addPlayerProfile(playerName, playerColor)
-        },
-      },
-    ],
+// Guard: AppModal fires didDismiss on programmatic close, which would
+// call handleSkipAnonymousPlayer a second time and skip a player.
+let isAdvancingQueue = false
+
+function advanceAnonymousQueue() {
+  isAdvancingQueue = true
+  anonymousPlayerQueue.value.shift()
+  if (anonymousPlayerQueue.value.length === 0) {
+    showSaveAnonymousModal.value = false
+    gameStore.resetGame()
+    isAdvancingQueue = false
+  } else {
+    // Brief close/reopen for visual transition between players
+    showSaveAnonymousModal.value = false
+    setTimeout(() => {
+      showSaveAnonymousModal.value = true
+      isAdvancingQueue = false
+    }, 350)
+  }
+}
+
+async function handleSaveAnonymousPlayer(name: string, color: import('@/types/game').ManaColor) {
+  const currentEntry = currentAnonymousPlayer.value
+  const profile = registryStore.addPlayerProfile(name, color)
+
+  // Auto-create a deck if the player had commanders during the game
+  if (profile && currentEntry && currentEntry.commanders.length > 0) {
+    const commanderSnapshots = currentEntry.commanders.map((commander) => ({
+      scryfallId: '',
+      name: commander.cardName,
+      imageUri: commander.imageUri ?? '',
+      colorIdentity: [] as string[],
+      typeLine: '',
+    }))
+    const deckName = currentEntry.commanders.map((c) => c.cardName).join(' / ')
+    registryStore.addDeck(profile.id, deckName, commanderSnapshots)
+  }
+
+  const toast = await toastController.create({
+    message: t('players.playerSaved', { name }),
+    duration: 1500,
+    position: 'bottom',
+    color: 'success',
   })
-  await saveAlert.present()
+  await toast.present()
+
+  advanceAnonymousQueue()
+}
+
+function handleSkipAnonymousPlayer() {
+  if (isAdvancingQueue) return
+  advanceAnonymousQueue()
 }
 
 function onPlayerStateChanged() {

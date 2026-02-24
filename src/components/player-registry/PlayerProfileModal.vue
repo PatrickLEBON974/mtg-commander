@@ -9,6 +9,8 @@
           :maxlength="PLAYER_NAME_MAX_LENGTH"
           :clear-input="true"
           :placeholder="t('players.playerName')"
+          :class="{ 'ion-invalid ion-touched': nameErrorMessage }"
+          @ion-input="nameErrorMessage = ''"
         />
       </ion-item>
 
@@ -26,6 +28,10 @@
         </div>
       </ion-item>
     </ion-list>
+
+    <div v-if="nameErrorMessage" class="px-6 pb-2">
+      <p class="text-xs text-life-negative">{{ nameErrorMessage }}</p>
+    </div>
 
     <div class="p-4">
       <ion-button expand="block" color="primary" :disabled="!playerName.trim()" @click="handleSave">
@@ -64,11 +70,13 @@ const registryStore = usePlayerRegistryStore()
 
 const playerName = ref('')
 const selectedColor = ref<ManaColor>('white')
+const nameErrorMessage = ref('')
 
 const isEditing = ref(false)
 
 watch(() => props.isOpen, (open) => {
   if (!open) return
+  nameErrorMessage.value = ''
   if (props.profileId) {
     const profile = registryStore.getProfileById(props.profileId)
     if (profile) {
@@ -83,9 +91,23 @@ watch(() => props.isOpen, (open) => {
   selectedColor.value = 'white'
 })
 
+function isNameTaken(name: string): boolean {
+  const normalized = name.toLowerCase()
+  return registryStore.playerProfiles.some(
+    (profile) =>
+      profile.name.toLowerCase() === normalized &&
+      profile.id !== props.profileId,
+  )
+}
+
 function handleSave() {
   const name = playerName.value.trim()
   if (!name) return
+
+  if (isNameTaken(name)) {
+    nameErrorMessage.value = t('players.duplicateNameError')
+    return
+  }
 
   if (isEditing.value && props.profileId) {
     registryStore.updatePlayerProfile(props.profileId, {

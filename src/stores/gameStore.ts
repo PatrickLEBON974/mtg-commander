@@ -7,7 +7,7 @@ import type {
   GameActionType,
   GameSettings,
 } from '@/types/game'
-import { DEFAULT_GAME_SETTINGS, EMPTY_PLAYER_COUNTERS } from '@/types/game'
+import { DEFAULT_GAME_SETTINGS } from '@/types/game'
 import { COMMANDER_TAX_PER_CAST, GAME_STATE_SAVE_DEBOUNCE_MS, PLAYER_COLORS } from '@/config/gameConstants'
 import { saveGameState, loadGameState } from '@/services/persistence'
 import { useStatsStore } from '@/stores/statsStore'
@@ -24,7 +24,15 @@ function createPlayer(index: number, settings: GameSettings): PlayerState {
     name: t('game.defaultPlayerName', { index: index + 1 }),
     color: PLAYER_COLORS[index % PLAYER_COLORS.length]!,
     lifeTotal: settings.startingLife,
-    ...EMPTY_PLAYER_COUNTERS,
+    // Fresh objects per player — DO NOT spread EMPTY_PLAYER_COUNTERS
+    // (shallow copy would share the same arrays/objects across all players)
+    commanders: [],
+    commanderDamageReceived: {},
+    poisonCounters: 0,
+    experienceCounters: 0,
+    energyCounters: 0,
+    isMonarch: false,
+    hasInitiative: false,
   }
 }
 

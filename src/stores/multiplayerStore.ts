@@ -16,7 +16,6 @@ import {
 } from '@/services/firebase'
 import { useGameStore } from './gameStore'
 import type { PlayerState } from '@/types/game'
-import { EMPTY_PLAYER_COUNTERS } from '@/types/game'
 import { MULTIPLAYER_PUSH_DEBOUNCE_MS, PLAYER_NAME_MAX_LENGTH } from '@/config/gameConstants'
 import i18n from '@/i18n'
 
@@ -274,7 +273,13 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
       name: roomPlayer.name.slice(0, PLAYER_NAME_MAX_LENGTH),
       color: roomPlayer.color as PlayerState['color'],
       lifeTotal: roomData.value!.settings.startingLife,
-      ...EMPTY_PLAYER_COUNTERS,
+      commanders: [],
+      commanderDamageReceived: {},
+      poisonCounters: 0,
+      experienceCounters: 0,
+      energyCounters: 0,
+      isMonarch: false,
+      hasInitiative: false,
     }))
   }
 

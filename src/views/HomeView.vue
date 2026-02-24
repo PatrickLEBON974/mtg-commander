@@ -33,7 +33,9 @@
 
       <!-- Actions -->
       <div data-animate class="flex flex-col gap-3 px-4">
+        <!-- No active game: New Game as primary -->
         <ion-button
+          v-if="!gameStore.isGameActive"
           expand="block"
           size="large"
           color="primary"
@@ -45,17 +47,37 @@
           {{ t('home.newGame') }}
         </ion-button>
 
-        <ion-button
-          v-if="gameStore.isGameActive"
-          expand="block"
-          size="large"
-          fill="outline"
-          color="primary"
-          @click="resumeGame"
-        >
-          <ion-icon :icon="returnUpForwardOutline" slot="start" />
-          {{ t('home.resumeGame') }}
-        </ion-button>
+        <!-- Active game: split button Resume + expand arrow -->
+        <div v-else class="split-btn-group">
+          <ion-button
+            expand="block"
+            size="large"
+            color="primary"
+            class="split-btn-main glow-breathe"
+            style="--glow-color: rgba(232, 96, 10, 0.4)"
+            @click="resumeGame"
+          >
+            <ion-icon :icon="returnUpForwardOutline" slot="start" />
+            {{ t('home.resumeGame') }}
+          </ion-button>
+          <button class="split-btn-arrow" :class="{ 'split-btn-arrow--open': showNewGameOption }" @click="showNewGameOption = !showNewGameOption">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+        </div>
+        <div class="new-game-reveal" :class="{ 'new-game-reveal--open': showNewGameOption }">
+          <ion-button
+            expand="block"
+            size="large"
+            fill="outline"
+            color="primary"
+            @click="showNewGameModal = true"
+          >
+            <ion-icon :icon="playOutline" slot="start" />
+            {{ t('home.newGame') }}
+          </ion-button>
+        </div>
 
         <ion-button
           expand="block"
@@ -294,6 +316,7 @@ const poisonOptions = computed(() => [
   { value: 20, label: '20' },
 ])
 
+const showNewGameOption = ref(false)
 const showNewGameModal = ref(false)
 const showPlayersModal = ref(false)
 const showPlayerProfileModal = ref(false)
@@ -418,6 +441,57 @@ async function deleteProfile(profileId: string) {
   border-radius: 50%;
   flex-shrink: 0;
   margin-right: 8px;
+}
+
+/* Split button: Resume + chevron arrow */
+.split-btn-group {
+  display: flex;
+  gap: 0;
+  align-items: stretch;
+}
+
+.split-btn-main {
+  flex: 1;
+  --border-radius: 8px 0 0 8px;
+}
+
+.split-btn-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  background: var(--ion-color-primary);
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0 8px 8px 0;
+  color: white;
+  transition: background 0.15s ease;
+}
+
+.split-btn-arrow:active {
+  background: var(--ion-color-primary-shade);
+}
+
+.split-btn-arrow svg {
+  transition: transform 0.25s ease;
+}
+
+.split-btn-arrow--open svg {
+  transform: rotate(180deg);
+}
+
+/* Reveal animation for New Game button */
+.new-game-reveal {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.3s ease, opacity 0.25s ease, margin-top 0.3s ease;
+  margin-top: 0;
+}
+
+.new-game-reveal--open {
+  max-height: 80px;
+  opacity: 1;
+  margin-top: 12px;
 }
 </style>
 
