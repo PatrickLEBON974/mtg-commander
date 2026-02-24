@@ -169,6 +169,10 @@ function cryptoRandom(max: number): number {
 
 function rollDie(sides: number) {
   clearAutoDismiss()
+  if (rollInterval) {
+    clearInterval(rollInterval)
+    rollInterval = null
+  }
   selectedDieSides.value = sides
   isRolling.value = true
   currentView.value = 'dieResult'
@@ -220,6 +224,10 @@ function togglePlayer(playerId: string) {
 
 function rollPlayer() {
   clearAutoDismiss()
+  if (rollInterval) {
+    clearTimeout(rollInterval as unknown as number)
+    rollInterval = null
+  }
   const candidates = gamePlayers.value.filter((p) => selectedPlayerIds.value.has(p.id))
   if (candidates.length < 2) return
 
