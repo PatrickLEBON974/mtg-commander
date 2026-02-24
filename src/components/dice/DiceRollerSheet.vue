@@ -3,12 +3,6 @@
     <Transition name="dice-popup" @enter="onEnter" @leave="onLeave">
       <div v-if="isOpen" class="dice-overlay" @click.self="handleClose">
         <div class="dice-popup" ref="popupRef">
-          <button class="close-btn" @click="handleClose" aria-label="Close">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-            </svg>
-          </button>
-
           <!-- Die type picker -->
           <template v-if="rollResult === null && !isRolling">
             <div class="dice-row">
@@ -226,27 +220,6 @@ watch(() => props.isOpen, (open) => {
   min-width: 240px;
 }
 
-.close-btn {
-  position: absolute;
-  top: -12px;
-  right: -12px;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-secondary, #8a8f98);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: background 150ms ease;
-}
-
-.close-btn:active {
-  background: rgba(255, 255, 255, 0.15);
-}
 
 .dice-row {
   display: flex;
