@@ -85,7 +85,7 @@ export function useModalAnimation() {
       const wrapperAnimation = createAnimation()
         .addElement(wrapperEl)
         .fromTo('opacity', '1', '0')
-        .fromTo('transform', 'scale(1)', 'scale(0.9)')
+        .fromTo('transform', 'translateY(0%)', 'translateY(100%)')
         .duration(prefersReducedMotion ? 1 : 250)
         .easing('cubic-bezier(0.55, 0.06, 0.68, 0.19)')
       rootAnimation.addAnimation(wrapperAnimation)
