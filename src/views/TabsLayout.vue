@@ -12,7 +12,14 @@
       </div>
     </div>
 
-    <div class="custom-tab-bar" ref="tabBarRef">
+    <div
+      class="custom-tab-bar"
+      ref="tabBarRef"
+      :class="{
+        'tab-bar-overlay': isFullscreen,
+        'tab-bar-hidden': isFullscreen && !shouldShowTabBar,
+      }"
+    >
       <button
         v-for="(tab, index) in TABS"
         :key="tab.path"
@@ -43,6 +50,7 @@ import type { GestureDetail } from '@ionic/vue'
 import gsap from 'gsap'
 
 import { isDragLocked } from '@/composables/useDragLock'
+import { isGameTabActive, isGameMenuOpen, useGameFullscreen } from '@/composables/useGameFullscreen'
 import { prefersReducedMotion } from '@/utils/motion'
 import HomeView from '@/views/HomeView.vue'
 import GameView from '@/views/GameView.vue'
@@ -59,6 +67,9 @@ import IconGear from '@/components/icons/nav/IconGear.vue'
 const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
+const { isFullscreen, shouldShowTabBar, shouldDisableSwipe } = useGameFullscreen()
+
+const GAME_TAB_INDEX = 1
 
 interface TabDef {
   name: string
@@ -88,6 +99,13 @@ const currentIndex = ref(pathToIndex[route.path] ?? 0)
 const dragOffset = ref(0)
 const isAnimating = ref(false)
 const viewportWidth = ref(0)
+
+watch(currentIndex, (index) => {
+  isGameTabActive.value = index === GAME_TAB_INDEX
+  if (index !== GAME_TAB_INDEX) {
+    isGameMenuOpen.value = false
+  }
+}, { immediate: true })
 
 const EDGE_RESISTANCE = 0.3
 const SWIPE_THRESHOLD = 0.12
@@ -215,7 +233,7 @@ onMounted(() => {
     direction: 'x',
     threshold: 12,
     onMove: (detail: GestureDetail) => {
-      if (isDragLocked.value) return
+      if (isDragLocked.value || shouldDisableSwipe.value) return
 
       isAnimating.value = false
 
@@ -231,7 +249,7 @@ onMounted(() => {
       dragOffset.value = delta
     },
     onEnd: (detail: GestureDetail) => {
-      if (isDragLocked.value) {
+      if (isDragLocked.value || shouldDisableSwipe.value) {
         dragOffset.value = 0
         return
       }
@@ -343,5 +361,19 @@ onUnmounted(() => {
 
 .custom-tab-button.tab-selected :deep(svg) {
   filter: drop-shadow(0 0 8px rgba(232, 96, 10, 0.5));
+}
+
+.tab-bar-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100001;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tab-bar-hidden {
+  transform: translateY(100%);
+  pointer-events: none;
 }
 </style>

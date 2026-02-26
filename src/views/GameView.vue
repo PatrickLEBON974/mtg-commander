@@ -1,39 +1,5 @@
 <template>
   <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-button :disabled="!gameStore.canUndo" :aria-label="t('game.undo')" data-sound="none" @click="handleUndo">
-            <ion-icon :icon="arrowUndoOutline" />
-          </ion-button>
-          <ion-button :disabled="!gameStore.canRedo" :aria-label="t('game.redo')" data-sound="none" @click="handleRedo">
-            <ion-icon :icon="arrowRedoOutline" />
-          </ion-button>
-        </ion-buttons>
-        <ion-title>{{ t('game.title') }}</ion-title>
-        <ion-buttons slot="end">
-          <!-- Dice roller -->
-          <ion-button v-if="gameStore.isGameActive" @click="showDiceRoller = true">
-            <IconDie :size="20" />
-          </ion-button>
-          <!-- Layout mode picker -->
-          <ion-button v-if="gameStore.isGameActive" @click="showLayoutPicker = true">
-            <ion-icon :icon="gridOutline" />
-          </ion-button>
-
-          <ion-button :aria-label="t('game.history')" @click="showHistory = true">
-            <ion-icon :icon="listOutline" />
-          </ion-button>
-          <ion-button :aria-label="t('game.nextTurn')" data-sound="none" @click="handleAdvanceTurn">
-            <ion-icon :icon="playForwardOutline" />
-          </ion-button>
-          <ion-button :aria-label="t('game.endGame')" @click="confirmEndGame">
-            <ion-icon :icon="flagOutline" />
-          </ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
-
     <ion-content>
       <div v-if="!gameStore.isGameActive" class="flex h-full flex-col items-center justify-center gap-4">
         <IllustrationEmptyGame :size="120" data-animate />
@@ -45,7 +11,15 @@
         </div>
       </div>
 
-      <div v-else class="flex h-full flex-col">
+      <div v-else-if="gameStore.currentGame?.gamePhase === 'seating'" class="relative flex h-full flex-col">
+        <SeatingPhase />
+      </div>
+
+      <div v-else-if="gameStore.currentGame?.gamePhase === 'initiative'" class="relative flex h-full flex-col">
+        <InitiativePhase />
+      </div>
+
+      <div v-else class="relative flex h-full flex-col">
         <!-- Multiplayer indicator -->
         <div v-if="multiplayerStore.isMultiplayer" class="flex items-center justify-center gap-2 bg-mana-blue/20 px-4 py-2">
           <div class="h-2 w-2 rounded-full bg-life-positive animate-pulse" />
@@ -85,7 +59,7 @@
 
         <!-- Player grid -->
         <div
-          class="grid flex-1 gap-2 p-2"
+          class="grid min-h-0 flex-1 gap-2 p-2"
           :class="playerGridClass"
           :style="gridStyle"
         >
@@ -107,6 +81,27 @@
               @turn-advanced="onTurnAdvanced"
               @commander-drag-drop="(targetId: string) => handleCommanderDragDrop(player.id, targetId)"
             />
+          </div>
+        </div>
+
+        <!-- Floating action buttons -->
+        <div class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+          <div class="pointer-events-auto flex flex-col gap-3">
+            <button
+              class="floating-game-btn"
+              :aria-label="t('game.nextTurn')"
+              data-sound="none"
+              @click="handleAdvanceTurn"
+            >
+              <ion-icon :icon="playForwardOutline" />
+            </button>
+            <button
+              class="floating-game-btn"
+              :aria-label="t('game.menu')"
+              @click="openGameMenu"
+            >
+              <ion-icon :icon="menuOutline" />
+            </button>
           </div>
         </div>
       </div>
@@ -199,6 +194,39 @@
     <!-- Dice roller -->
     <DiceRollerSheet :is-open="showDiceRoller" @close="showDiceRoller = false" />
 
+    <!-- Game menu -->
+    <AppModal :is-open="showGameMenu" :initial-breakpoint="0.5" :breakpoints="[0, 0.5]" @close="closeGameMenu">
+      <div class="px-4 pb-20 pt-5">
+        <h3 class="mb-4 text-center text-base font-semibold text-text-primary">{{ t('game.menu') }}</h3>
+        <div class="grid grid-cols-3 gap-3">
+          <button class="menu-action-btn" :disabled="!gameStore.canUndo" data-sound="none" @click="menuUndo">
+            <ion-icon :icon="arrowUndoOutline" />
+            <span>{{ t('game.undo') }}</span>
+          </button>
+          <button class="menu-action-btn" :disabled="!gameStore.canRedo" data-sound="none" @click="menuRedo">
+            <ion-icon :icon="arrowRedoOutline" />
+            <span>{{ t('game.redo') }}</span>
+          </button>
+          <button class="menu-action-btn" @click="menuDice">
+            <IconDie :size="22" />
+            <span>{{ t('dice.title') }}</span>
+          </button>
+          <button class="menu-action-btn" @click="menuLayout">
+            <ion-icon :icon="gridOutline" />
+            <span>{{ t('game.layoutTitle') }}</span>
+          </button>
+          <button class="menu-action-btn" @click="menuHistory">
+            <ion-icon :icon="listOutline" />
+            <span>{{ t('game.history') }}</span>
+          </button>
+          <button class="menu-action-btn menu-action-danger" @click="menuEndGame">
+            <ion-icon :icon="flagOutline" />
+            <span>{{ t('game.endGame') }}</span>
+          </button>
+        </div>
+      </div>
+    </AppModal>
+
     <!-- Save anonymous player modal (sequential, one at a time) -->
     <SaveAnonymousPlayerModal
       :is-open="showSaveAnonymousModal"
@@ -212,22 +240,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
   IonContent,
   IonButton,
-  IonButtons,
   IonIcon,
   alertController,
   toastController,
 } from '@ionic/vue'
-import { arrowUndoOutline, arrowRedoOutline, playForwardOutline, listOutline, flagOutline, gridOutline } from 'ionicons/icons'
+import { arrowUndoOutline, arrowRedoOutline, playForwardOutline, listOutline, flagOutline, gridOutline, menuOutline } from 'ionicons/icons'
 import { useGameStore } from '@/stores/gameStore'
 import { useMultiplayerStore } from '@/stores/multiplayerStore'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -241,9 +265,12 @@ import AppModal from '@/components/ui/AppModal.vue'
 import IllustrationEmptyGame from '@/components/icons/illustrations/IllustrationEmptyGame.vue'
 import IconDie from '@/components/icons/dice/IconDie.vue'
 import DiceRollerSheet from '@/components/dice/DiceRollerSheet.vue'
+import SeatingPhase from '@/components/game/SeatingPhase.vue'
+import InitiativePhase from '@/components/game/InitiativePhase.vue'
 import SaveAnonymousPlayerModal from '@/components/player-registry/SaveAnonymousPlayerModal.vue'
 import { playTurnAdvance, playUndo, playEndGame } from '@/services/sounds'
 import { useBehaviorRuleEngine } from '@/rules/behaviorRuleEngine'
+import { isGameMenuOpen } from '@/composables/useGameFullscreen'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -259,6 +286,31 @@ const { playerGridClass, gridStyle, cardOuterClasses, cardOuterStyle, cardRotati
 const showHistory = ref(false)
 const showLayoutPicker = ref(false)
 const showDiceRoller = ref(false)
+const showGameMenu = ref(false)
+
+// Sync game menu modal state with shared fullscreen composable
+watch(isGameMenuOpen, (open) => {
+  if (!open && showGameMenu.value) {
+    showGameMenu.value = false
+  }
+})
+
+function openGameMenu() {
+  showGameMenu.value = true
+  isGameMenuOpen.value = true
+}
+
+function closeGameMenu() {
+  showGameMenu.value = false
+  isGameMenuOpen.value = false
+}
+
+function menuUndo() { closeGameMenu(); handleUndo() }
+function menuRedo() { closeGameMenu(); handleRedo() }
+function menuDice() { closeGameMenu(); showDiceRoller.value = true }
+function menuLayout() { closeGameMenu(); showLayoutPicker.value = true }
+function menuHistory() { closeGameMenu(); showHistory.value = true }
+function menuEndGame() { closeGameMenu(); confirmEndGame() }
 
 // --- Anonymous player save queue ---
 interface AnonymousPlayerCommander {
@@ -480,6 +532,58 @@ function onTurnAdvanced() {
 </script>
 
 <style scoped>
+.floating-game-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 20px;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.floating-game-btn:active {
+  transform: scale(0.9);
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.menu-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.75rem;
+  border: none;
+  transition: background 0.15s ease;
+}
+
+.menu-action-btn ion-icon,
+.menu-action-btn :deep(svg) {
+  font-size: 1.5rem;
+}
+
+.menu-action-btn:active {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.menu-action-btn:disabled {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.menu-action-danger {
+  color: var(--color-life-negative);
+}
+
 .announce-banner {
   background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.08));
   border: 1px solid rgba(239, 68, 68, 0.2);

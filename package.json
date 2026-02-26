@@ -18,6 +18,7 @@
     "android:open": "explorer.exe /mnt/c/Users/patri/AndroidProjects/mtg-commander/android"
   },
   "dependencies": {
+    "@boengli/capacitor-fullscreen": "^0.0.19",
     "@capacitor-community/sqlite": "^8.0.0",
     "@capacitor/android": "^8.1.0",
     "@capacitor/core": "^8.1.0",

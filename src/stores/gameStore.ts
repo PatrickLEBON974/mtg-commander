@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import type {
   GameState,
+  GamePhase,
   PlayerState,
   GameAction,
   GameActionType,
@@ -55,6 +56,13 @@ export const useGameStore = defineStore('game', () => {
   // Restore saved game on init
   const savedGame = loadGameState()
   if (savedGame) {
+    // Default gamePhase for legacy saves; skip transient initiative phase
+    if (!savedGame.gamePhase || savedGame.gamePhase === 'initiative') {
+      savedGame.gamePhase = 'playing'
+    }
+    if (savedGame.customPositionMap === undefined) {
+      savedGame.customPositionMap = null
+    }
     currentGame.value = savedGame
   }
 
@@ -137,13 +145,67 @@ export const useGameStore = defineStore('game', () => {
       turnNumber: 1,
       startedAt: Date.now(),
       elapsedMs: 0,
-      isRunning: true,
+      isRunning: false,
       history: [],
       playerPlayTimeMs: {},
       playerRoundTimeMs: {},
       priorityPlayerId: null,
       activeFlashPlayerIds: [],
+      gamePhase: 'seating',
+      customPositionMap: null,
     }
+  }
+
+  function setGamePhase(phase: GamePhase) {
+    if (!currentGame.value) return
+    currentGame.value.gamePhase = phase
+    if (phase === 'playing') {
+      currentGame.value.isRunning = true
+      currentGame.value.startedAt = Date.now()
+    }
+  }
+
+  function setCustomPositionMap(map: number[] | null) {
+    if (!currentGame.value) return
+    currentGame.value.customPositionMap = map
+  }
+
+  function swapPlayerPositions(playerIndexA: number, playerIndexB: number) {
+    if (!currentGame.value || playerIndexA === playerIndexB) return
+    const count = currentGame.value.players.length
+    const map = [...(currentGame.value.customPositionMap
+      ?? Array.from({ length: count }, (_, i) => i))]
+    ;[map[playerIndexA], map[playerIndexB]] = [map[playerIndexB]!, map[playerIndexA]!]
+    currentGame.value.customPositionMap = map
+  }
+
+  function rotatePositions(direction: 1 | -1 = 1) {
+    if (!currentGame.value) return
+    const count = currentGame.value.players.length
+    const map = currentGame.value.customPositionMap
+      ?? Array.from({ length: count }, (_, i) => i)
+    currentGame.value.customPositionMap = map.map(slot => (slot + direction + count) % count)
+  }
+
+  function reorderPlayersForTurnOrder(orderedPlayerIds: string[]) {
+    if (!currentGame.value) return
+    const game = currentGame.value
+    const count = game.players.length
+    const currentMap = game.customPositionMap
+      ?? Array.from({ length: count }, (_, i) => i)
+
+    const playerSlots: Record<string, number> = {}
+    game.players.forEach((player, index) => {
+      playerSlots[player.id] = currentMap[index]!
+    })
+
+    const playerById = new Map(game.players.map(p => [p.id, p]))
+    game.players = orderedPlayerIds
+      .map(id => playerById.get(id)!)
+      .filter(Boolean)
+
+    game.customPositionMap = game.players.map(p => playerSlots[p.id]!)
+    game.currentTurnPlayerIndex = 0
   }
 
   function addAction(
@@ -679,6 +741,11 @@ export const useGameStore = defineStore('game', () => {
     canRedo,
     nextRedoAction,
     startNewGame,
+    setGamePhase,
+    setCustomPositionMap,
+    swapPlayerPositions,
+    rotatePositions,
+    reorderPlayersForTurnOrder,
     updatePlayerName,
     addPlayerCommander,
     removePlayerCommander,

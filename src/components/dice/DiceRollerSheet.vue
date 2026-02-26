@@ -69,8 +69,8 @@
           <template v-else-if="currentView === 'dieResult'">
             <div class="result-area">
               <component :is="currentDieIcon" :size="24" class="result-die-icon" />
-              <div class="result-number" ref="resultNumberRef">
-                {{ displayValue }}
+              <div class="result-number" :class="{ 'result-text': isCoinFlip }" ref="resultNumberRef">
+                {{ formattedDisplayValue }}
               </div>
               <button class="action-btn action-btn--primary" data-sound="none" @click="reroll">
                 {{ t('dice.reroll') }}
@@ -91,7 +91,9 @@ import { useGameStore } from '@/stores/gameStore'
 import IconDie4 from '@/components/icons/dice/IconDie4.vue'
 import IconDie6 from '@/components/icons/dice/IconDie6.vue'
 import IconDie8 from '@/components/icons/dice/IconDie8.vue'
+import IconDie12 from '@/components/icons/dice/IconDie12.vue'
 import IconDie20 from '@/components/icons/dice/IconDie20.vue'
+import IconCoinFlip from '@/components/icons/dice/IconCoinFlip.vue'
 import IconPeople from '@/components/icons/nav/IconPeople.vue'
 import { playDiceRoll, playVictory } from '@/services/sounds'
 
@@ -118,7 +120,9 @@ const dieTypes: DieType[] = [
   { sides: 4, label: 'D4', icon: IconDie4 },
   { sides: 6, label: 'D6', icon: IconDie6 },
   { sides: 8, label: 'D8', icon: IconDie8 },
+  { sides: 12, label: 'D12', icon: IconDie12 },
   { sides: 20, label: 'D20', icon: IconDie20 },
+  { sides: 2, label: 'Coin', icon: IconCoinFlip },
 ]
 
 const currentView = ref<ViewState>('picker')
@@ -138,6 +142,15 @@ const gamePlayers = computed(() => gameStore.currentGame?.players ?? [])
 const currentDieIcon = computed(() => {
   const die = dieTypes.find((d) => d.sides === selectedDieSides.value)
   return die?.icon ?? IconDie6
+})
+
+const isCoinFlip = computed(() => selectedDieSides.value === 2)
+
+const formattedDisplayValue = computed(() => {
+  if (isCoinFlip.value) {
+    return displayValue.value === 1 ? t('dice.heads') : t('dice.tails')
+  }
+  return displayValue.value
 })
 
 function onEnter(el: Element, done: () => void) {
@@ -562,6 +575,12 @@ watch(() => props.isOpen, (open) => {
   text-shadow: 0 0 20px rgba(232, 96, 10, 0.6), 0 0 40px rgba(232, 96, 10, 0.3);
   font-variant-numeric: tabular-nums;
   line-height: 1;
+}
+
+.result-text {
+  font-size: 36px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
 }
 
 .action-btn {

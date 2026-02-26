@@ -19,6 +19,8 @@ export interface PlayerState {
   hasInitiative: boolean
 }
 
+export type GamePhase = 'seating' | 'initiative' | 'playing'
+
 export interface GameState {
   id: string
   players: PlayerState[]
@@ -32,6 +34,8 @@ export interface GameState {
   playerRoundTimeMs: Record<string, number>
   priorityPlayerId: string | null
   activeFlashPlayerIds: string[]
+  gamePhase: GamePhase
+  customPositionMap: number[] | null
 }
 
 export interface GameAction {
