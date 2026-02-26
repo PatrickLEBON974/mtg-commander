@@ -10,6 +10,32 @@
       />
     </div>
 
+    <!-- Received damage summary (always visible before step 1) -->
+    <div v-if="!selectedAttacker && receivedDamageEntries.length > 0" class="mb-4 flex flex-col gap-2 px-1">
+      <p class="text-center text-xs font-semibold uppercase tracking-wider text-white/40">{{ t('commanderDamage.received') }}</p>
+      <div
+        v-for="entry in receivedDamageEntries"
+        :key="entry.commanderId"
+        class="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2"
+      >
+        <IconSwordSingle :size="14" class="shrink-0 text-commander-damage" />
+        <div class="min-w-0 flex-1">
+          <span class="text-sm font-medium text-white/90">{{ entry.attackerName }}</span>
+          <span v-if="entry.commanderName" class="text-xs text-white/50"> — {{ entry.commanderName }}</span>
+        </div>
+        <span class="shrink-0 text-sm font-bold tabular-nums text-commander-damage">{{ entry.damage }}</span>
+        <button
+          class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-life-negative/15 text-life-negative active:scale-90 active:bg-life-negative/30"
+          :aria-label="t('commanderDamage.removeDamage')"
+          @click="reduceCommanderDamage(entry.commanderId)"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
     <!-- Step 1: Choose attacker -->
     <Transition name="step-fade" mode="out-in">
       <div v-if="!selectedAttacker" key="step1" class="flex flex-col gap-3 px-1" data-animate>
@@ -192,6 +218,49 @@ const otherPlayers = computed(() =>
     (p) => p.id !== props.targetPlayer.id,
   ) ?? [],
 )
+
+// Resolve commanderId → attacker display info
+interface ReceivedDamageEntry {
+  commanderId: string
+  attackerName: string
+  commanderName: string | null
+  damage: number
+}
+
+const receivedDamageEntries = computed<ReceivedDamageEntry[]>(() => {
+  const entries: ReceivedDamageEntry[] = []
+  const players = gameStore.currentGame?.players ?? []
+
+  for (const [sourceCommanderId, damage] of Object.entries(props.targetPlayer.commanderDamageReceived)) {
+    if (damage <= 0) continue
+
+    let attackerName = '?'
+    let commanderName: string | null = null
+
+    for (const player of players) {
+      // Check if sourceCommanderId matches a commander's id
+      const matchedCommander = player.commanders.find((c) => c.id === sourceCommanderId)
+      if (matchedCommander) {
+        attackerName = player.name
+        commanderName = matchedCommander.cardName
+        break
+      }
+      // Fallback: sourceCommanderId is the player's id (no commanders)
+      if (player.id === sourceCommanderId) {
+        attackerName = player.name
+        break
+      }
+    }
+
+    entries.push({ commanderId: sourceCommanderId, attackerName, commanderName, damage })
+  }
+
+  return entries
+})
+
+function reduceCommanderDamage(sourceCommanderId: string) {
+  gameStore.dealCommanderDamage(props.targetPlayer.id, sourceCommanderId, -1)
+}
 
 const activeCommanderName = computed(() => {
   if (!selectedAttacker.value) return null

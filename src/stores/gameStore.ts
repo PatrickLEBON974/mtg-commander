@@ -219,15 +219,18 @@ export const useGameStore = defineStore('game', () => {
     if (!targetPlayer) return
 
     const currentDamage = targetPlayer.commanderDamageReceived[commanderId] ?? 0
-    targetPlayer.commanderDamageReceived[commanderId] = currentDamage + amount
-    targetPlayer.lifeTotal -= amount
+    const clampedAmount = Math.max(amount, -currentDamage)
+    targetPlayer.commanderDamageReceived[commanderId] = currentDamage + clampedAmount
+    targetPlayer.lifeTotal -= clampedAmount
+
+    if (clampedAmount === 0) return
 
     addAction(
       'commander_damage',
       targetPlayerId,
-      amount,
+      clampedAmount,
       'game.commanderDamage',
-      { name: targetPlayer.name, amount },
+      { name: targetPlayer.name, amount: Math.abs(clampedAmount) },
       targetPlayerId,
       commanderId,
     )

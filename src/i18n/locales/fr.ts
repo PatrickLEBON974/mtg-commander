@@ -256,6 +256,8 @@ export default {
     dealsTo: 'inflige a {target}',
     currentDamage: 'Degats actuels : {current} / {threshold}',
     deal: 'Infliger {amount}',
+    received: 'Degats recus',
+    removeDamage: 'Retirer 1 degat',
   },
   commanderPicker: {
     title: 'Choisir un commandant',

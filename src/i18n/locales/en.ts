@@ -256,6 +256,8 @@ export default {
     dealsTo: 'deals to {target}',
     currentDamage: 'Current damage: {current} / {threshold}',
     deal: 'Deal {amount}',
+    received: 'Received damage',
+    removeDamage: 'Remove 1 damage',
   },
   commanderPicker: {
     title: 'Choose a commander',
