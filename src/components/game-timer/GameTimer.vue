@@ -70,6 +70,20 @@ watch(
   },
 )
 
+// Reset local timer state when a new game starts
+watch(
+  () => gameStore.currentGame?.id,
+  () => {
+    const game = gameStore.currentGame
+    if (!game) return
+    accumulatedBeforePause.value = game.elapsedMs
+    isRunning.value = game.isRunning
+    if (isRunning.value) {
+      lastResumedAt.value = Date.now()
+    }
+  },
+)
+
 // Sync if store isRunning changes externally (e.g. endGame)
 watch(
   () => gameStore.currentGame?.isRunning,
