@@ -8,6 +8,7 @@ export interface GameRecord {
   eliminatedBy?: string
   turnsPlayed: number
   gameDurationMs: number
+  playerPlayTimeMs: number
   playedAt: number
   playerProfileId?: string
   deckId?: string

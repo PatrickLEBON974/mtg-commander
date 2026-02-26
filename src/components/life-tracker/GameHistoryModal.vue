@@ -65,6 +65,8 @@ function actionIcon(type: GameActionType): string {
     monarch_change: ribbonOutline,
     initiative_change: flashOutline,
     turn_advance: playForwardOutline,
+    behavior_rule_life: heartOutline,
+    behavior_rule_counter: skullOutline,
   }
   return iconMap[type] ?? heartOutline
 }
@@ -80,6 +82,8 @@ function actionColor(type: GameActionType): string {
     monarch_change: 'warning',
     initiative_change: 'primary',
     turn_advance: 'medium',
+    behavior_rule_life: 'danger',
+    behavior_rule_counter: 'danger',
   }
   return colorMap[type] ?? 'medium'
 }

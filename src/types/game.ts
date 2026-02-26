@@ -59,6 +59,8 @@ export type GameActionType =
   | 'monarch_change'
   | 'initiative_change'
   | 'turn_advance'
+  | 'behavior_rule_life'
+  | 'behavior_rule_counter'
 
 export type ManaColor = 'white' | 'blue' | 'black' | 'red' | 'green' | 'colorless' | 'gold'
 
@@ -70,38 +72,161 @@ export interface GameSettings {
   enableTimer: boolean
   enableTurnTimer: boolean
   turnTimerSeconds: number
-  activeTimerRuleIds: string[]
+  activeBehaviorRuleIds: string[]
+  selectedBehaviorProfileId: string
 }
 
-// ─── Timer Rules ─────────────────────────────────────────────────────
+// ─── Behavior Rules ──────────────────────────────────────────────────
 
-export type RuleTriggerType =
-  | 'timer_b_remaining'   // Timer B has <= X seconds left
-  | 'timer_b_expired'     // Timer B hit 0
-  | 'timer_a_exceeded'    // Timer A total exceeds X seconds
+// === Trigger Types (discriminated union) ===
 
-export type RuleEffectType =
-  | 'overtime_display'    // Show -00:15 format
-  | 'repeated_buzz'       // Haptic vibration (repeating)
-  | 'aggressive_flash'    // Card border aggressive blink
-  | 'play_sound'          // Play alert tone
+export interface LifeBelowTrigger {
+  type: 'life_below'
+  threshold: number
+}
 
-export interface TimerRuleTrigger {
-  type: RuleTriggerType
+export interface LifeExactTrigger {
+  type: 'life_exact'
+  threshold: number
+}
+
+export interface PoisonAboveTrigger {
+  type: 'poison_above'
+  threshold: number
+}
+
+export interface CommanderDamageAboveTrigger {
+  type: 'commander_damage_above'
+  threshold: number
+}
+
+export interface TurnTimerRemainingTrigger {
+  type: 'turn_timer_remaining'
   thresholdSeconds: number
 }
 
-export interface TimerRuleEffect {
-  type: RuleEffectType
-  repeatIntervalSeconds?: number  // for repeated_buzz (default 30)
-  soundType?: 'warning' | 'urgent'  // for play_sound
+export interface TurnTimerExpiredTrigger {
+  type: 'turn_timer_expired'
 }
 
-export interface TimerRule {
+export interface TurnTimerOvertimeTrigger {
+  type: 'turn_timer_overtime'
+  thresholdSeconds: number
+}
+
+export interface GameTimeExceededTrigger {
+  type: 'game_time_exceeded'
+  thresholdSeconds: number
+}
+
+export interface PlayerDeathTrigger {
+  type: 'player_death'
+}
+
+export type BehaviorRuleTrigger =
+  | LifeBelowTrigger
+  | LifeExactTrigger
+  | PoisonAboveTrigger
+  | CommanderDamageAboveTrigger
+  | TurnTimerRemainingTrigger
+  | TurnTimerExpiredTrigger
+  | TurnTimerOvertimeTrigger
+  | GameTimeExceededTrigger
+  | PlayerDeathTrigger
+
+// === Effect Types (discriminated union) ===
+
+export interface PlaySoundEffect {
+  type: 'play_sound'
+  soundName: 'warning' | 'urgent'
+}
+
+export interface HapticBuzzEffect {
+  type: 'haptic_buzz'
+  pattern: 'single' | 'repeated'
+  repeatIntervalSeconds?: number
+}
+
+export interface VisualFlashEffect {
+  type: 'visual_flash'
+  target: 'affected_player' | 'all_players' | 'timer_zone'
+}
+
+export interface OvertimeDisplayEffect {
+  type: 'overtime_display'
+}
+
+export interface ModifyLifeEffect {
+  type: 'modify_life'
+  amount: number
+}
+
+export interface ModifyCounterEffect {
+  type: 'modify_counter'
+  counterType: 'poisonCounters' | 'experienceCounters' | 'energyCounters'
+  amount: number
+}
+
+export interface AnnounceTextEffect {
+  type: 'announce_text'
+  messageKey: string
+}
+
+export type BehaviorRuleEffect =
+  | PlaySoundEffect
+  | HapticBuzzEffect
+  | VisualFlashEffect
+  | OvertimeDisplayEffect
+  | ModifyLifeEffect
+  | ModifyCounterEffect
+  | AnnounceTextEffect
+
+// === Rule Definition ===
+
+export type TriggerScope = 'per_player' | 'global'
+
+export type RuleCategory =
+  | 'life'
+  | 'poison'
+  | 'commander_damage'
+  | 'turn_timer'
+  | 'game_time'
+  | 'death'
+  | 'penalty'
+
+export interface BehaviorRule {
   id: string
   name: string
-  trigger: TimerRuleTrigger
-  effect: TimerRuleEffect
+  trigger: BehaviorRuleTrigger
+  effects: BehaviorRuleEffect[]
+  scope: TriggerScope
+  fireOnce: boolean
+  repeatIntervalSeconds?: number
+  category: RuleCategory
+  isPreset: boolean
+}
+
+// === Rule Profile ===
+
+export interface BehaviorRuleInProfile {
+  rule: BehaviorRule
+  enabled: boolean
+}
+
+export interface BehaviorRuleProfile {
+  id: string
+  name: string
+  rules: BehaviorRuleInProfile[]
+  isPreset: boolean
+}
+
+// === Engine Internal State ===
+
+export interface ActiveRuleState {
+  ruleId: string
+  activatedAt: number
+  affectedPlayerIds: string[]
+  lastRepeatFiredAt?: number
 }
 
 export const DEFAULT_GAME_SETTINGS: GameSettings = {
@@ -112,7 +237,8 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   enableTimer: true,
   enableTurnTimer: false,
   turnTimerSeconds: 120,
-  activeTimerRuleIds: [],
+  activeBehaviorRuleIds: [],
+  selectedBehaviorProfileId: 'default',
 }
 
 /** Empty counter defaults for new PlayerState creation */

@@ -55,7 +55,7 @@
         </div>
 
         <!-- Game timer (v-show to ensure per-player timer tick always runs) -->
-        <GameTimer v-show="gameStore.settings.enableTimer" />
+        <GameTimer v-show="gameStore.settings.enableTimer" :is-flashing="flashTimerZone" :is-overtime="isOvertimeDisplayActive" />
 
         <!-- Turn indicator -->
         <div class="flex items-center justify-between px-4 py-2" role="status">
@@ -66,6 +66,22 @@
             {{ gameStore.currentTurnPlayer?.name }}
           </span>
         </div>
+
+        <!-- Behavior rule announce messages -->
+        <TransitionGroup name="announce-slide" tag="div" class="flex flex-col gap-1 px-4">
+          <div
+            v-for="messageKey in announceMessages"
+            :key="messageKey"
+            class="announce-banner flex items-center justify-center gap-2 rounded-lg px-3 py-1.5"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="shrink-0 text-arena-gold-light">
+              <path d="M12 2L1 21h22L12 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+              <path d="M12 9v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              <circle cx="12" cy="17" r="1" fill="currentColor" />
+            </svg>
+            <span class="text-xs font-semibold text-white/90">{{ t(messageKey) }}</span>
+          </div>
+        </TransitionGroup>
 
         <!-- Player grid -->
         <div
@@ -85,6 +101,7 @@
               :style="cardRotationStyle(index)"
               :player="player"
               :is-current-turn="player.id === gameStore.currentTurnPlayer?.id"
+              :is-flashing="flashingPlayerIds.includes(player.id)"
               :commander-damage-attacker-id="commanderDragState?.targetPlayerId === player.id ? commanderDragState.attackerPlayerId : null"
               @state-changed="onPlayerStateChanged"
               @turn-advanced="onTurnAdvanced"
@@ -218,7 +235,6 @@ import { usePlayerRegistryStore } from '@/stores/playerRegistryStore'
 import type { LayoutMode } from '@/services/persistence'
 import LifeTracker from '@/components/life-tracker/LifeTracker.vue'
 import GameTimer from '@/components/game-timer/GameTimer.vue'
-import { useGameClock } from '@/composables/useGameClock'
 import { usePlayerGridLayout } from '@/composables/usePlayerGridLayout'
 import GameHistoryModal from '@/components/life-tracker/GameHistoryModal.vue'
 import AppModal from '@/components/ui/AppModal.vue'
@@ -227,6 +243,7 @@ import IconDie from '@/components/icons/dice/IconDie.vue'
 import DiceRollerSheet from '@/components/dice/DiceRollerSheet.vue'
 import SaveAnonymousPlayerModal from '@/components/player-registry/SaveAnonymousPlayerModal.vue'
 import { playTurnAdvance, playUndo, playEndGame } from '@/services/sounds'
+import { useBehaviorRuleEngine } from '@/rules/behaviorRuleEngine'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -234,8 +251,8 @@ const gameStore = useGameStore()
 const multiplayerStore = useMultiplayerStore()
 const settingsStore = useSettingsStore()
 const registryStore = usePlayerRegistryStore()
-// Initialize the single game clock (singleton — drives all timers)
-useGameClock()
+// Initialize behavior rules engine (watches game state, fires effects)
+const { flashingPlayerIds, flashTimerZone, announceMessages, isOvertimeDisplayActive } = useBehaviorRuleEngine()
 
 const { playerGridClass, gridStyle, cardOuterClasses, cardOuterStyle, cardRotationStyle } = usePlayerGridLayout()
 
@@ -461,3 +478,26 @@ function onTurnAdvanced() {
   syncTurnAdvance()
 }
 </script>
+
+<style scoped>
+.announce-banner {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.08));
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  backdrop-filter: blur(4px);
+}
+
+.announce-slide-enter-active {
+  transition: all 0.3s ease-out;
+}
+.announce-slide-leave-active {
+  transition: all 0.2s ease-in;
+}
+.announce-slide-enter-from {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+.announce-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+</style>

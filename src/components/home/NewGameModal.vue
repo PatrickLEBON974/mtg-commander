@@ -37,7 +37,7 @@
           <ion-toggle slot="end" v-model="settingsStore.gameSettings.enableTurnTimer" />
         </ion-item>
 
-        <ion-item v-if="settingsStore.gameSettings.enableTurnTimer" lines="inset">
+        <ion-item v-if="settingsStore.gameSettings.enableTurnTimer" lines="none">
           <ion-icon :icon="timeOutline" slot="start" color="medium" />
           <ion-label>{{ t('home.turnDuration') }}</ion-label>
           <SettingStepper
@@ -47,26 +47,64 @@
             :label="t('home.turnDuration')"
           />
         </ion-item>
-
-        <!-- Timer rules toggles (per-game activation) -->
-        <template v-if="settingsStore.gameSettings.enableTurnTimer && settingsStore.timerRules.length > 0">
-          <ion-list-header>
-            <ion-label class="text-sm">{{ t('home.timerRules') }}</ion-label>
-          </ion-list-header>
-          <ion-item
-            v-for="rule in settingsStore.timerRules"
-            :key="rule.id"
-            :lines="rule === settingsStore.timerRules[settingsStore.timerRules.length - 1] ? 'none' : 'inset'"
-          >
-            <ion-label>{{ rule.name }}</ion-label>
-            <ion-toggle
-              slot="end"
-              :checked="settingsStore.gameSettings.activeTimerRuleIds.includes(rule.id)"
-              @ionChange="toggleTimerRule(rule.id, $event.detail.checked)"
-            />
-          </ion-item>
-        </template>
       </template>
+    </ion-list>
+
+    <!-- Behavior Rules Section -->
+    <ion-list :inset="true">
+      <ion-list-header>
+        <ion-label>{{ t('rules.sectionTitle') }}</ion-label>
+      </ion-list-header>
+
+      <!-- Profile selector -->
+      <ion-item lines="inset">
+        <ion-icon :icon="shieldCheckmarkOutline" slot="start" color="tertiary" />
+        <ion-label>{{ t('rules.selectProfile') }}</ion-label>
+        <ion-select
+          :value="settingsStore.gameSettings.selectedBehaviorProfileId"
+          interface="action-sheet"
+          @ionChange="onProfileChange($event.detail.value)"
+        >
+          <ion-select-option
+            v-for="profile in settingsStore.behaviorRuleProfiles"
+            :key="profile.id"
+            :value="profile.id"
+          >
+            {{ profile.isPreset ? t(`rules.profiles.${profile.id === 'default' ? 'default' : profile.id === 'fast-game' ? 'fastGame' : 'relaxed'}`) : profile.name }}
+          </ion-select-option>
+        </ion-select>
+      </ion-item>
+
+      <!-- Rules list with toggles -->
+      <ion-item
+        v-for="(entry, index) in settingsStore.behaviorRules"
+        :key="entry.rule.id"
+        :lines="index === settingsStore.behaviorRules.length - 1 ? 'none' : 'inset'"
+        button
+        @click="openRuleEditor(entry.rule)"
+      >
+        <ion-label>
+          <h3>{{ getRuleName(entry.rule) }}</h3>
+          <p>{{ getRuleDescription(entry.rule) }}</p>
+        </ion-label>
+        <ion-toggle
+          slot="end"
+          :checked="entry.enabled"
+          @ionChange.stop="settingsStore.toggleRuleInProfile(entry.rule.id, $event.detail.checked)"
+        />
+      </ion-item>
+
+      <!-- Add custom rule button -->
+      <ion-item button lines="none" @click="openRuleEditor(null)">
+        <ion-icon :icon="addOutline" slot="start" color="primary" />
+        <ion-label color="primary">{{ t('rules.editor.createTitle') }}</ion-label>
+      </ion-item>
+
+      <!-- Save as profile (if modified) -->
+      <ion-item v-if="isProfileModified" button lines="none" @click="promptSaveAsProfile">
+        <ion-icon :icon="saveOutline" slot="start" color="success" />
+        <ion-label color="success">{{ t('rules.saveAsProfile') }}</ion-label>
+      </ion-item>
     </ion-list>
 
     <ion-list :inset="true">
@@ -118,6 +156,14 @@
         {{ t('home.newGame') }}
       </ion-button>
     </div>
+
+    <BehaviorRuleEditor
+      :is-open="isRuleEditorOpen"
+      :rule="editingRule"
+      @close="isRuleEditorOpen = false"
+      @save="onRuleEditorSave"
+      @delete="onRuleEditorDelete"
+    />
   </AppModal>
 </template>
 
@@ -133,6 +179,9 @@ import {
   IonReorderGroup,
   IonButton,
   IonIcon,
+  IonSelect,
+  IonSelectOption,
+  alertController,
 } from '@ionic/vue'
 import {
   playOutline,
@@ -143,12 +192,17 @@ import {
   timeOutline,
   shieldOutline,
   skullOutline,
+  shieldCheckmarkOutline,
+  addOutline,
+  saveOutline,
 } from 'ionicons/icons'
 import { useSettingsStore } from '@/stores/settingsStore'
 import AppModal from '@/components/ui/AppModal.vue'
 import SettingStepper from '@/components/ui/SettingStepper.vue'
 import PlayerSelectItem from '@/components/player-registry/PlayerSelectItem.vue'
+import BehaviorRuleEditor from '@/components/home/BehaviorRuleEditor.vue'
 import type { PlayerConfigExtended } from '@/components/player-registry/PlayerSelectItem.vue'
+import type { BehaviorRule } from '@/types/game'
 import { PLAYER_COUNT_OPTIONS, STARTING_LIFE_OPTIONS, PLAYER_COLORS } from '@/config/gameConstants'
 
 defineProps<{
@@ -209,14 +263,98 @@ watch(() => settingsStore.gameSettings.playerCount, (count) => {
   }
 }, { immediate: true })
 
-// ─── Timer rule toggle ────────────────────────────────────────────────
-function toggleTimerRule(ruleId: string, isActive: boolean) {
-  const activeIds = settingsStore.gameSettings.activeTimerRuleIds
-  if (isActive && !activeIds.includes(ruleId)) {
-    activeIds.push(ruleId)
-  } else if (!isActive) {
-    settingsStore.gameSettings.activeTimerRuleIds = activeIds.filter((id) => id !== ruleId)
+// ─── Behavior rule editor ─────────────────────────────────────────────
+const editingRule = ref<BehaviorRule | null>(null)
+const isRuleEditorOpen = ref(false)
+const isProfileModified = ref(false)
+
+function onProfileChange(profileId: string) {
+  settingsStore.selectProfile(profileId)
+  isProfileModified.value = false
+}
+
+function openRuleEditor(rule: BehaviorRule | null) {
+  editingRule.value = rule ? structuredClone(rule) : null
+  isRuleEditorOpen.value = true
+}
+
+function onRuleEditorSave(rule: BehaviorRule) {
+  if (editingRule.value) {
+    settingsStore.updateRuleInProfile(editingRule.value.id, rule)
+  } else {
+    settingsStore.addRuleToProfile(rule)
   }
+  isRuleEditorOpen.value = false
+  isProfileModified.value = true
+}
+
+function onRuleEditorDelete(ruleId: string) {
+  settingsStore.deleteRuleFromProfile(ruleId)
+  isRuleEditorOpen.value = false
+  isProfileModified.value = true
+}
+
+async function promptSaveAsProfile() {
+  const alert = await alertController.create({
+    header: t('rules.newProfile'),
+    inputs: [{ name: 'name', type: 'text', placeholder: t('rules.profileName') }],
+    buttons: [
+      { text: t('common.cancel'), role: 'cancel' },
+      {
+        text: t('common.confirm'),
+        handler: (data) => {
+          if (data.name?.trim()) {
+            settingsStore.saveCurrentAsProfile(data.name.trim())
+            isProfileModified.value = false
+          }
+        },
+      },
+    ],
+  })
+  await alert.present()
+}
+
+const RULE_ID_TO_I18N_KEY: Record<string, string> = {
+  'low-life-warning': 'lowLifeWarning',
+  'critical-life': 'criticalLife',
+  'last-breath': 'lastBreath',
+  'poison-warning': 'poisonWarning',
+  'poison-lethal-imminent': 'poisonLethalImminent',
+  'commander-damage-warning': 'commanderDamageWarning',
+  'commander-damage-lethal': 'commanderDamageLethal',
+  'turn-timer-warning': 'turnTimerWarning',
+  'turn-timer-urgent': 'turnTimerUrgent',
+  'turn-timer-expired-display': 'turnTimerExpiredDisplay',
+  'turn-timer-expired-reminder': 'turnTimerExpiredReminder',
+  'long-game': 'longGame',
+  'very-long-game': 'veryLongGame',
+  'player-elimination': 'playerElimination',
+  'penalty-turn-expired': 'penaltyTurnExpired',
+  'penalty-turn-very-long': 'penaltyTurnVeryLong',
+  'penalty-endless-game': 'penaltyEndlessGame',
+}
+
+function getRuleName(rule: BehaviorRule): string {
+  const key = RULE_ID_TO_I18N_KEY[rule.id]
+  return key ? t(`rules.${key}`) : rule.name
+}
+
+function getRuleDescription(rule: BehaviorRule): string {
+  const trigger = rule.trigger
+  const params: Record<string, string | number> = {}
+  if ('threshold' in trigger) params.threshold = trigger.threshold
+  if ('thresholdSeconds' in trigger) {
+    params.threshold = trigger.thresholdSeconds
+    params.minutes = Math.round(trigger.thresholdSeconds / 60)
+  }
+  if (rule.repeatIntervalSeconds) params.interval = rule.repeatIntervalSeconds
+  for (const effect of rule.effects) {
+    if (effect.type === 'modify_life') params.amount = effect.amount
+    if (effect.type === 'modify_counter') params.amount = effect.amount
+  }
+
+  const key = RULE_ID_TO_I18N_KEY[rule.id]
+  return key ? t(`rules.${key}Desc`, params) : rule.name
 }
 
 // ─── Reorder players ──────────────────────────────────────────────────

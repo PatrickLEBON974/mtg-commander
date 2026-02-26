@@ -6,6 +6,7 @@
       playerBgClass,
       turnBorderClass,
       dangerPulseClass,
+      isFlashing ? 'behavior-rule-flash' : '',
     ]"
     :data-commander-player="player.id"
   >
@@ -417,6 +418,7 @@ import IconSkull from '@/components/icons/game/IconSkull.vue'
 const props = defineProps<{
   player: PlayerState
   isCurrentTurn: boolean
+  isFlashing?: boolean
   commanderDamageAttackerId?: string | null
 }>()
 
@@ -795,5 +797,14 @@ function onDetailClose() {
 }
 .life-tap-zone:active {
   background: rgba(255, 255, 255, 0.04);
+}
+
+/* Behavior rule — player card flash (red glow border) */
+@keyframes behavior-rule-flash {
+  0%, 100% { box-shadow: inset 0 0 0 2px rgba(239, 68, 68, 0.2), 0 0 12px rgba(239, 68, 68, 0.1); }
+  50% { box-shadow: inset 0 0 0 2px rgba(239, 68, 68, 0.7), 0 0 20px rgba(239, 68, 68, 0.3); }
+}
+.behavior-rule-flash {
+  animation: behavior-rule-flash 1.2s ease-in-out infinite;
 }
 </style>

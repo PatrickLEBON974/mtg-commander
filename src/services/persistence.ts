@@ -83,6 +83,17 @@ export function loadPreferences(): AppPreferences | null {
   return readLocalStorageJson<AppPreferences | null>(PREFS_KEY, null)
 }
 
+// Behavior rule profiles
+const BEHAVIOR_PROFILES_KEY = 'mtg_commander_behavior_profiles'
+
+export function saveBehaviorProfiles(profiles: unknown) {
+  localStorage.setItem(BEHAVIOR_PROFILES_KEY, JSON.stringify(profiles))
+}
+
+export function loadBehaviorProfiles(): unknown | null {
+  return readLocalStorageJson<unknown | null>(BEHAVIOR_PROFILES_KEY, null)
+}
+
 // Scryfall response cache
 interface CacheEntry {
   data: unknown

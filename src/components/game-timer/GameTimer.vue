@@ -1,5 +1,5 @@
 <template>
-  <div class="flex items-center justify-center gap-3 bg-surface-light px-4 py-2">
+  <div class="flex items-center justify-center gap-3 bg-surface-light px-4 py-2" :class="{ 'game-timer-flash': isFlashing }">
     <button
       class="flex h-10 w-10 items-center justify-center rounded-full text-text-secondary active:text-text-primary"
       :aria-label="isRunning ? t('game.pause') : t('game.resume')"
@@ -13,16 +13,7 @@
       {{ formattedGameTime }}
     </span>
 
-    <!-- Turn timer (if enabled) -->
-    <template v-if="settingsStore.gameSettings.enableTurnTimer">
-      <span class="text-text-secondary">|</span>
-      <span
-        class="font-mono text-base tabular-nums"
-        :class="turnTimeWarning ? 'text-life-negative animate-pulse' : 'text-text-secondary'"
-      >
-        {{ formattedTurnTime }}
-      </span>
-    </template>
+    <span v-if="isOvertime" class="text-xs font-bold text-life-negative animate-pulse">{{ t('game.overtime') }}</span>
   </div>
 </template>
 
@@ -33,8 +24,9 @@ import { playOutline, pauseOutline } from 'ionicons/icons'
 import { useI18n } from 'vue-i18n'
 import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { TIMER_TICK_INTERVAL_MS, TURN_TIMER_WARNING_SECONDS } from '@/config/gameConstants'
-import { warningFeedback } from '@/services/haptics'
+import { TIMER_TICK_INTERVAL_MS } from '@/config/gameConstants'
+
+const props = defineProps<{ isFlashing?: boolean; isOvertime?: boolean }>()
 
 const { t } = useI18n()
 const gameStore = useGameStore()
@@ -42,7 +34,6 @@ const settingsStore = useSettingsStore()
 
 // Sync pause state with store (persists across page reloads)
 const isRunning = ref(gameStore.currentGame?.isRunning ?? true)
-const turnElapsedSeconds = ref(0)
 const lastResumedAt = ref(Date.now())
 const accumulatedBeforePause = ref(gameStore.currentGame?.elapsedMs ?? 0)
 let intervalId: ReturnType<typeof setInterval> | null = null
@@ -65,30 +56,15 @@ const formattedGameTime = computed(() => {
   return `${minutesPadded}:${secondsPadded}`
 })
 
-const formattedTurnTime = computed(() => {
-  const remaining = Math.max(0, settingsStore.gameSettings.turnTimerSeconds - turnElapsedSeconds.value)
-  const minutes = Math.floor(remaining / 60)
-  const seconds = remaining % 60
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-})
-
-const turnTimeWarning = computed(() => {
-  if (!settingsStore.gameSettings.enableTurnTimer) return false
-  const remaining = settingsStore.gameSettings.turnTimerSeconds - turnElapsedSeconds.value
-  return remaining <= TURN_TIMER_WARNING_SECONDS && remaining > 0
-})
-
-// Reset turn timer when turn changes
+// Reset round time when turn changes
 watch(
   () => gameStore.currentGame?.currentTurnPlayerIndex,
   (newIndex) => {
-    turnElapsedSeconds.value = 0
-    // Reset incoming player's per-player turn timer
     if (gameStore.currentGame && newIndex !== undefined) {
-      if (!gameStore.currentGame.playerTurnTimeMs) gameStore.currentGame.playerTurnTimeMs = {}
+      if (!gameStore.currentGame.playerRoundTimeMs) gameStore.currentGame.playerRoundTimeMs = {}
       const newPlayer = gameStore.currentGame.players[newIndex]
       if (newPlayer) {
-        gameStore.currentGame.playerTurnTimeMs[newPlayer.id] = 0
+        gameStore.currentGame.playerRoundTimeMs[newPlayer.id] = 0
       }
     }
   },
@@ -113,7 +89,7 @@ function tick() {
 
   // Per-player time tracking
   if (!gameStore.currentGame.playerPlayTimeMs) gameStore.currentGame.playerPlayTimeMs = {}
-  if (!gameStore.currentGame.playerTurnTimeMs) gameStore.currentGame.playerTurnTimeMs = {}
+  if (!gameStore.currentGame.playerRoundTimeMs) gameStore.currentGame.playerRoundTimeMs = {}
 
   // Total play time: increments for whoever has effective priority
   const priorityPlayer = gameStore.effectivePriorityPlayer
@@ -122,18 +98,11 @@ function tick() {
       (gameStore.currentGame.playerPlayTimeMs[priorityPlayer.id] ?? 0) + TIMER_TICK_INTERVAL_MS
   }
 
-  // Turn time: increments for the turn player (wall-clock turn duration)
-  const turnPlayer = gameStore.currentTurnPlayer
-  if (turnPlayer) {
-    gameStore.currentGame.playerTurnTimeMs[turnPlayer.id] =
-      (gameStore.currentGame.playerTurnTimeMs[turnPlayer.id] ?? 0) + TIMER_TICK_INTERVAL_MS
-  }
-
-  if (settingsStore.gameSettings.enableTurnTimer) {
-    turnElapsedSeconds.value++
-    if (turnElapsedSeconds.value === settingsStore.gameSettings.turnTimerSeconds && settingsStore.hapticFeedback) {
-      warningFeedback()
-    }
+  // Round time: increments for whoever currently holds the clock
+  // (priority player if someone responded, otherwise the turn player)
+  if (priorityPlayer) {
+    gameStore.currentGame.playerRoundTimeMs[priorityPlayer.id] =
+      (gameStore.currentGame.playerRoundTimeMs[priorityPlayer.id] ?? 0) + TIMER_TICK_INTERVAL_MS
   }
 }
 
@@ -165,3 +134,13 @@ onUnmounted(() => {
   if (intervalId) clearInterval(intervalId)
 })
 </script>
+
+<style scoped>
+@keyframes game-timer-flash {
+  0%, 100% { background-color: rgba(239, 68, 68, 0.05); }
+  50% { background-color: rgba(239, 68, 68, 0.25); }
+}
+.game-timer-flash {
+  animation: game-timer-flash 0.8s ease-in-out infinite;
+}
+</style>

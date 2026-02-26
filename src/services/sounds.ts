@@ -99,6 +99,7 @@ function playSound(name: SoundName): void {
   // Round-robin to next element in pool
   poolIndexes.set(name, (currentIndex + 1) % pool.length)
 
+  if (!audio) return
   audio.volume = getVolume()
   audio.currentTime = 0
   audio.play().catch(() => {

@@ -496,6 +496,18 @@ export const useGameStore = defineStore('game', () => {
           player.hasInitiative = true
         }
         break
+      case 'behavior_rule_life':
+        player.lifeTotal -= action.value
+        break
+      case 'behavior_rule_counter':
+        if (action.commanderId === 'poisonCounters') {
+          player.poisonCounters = Math.max(0, player.poisonCounters - action.value)
+        } else if (action.commanderId === 'experienceCounters') {
+          player.experienceCounters = Math.max(0, player.experienceCounters - action.value)
+        } else if (action.commanderId === 'energyCounters') {
+          player.energyCounters = Math.max(0, player.energyCounters - action.value)
+        }
+        break
       default: {
         const _exhaustiveCheck: never = action.type
         console.warn('Unhandled action type:', _exhaustiveCheck)
@@ -570,6 +582,18 @@ export const useGameStore = defineStore('game', () => {
           player.hasInitiative = true
         } else {
           player.hasInitiative = false
+        }
+        break
+      case 'behavior_rule_life':
+        player.lifeTotal += action.value
+        break
+      case 'behavior_rule_counter':
+        if (action.commanderId === 'poisonCounters') {
+          player.poisonCounters = Math.max(0, player.poisonCounters + action.value)
+        } else if (action.commanderId === 'experienceCounters') {
+          player.experienceCounters = Math.max(0, player.experienceCounters + action.value)
+        } else if (action.commanderId === 'energyCounters') {
+          player.energyCounters = Math.max(0, player.energyCounters + action.value)
         }
         break
       default: {
