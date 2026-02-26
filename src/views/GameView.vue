@@ -93,6 +93,7 @@
               :is-current-turn="player.id === gameStore.currentTurnPlayer?.id"
               :is-flashing="flashingPlayerIds.includes(player.id)"
               :card-rotation="getCardRotation(index)"
+              :inner-corner-style="getInnerCornerStyle(index)"
               :commander-damage-attacker-id="commanderDragState?.targetPlayerId === player.id ? commanderDragState.attackerPlayerId : null"
               @state-changed="onPlayerStateChanged"
               @turn-advanced="onTurnAdvanced"
@@ -101,13 +102,16 @@
           </div>
         </div>
 
-        <!-- Floating next turn button -->
+        <!-- Floating next turn button (draggable, snaps back to center) -->
         <div class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
           <button
+            ref="nextTurnBtnRef"
             class="floating-next-turn-btn pointer-events-auto"
+            :class="{ 'floating-next-turn-dragging': isNextTurnDragging }"
+            :style="nextTurnTransformStyle"
             :aria-label="t('game.nextTurn')"
             data-sound="none"
-            @click="handleAdvanceTurn"
+            @pointerdown.prevent="onNextTurnPointerDown"
           >
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" class="text-white/80 drop-shadow-sm">
               <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" opacity="0.3" />
@@ -296,12 +300,94 @@ const registryStore = usePlayerRegistryStore()
 // Initialize behavior rules engine (watches game state, fires effects)
 const { flashingPlayerIds, flashTimerZone, announceMessages, isOvertimeDisplayActive } = useBehaviorRuleEngine()
 
-const { playerGridClass, gridStyle, getCardRotation, cardOuterClasses, cardOuterStyle, cardRotationStyle } = usePlayerGridLayout()
+const { playerGridClass, gridStyle, getCardRotation, getInnerCornerStyle, cardOuterClasses, cardOuterStyle, cardRotationStyle } = usePlayerGridLayout()
 
 const showHistory = ref(false)
 const showLayoutPicker = ref(false)
 const showDiceRoller = ref(false)
 const showGameMenu = ref(false)
+
+/* ── Draggable next-turn button ── */
+const nextTurnBtnRef = ref<HTMLButtonElement | null>(null)
+const nextTurnOffsetX = ref(0)
+const nextTurnOffsetY = ref(0)
+const isNextTurnDragging = ref(false)
+let nextTurnDragStartX = 0
+let nextTurnDragStartY = 0
+let nextTurnHasMoved = false
+let nextTurnLastTapTime = 0
+const DRAG_THRESHOLD = 6
+const DOUBLE_TAP_DELAY = 300
+
+const currentTurnRotation = computed(() => {
+  const turnIndex = gameStore.currentGame?.currentTurnPlayerIndex ?? 0
+  return getCardRotation(turnIndex)
+})
+
+const nextTurnTransformStyle = computed(() => {
+  const tx = nextTurnOffsetX.value
+  const ty = nextTurnOffsetY.value
+  const hasOffset = tx !== 0 || ty !== 0
+  const rot = currentTurnRotation.value
+  if (!hasOffset && rot === 0) return {}
+  const parts: string[] = []
+  if (hasOffset) parts.push(`translate(${tx}px, ${ty}px)`)
+  if (rot !== 0) parts.push(`rotate(${rot}deg)`)
+  return { transform: parts.join(' ') }
+})
+
+function onNextTurnPointerDown(event: PointerEvent) {
+  nextTurnDragStartX = event.clientX
+  nextTurnDragStartY = event.clientY
+  nextTurnHasMoved = false
+  const target = event.currentTarget as HTMLElement
+  target.setPointerCapture(event.pointerId)
+  target.addEventListener('pointermove', onNextTurnPointerMove)
+  target.addEventListener('pointerup', onNextTurnPointerUp, { once: true })
+  target.addEventListener('pointercancel', onNextTurnPointerUp, { once: true })
+}
+
+function onNextTurnPointerMove(event: PointerEvent) {
+  const deltaX = event.clientX - nextTurnDragStartX + nextTurnOffsetX.value
+  const deltaY = event.clientY - nextTurnDragStartY + nextTurnOffsetY.value
+  const distance = Math.sqrt(
+    (event.clientX - nextTurnDragStartX) ** 2 +
+    (event.clientY - nextTurnDragStartY) ** 2,
+  )
+  if (!nextTurnHasMoved && distance < DRAG_THRESHOLD) return
+  nextTurnHasMoved = true
+  isNextTurnDragging.value = true
+  nextTurnOffsetX.value = deltaX
+  nextTurnOffsetY.value = deltaY
+  nextTurnDragStartX = event.clientX
+  nextTurnDragStartY = event.clientY
+}
+
+function onNextTurnPointerUp(event: PointerEvent) {
+  const target = event.currentTarget as HTMLElement
+  target.removeEventListener('pointermove', onNextTurnPointerMove)
+  isNextTurnDragging.value = false
+  if (!nextTurnHasMoved) {
+    const now = Date.now()
+    if (now - nextTurnLastTapTime < DOUBLE_TAP_DELAY && (nextTurnOffsetX.value !== 0 || nextTurnOffsetY.value !== 0)) {
+      // Double-tap: snap back to center
+      snapNextTurnToCenter()
+    } else {
+      handleAdvanceTurn()
+    }
+    nextTurnLastTapTime = now
+  }
+  // Snap back to center if released near center (within 30px)
+  const distFromCenter = Math.sqrt(nextTurnOffsetX.value ** 2 + nextTurnOffsetY.value ** 2)
+  if (distFromCenter < 30) {
+    snapNextTurnToCenter()
+  }
+}
+
+function snapNextTurnToCenter() {
+  nextTurnOffsetX.value = 0
+  nextTurnOffsetY.value = 0
+}
 
 const currentPlayerCount = computed(() => gameStore.currentGame?.players.length ?? 4)
 
@@ -590,10 +676,18 @@ function onTurnAdvanced() {
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.8);
   font-size: 30px;
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.15s ease;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.floating-next-turn-btn:active {
+.floating-next-turn-dragging {
+  transition: none;
+  opacity: 0.85;
+  cursor: grabbing;
+}
+
+.floating-next-turn-btn:active:not(.floating-next-turn-dragging) {
   transform: scale(0.9);
   background: rgba(0, 0, 0, 0.6);
 }

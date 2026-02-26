@@ -452,8 +452,8 @@ function handleCastCommander(commanderIndex: number) {
 
 /* ── Ring pips (inside counter grid) ── */
 .ring-pip {
-  width: 20px;
-  height: 20px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
   transition: background 0.15s, box-shadow 0.15s;
   -webkit-tap-highlight-color: transparent;

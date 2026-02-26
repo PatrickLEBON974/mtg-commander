@@ -59,6 +59,38 @@ const MODE_OVERRIDES: Partial<Record<LayoutMode, Partial<Record<number, Partial<
   },
 }
 
+// ─── Inner corner: screen corner closest to grid center, per slot ────
+// Used to position elements (e.g. commander damage icon) toward the center.
+type Corner = 'tl' | 'tr' | 'bl' | 'br'
+
+const SLOT_INNER_SCREEN_CORNER: Record<string, Corner[]> = {
+  '1x2':             ['br', 'tr'],
+  '2x1':             ['tr', 'tl'],
+  '2x2':             ['br', 'bl', 'tr', 'tl'],
+  '2x2_span_bottom': ['br', 'bl', 'tr'],
+  '2x2_span_left':   ['tr', 'bl', 'tl'],
+  '2x3':             ['br', 'bl', 'tr', 'tl', 'tr', 'tl'],
+  '2x3_span_bottom': ['br', 'bl', 'tr', 'tl', 'tr'],
+}
+
+/** Convert desired screen corner to local card corner after CSS rotation */
+function screenToLocalCorner(screenCorner: Corner, rotationDeg: number): Corner {
+  const mapping: Record<number, Record<Corner, Corner>> = {
+    0:   { tl: 'tl', tr: 'tr', bl: 'bl', br: 'br' },
+    90:  { tl: 'bl', tr: 'tl', bl: 'br', br: 'tr' },
+    180: { tl: 'br', tr: 'bl', bl: 'tr', br: 'tl' },
+    270: { tl: 'tr', tr: 'br', bl: 'tl', br: 'bl' },
+  }
+  return mapping[rotationDeg]?.[screenCorner] ?? screenCorner
+}
+
+function cornerToStyle(corner: Corner): Record<string, string> {
+  return {
+    ...(corner[0] === 't' ? { top: '8px' } : { bottom: '8px' }),
+    ...(corner[1] === 'l' ? { left: '8px' } : { right: '8px' }),
+  }
+}
+
 function resolveLayout(mode: LayoutMode, count: number): LayoutEntry {
   const base = BASE_LAYOUTS[count] ?? BASE_LAYOUTS[4]!
   if (mode === 'default') return base
@@ -132,11 +164,22 @@ export function usePlayerGridLayout() {
 
   const clockwiseSlotOrder = computed(() => GRIDS[layout.value.gridType]!.clockwiseOrder)
 
+  /** CSS style to position an element at the inner corner (closest to grid center) */
+  function getInnerCornerStyle(playerIndex: number): Record<string, string> {
+    const slot = getSlot(playerIndex)
+    const gridType = layout.value.gridType
+    const rotation = getCardRotation(playerIndex)
+    const screenCorner = SLOT_INNER_SCREEN_CORNER[gridType]?.[slot] ?? 'br'
+    const localCorner = screenToLocalCorner(screenCorner, rotation)
+    return cornerToStyle(localCorner)
+  }
+
   return {
     playerGridClass: computed(() => ''),
     gridStyle,
     getSlot,
     getCardRotation,
+    getInnerCornerStyle,
     clockwiseSlotOrder,
     cardOuterClasses,
     cardOuterStyle,

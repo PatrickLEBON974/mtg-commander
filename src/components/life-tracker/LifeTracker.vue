@@ -141,8 +141,8 @@
           </div>
         </div>
 
-        <!-- Zone: Damage — Poison + Commander on dedicated row -->
-        <div class="pointer-events-none relative z-[3] mt-1 flex items-center justify-center gap-2">
+        <!-- Zone: Damage — Poison (centered) -->
+        <div class="pointer-events-none relative z-[3] mt-1 flex items-center justify-center">
           <!-- Poison -->
           <button
             class="pointer-events-auto flex min-h-[40px] min-w-[40px] items-center justify-center gap-0.5 rounded-lg px-2 py-1 btn-press"
@@ -162,26 +162,27 @@
               {{ player.poisonCounters }}
             </span>
           </button>
-
-          <!-- Commander damage (tap to open modal, drag to another player) -->
-          <button
-            class="pointer-events-auto flex min-h-[40px] min-w-[40px] items-center justify-center gap-0.5 rounded-lg px-2 py-1 btn-press"
-            :class="[
-              totalCommanderDamage > 0 ? 'bg-commander-damage/20 ring-1 ring-commander-damage/20' : 'bg-white/5',
-            ]"
-            :aria-label="t('aria.commanderDamage', { damage: totalCommanderDamage })"
-            @click="onCommanderClick"
-            @touchstart.passive="onCommanderTouchStart"
-            @touchmove="onCommanderTouchMove"
-            @touchend.passive="onCommanderTouchEnd"
-            @touchcancel.passive="onCommanderTouchCancel"
-          >
-            <IconSwordSingle :size="14" class="shrink-0" :class="totalCommanderDamage > 0 ? 'text-commander-damage' : 'text-white/40'" />
-            <span class="text-xs" :class="totalCommanderDamage > 0 ? 'text-commander-damage font-bold' : 'text-white/50'">
-              {{ totalCommanderDamage }}
-            </span>
-          </button>
         </div>
+
+        <!-- Commander damage — pinned to outer corner (varies with card rotation) -->
+        <button
+          class="pointer-events-auto absolute z-[4] flex min-h-[36px] min-w-[36px] items-center justify-center gap-0.5 rounded-lg px-1.5 py-1 btn-press"
+          :style="commanderDamagePositionStyle"
+          :class="[
+            totalCommanderDamage > 0 ? 'bg-commander-damage/20 ring-1 ring-commander-damage/20' : 'bg-white/5',
+          ]"
+          :aria-label="t('aria.commanderDamage', { damage: totalCommanderDamage })"
+          @click="onCommanderClick"
+          @touchstart.passive="onCommanderTouchStart"
+          @touchmove="onCommanderTouchMove"
+          @touchend.passive="onCommanderTouchEnd"
+          @touchcancel.passive="onCommanderTouchCancel"
+        >
+          <IconSwordSingle :size="14" class="shrink-0" :class="totalCommanderDamage > 0 ? 'text-commander-damage' : 'text-white/40'" />
+          <span class="text-xs" :class="totalCommanderDamage > 0 ? 'text-commander-damage font-bold' : 'text-white/50'">
+            {{ totalCommanderDamage }}
+          </span>
+        </button>
 
         <!-- Zone: Status — Other counters + Actions -->
         <div class="pointer-events-none relative z-[3] mt-auto flex flex-wrap items-center justify-center gap-1.5">
@@ -464,6 +465,7 @@ const props = defineProps<{
   isCurrentTurn: boolean
   isFlashing?: boolean
   cardRotation?: number
+  innerCornerStyle?: Record<string, string>
   commanderDamageAttackerId?: string | null
 }>()
 
@@ -653,6 +655,11 @@ const { activeTooltip, showActionTooltip, hideActionTooltip } = useActionTooltip
 
 const totalCommanderDamage = computed(() =>
   Object.values(props.player.commanderDamageReceived).reduce((sum, damage) => sum + damage, 0),
+)
+
+/** Inner corner style from layout composable (grid position + rotation aware) */
+const commanderDamagePositionStyle = computed(() =>
+  props.innerCornerStyle ?? { bottom: '8px', right: '8px' },
 )
 
 const dangerPulseClass = computed(() => {
