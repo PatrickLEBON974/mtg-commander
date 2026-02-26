@@ -1,76 +1,79 @@
 <template>
-  <div class="flex h-full flex-col overflow-y-auto rounded-2xl px-2 py-1.5" :class="playerBgClass">
-    <!-- Header: Player Name + Close (compact) -->
-    <div class="flex items-center justify-between mb-1 min-h-[28px]">
-      <span class="font-beleren text-[10px] font-bold uppercase tracking-[0.12em] text-arena-gold-light/80 truncate">
+  <div class="token-panel relative flex h-full flex-col overflow-y-auto rounded-2xl px-1.5 py-1" :class="playerBgClass">
+    <!-- Header: 24px -->
+    <div class="flex items-center justify-between mb-0.5 min-h-[24px]">
+      <span class="font-beleren text-[9px] font-bold uppercase tracking-[0.12em] text-arena-gold-light/80 truncate">
         {{ player.name }}
       </span>
       <button
-        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/60 active:bg-white/20"
+        class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/60 active:bg-white/20"
         :aria-label="t('common.close')"
         @click="$emit('close')"
       >
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
           <path d="M18 6L6 18M6 6l12 12" />
         </svg>
       </button>
     </div>
 
-    <!-- Toggle grid: 2x2, ultra compact -->
-    <div class="grid grid-cols-2 gap-1">
+    <!-- Toggle row: 1×4 icon-only buttons -->
+    <div class="flex gap-1.5 justify-center">
       <button
-        class="token-toggle"
+        class="token-icon-btn"
         :class="player.isMonarch ? 'token-active token-monarch' : 'token-off'"
+        :aria-label="t('playerDetail.monarch')"
         @click="handleToggleMonarch"
       >
-        <IconCrown :size="12" :color="player.isMonarch ? '#f0d078' : undefined" :class="!player.isMonarch && 'text-white/40'" />
-        <span class="token-text">{{ t('playerDetail.monarch') }}</span>
+        <IconCrown :size="26" :color="player.isMonarch ? '#f0d078' : undefined" :class="!player.isMonarch && 'text-white/30'" />
       </button>
 
       <button
-        class="token-toggle"
+        class="token-icon-btn"
         :class="player.hasInitiative ? 'token-active token-initiative' : 'token-off'"
+        :aria-label="t('playerDetail.initiative')"
         @click="handleToggleInitiative"
       >
-        <IconShield :size="12" :class="player.hasInitiative ? 'text-white' : 'text-white/40'" />
-        <span class="token-text">{{ t('playerDetail.initiative') }}</span>
+        <IconShield :size="26" :class="player.hasInitiative ? 'text-white' : 'text-white/30'" />
       </button>
 
       <button
-        class="token-toggle"
+        class="token-icon-btn"
         :class="player.cityBlessing ? 'token-active token-city' : 'token-off'"
+        :aria-label="t('tokens.cityBlessing')"
         @click="handleToggleCityBlessing"
       >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" :class="player.cityBlessing ? 'text-emerald-400' : 'text-white/40'">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" :class="player.cityBlessing ? 'text-emerald-400' : 'text-white/30'">
           <path d="M3 21h18M5 21V7l4-4 3 3 3-3 4 4v14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
-        <span class="token-text">{{ t('tokens.cityBlessing') }}</span>
       </button>
 
       <button
-        class="token-toggle"
+        class="token-icon-btn"
         :class="dayNightClass"
-        @click="handleToggleDayNight"
+        :aria-label="dayNightLabel"
+        @pointerdown.prevent="onDayNightPointerDown"
+        @pointerup="onDayNightPointerUp"
+        @pointerleave="onDayNightPointerLeave"
       >
-        <svg v-if="dayNightState !== 'night'" width="12" height="12" viewBox="0 0 24 24" fill="none" :class="dayNightState === 'day' ? 'text-yellow-400' : 'text-white/40'">
+        <svg v-if="dayNightState !== 'night'" width="26" height="26" viewBox="0 0 24 24" fill="none" :class="dayNightState === 'day' ? 'text-yellow-400' : 'text-white/30'">
           <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2.5" />
           <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
         </svg>
-        <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" class="text-blue-300">
+        <svg v-else width="26" height="26" viewBox="0 0 24 24" fill="none" class="text-blue-300">
           <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
-        <span class="token-text">{{ dayNightLabel }}</span>
       </button>
     </div>
 
-    <!-- Separator line -->
-    <div class="my-1 h-px bg-white/8" />
+    <!-- Separator -->
+    <div class="my-0.5 h-px bg-white/8" />
 
-    <!-- Counter steppers: compact inline rows -->
-    <div class="space-y-0.5">
-      <div class="stepper-row">
-        <IconExperience :size="11" class="text-arena-blue shrink-0" />
-        <span class="stepper-label">{{ t('playerDetail.experience') }}</span>
+    <!-- Counter grid: 2×2 with ring pips in 4th cell -->
+    <div class="counter-grid">
+      <!-- Experience -->
+      <div class="counter-cell">
+        <IconExperience :size="10" class="text-arena-blue shrink-0" />
+        <span class="counter-label">{{ t('playerDetail.experience') }}</span>
         <div class="stepper-controls" data-sound="none">
           <button class="stepper-btn" @click="handleExperienceChange(-1)">-</button>
           <span class="stepper-val text-arena-blue" :class="{ 'opacity-40': player.experienceCounters === 0 }">{{ player.experienceCounters }}</span>
@@ -78,9 +81,10 @@
         </div>
       </div>
 
-      <div class="stepper-row">
-        <IconEnergy :size="11" class="text-arena-gold shrink-0" />
-        <span class="stepper-label">{{ t('playerDetail.energy') }}</span>
+      <!-- Energy -->
+      <div class="counter-cell">
+        <IconEnergy :size="10" class="text-arena-gold shrink-0" />
+        <span class="counter-label">{{ t('playerDetail.energy') }}</span>
         <div class="stepper-controls" data-sound="none">
           <button class="stepper-btn" @click="handleEnergyChange(-1)">-</button>
           <span class="stepper-val text-arena-gold" :class="{ 'opacity-40': player.energyCounters === 0 }">{{ player.energyCounters }}</span>
@@ -88,58 +92,58 @@
         </div>
       </div>
 
-      <div class="stepper-row">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" class="text-green-400 shrink-0">
+      <!-- Rad -->
+      <div class="counter-cell">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" class="text-green-400 shrink-0">
           <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2.5" />
           <circle cx="12" cy="12" r="3" fill="currentColor" />
         </svg>
-        <span class="stepper-label">{{ t('tokens.rad') }}</span>
+        <span class="counter-label">{{ t('tokens.rad') }}</span>
         <div class="stepper-controls" data-sound="none">
           <button class="stepper-btn" @click="handleRadChange(-1)">-</button>
           <span class="stepper-val text-green-400" :class="{ 'opacity-40': player.radCounters === 0 }">{{ player.radCounters }}</span>
           <button class="stepper-btn" @click="handleRadChange(1)">+</button>
         </div>
       </div>
-    </div>
 
-    <!-- Ring level — single row with pips -->
-    <div class="my-1 h-px bg-white/8" />
-    <div class="flex items-center justify-between min-h-[24px]">
-      <span class="flex items-center gap-1">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" :class="player.ringLevel > 0 ? 'text-amber-400' : 'text-white/40'">
+      <!-- Ring pips -->
+      <div class="counter-cell">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" :class="player.ringLevel > 0 ? 'text-amber-400' : 'text-white/40'">
           <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2.5" />
           <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.5" opacity="0.5" />
         </svg>
-        <span class="text-[10px] text-white/60">{{ t('tokens.ring') }}</span>
-      </span>
-      <div class="flex items-center gap-1">
-        <button
-          v-for="pipLevel in 4"
-          :key="pipLevel"
-          class="ring-pip"
-          :class="pipLevel <= player.ringLevel ? 'ring-pip-on' : 'ring-pip-off'"
-          @click="handleSetRingLevel(pipLevel === player.ringLevel ? 0 : pipLevel)"
-        />
+        <span class="counter-label">{{ t('tokens.ring') }}</span>
+        <div class="flex items-center gap-0.5 ml-auto">
+          <button
+            v-for="pipLevel in 4"
+            :key="pipLevel"
+            class="ring-pip"
+            :class="pipLevel <= player.ringLevel ? 'ring-pip-on' : 'ring-pip-off'"
+            @click="handleSetRingLevel(pipLevel === player.ringLevel ? 0 : pipLevel)"
+          />
+        </div>
       </div>
     </div>
 
-    <!-- Commander section (push to bottom) -->
-    <div class="my-1 h-px bg-white/8" />
-    <div class="mt-auto space-y-1">
+    <!-- Separator -->
+    <div class="my-0.5 h-px bg-white/8" />
+
+    <!-- Commanders + game result (push to bottom) -->
+    <div class="mt-auto space-y-0.5">
       <div
         v-for="(commander, commanderIndex) in player.commanders"
         :key="commander.id"
-        class="flex items-center gap-1.5 rounded-md bg-black/20 px-1.5 py-1"
+        class="commander-row"
       >
         <img
           v-if="commander.imageUri"
           :src="commander.imageUri"
           :alt="commander.cardName"
-          class="h-6 w-6 rounded object-cover"
+          class="h-5 w-5 rounded object-cover"
         />
-        <p class="min-w-0 flex-1 truncate text-[10px] text-white/70">{{ commander.cardName }}</p>
+        <p class="min-w-0 flex-1 truncate text-[9px] text-white/70">{{ commander.cardName }}</p>
         <button
-          class="flex h-6 items-center rounded bg-arena-orange/20 px-1.5 text-[10px] font-bold text-arena-orange active:bg-arena-orange/30"
+          class="commander-tax-btn"
           data-sound="none"
           @click="handleCastCommander(commanderIndex)"
         >
@@ -149,7 +153,7 @@
 
       <button
         v-if="player.commanders.length < 2"
-        class="flex w-full items-center justify-center gap-1 rounded-md bg-white/5 py-1 text-[10px] text-white/30 active:bg-white/10"
+        class="flex w-full items-center justify-center rounded-lg bg-white/5 min-h-[36px] text-[11px] font-medium text-white/40 active:bg-white/10"
         @click="$emit('addCommander')"
       >
         + {{ t('playerDetail.addCommander') }}
@@ -157,21 +161,28 @@
 
       <!-- Game result button -->
       <button
-        class="flex w-full items-center justify-center gap-1.5 rounded-md bg-life-negative/10 py-1.5 text-[10px] font-semibold text-life-negative/70 active:bg-life-negative/20"
+        class="token-game-result"
         @click="$emit('showGameResult')"
       >
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" class="text-life-negative/60">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" class="text-life-negative/60">
           <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
           <path d="M4 22v-7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
         </svg>
         {{ t('gameResult.title') }}
       </button>
     </div>
+
+    <!-- Toast overlay — centered on card -->
+    <Transition name="toast">
+      <div v-if="toastMessage" class="token-toast">
+        {{ toastMessage }}
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { PlayerState } from '@/types/game'
 import { useGameStore } from '@/stores/gameStore'
@@ -196,6 +207,51 @@ defineEmits<{
 const { t } = useI18n()
 const gameStore = useGameStore()
 
+/* ── Toast feedback ── */
+const toastMessage = ref('')
+let toastTimer: ReturnType<typeof setTimeout> | null = null
+
+function showToast(message: string) {
+  toastMessage.value = message
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => { toastMessage.value = '' }, 1200)
+}
+
+onBeforeUnmount(() => { if (toastTimer) clearTimeout(toastTimer) })
+
+/* ── Day/Night long-press to reset ── */
+let dayNightLongPressTimer: ReturnType<typeof setTimeout> | null = null
+let dayNightLongPressed = false
+
+function onDayNightPointerDown() {
+  dayNightLongPressed = false
+  dayNightLongPressTimer = setTimeout(() => {
+    dayNightLongPressed = true
+    if (gameStore.currentGame) {
+      gameStore.currentGame.dayNightState = null
+    }
+    showToast(t('tokens.dayNight') + ' ✕')
+  }, 600)
+}
+
+function onDayNightPointerUp() {
+  if (dayNightLongPressTimer) {
+    clearTimeout(dayNightLongPressTimer)
+    dayNightLongPressTimer = null
+  }
+  if (!dayNightLongPressed) {
+    handleToggleDayNight()
+  }
+}
+
+function onDayNightPointerLeave() {
+  if (dayNightLongPressTimer) {
+    clearTimeout(dayNightLongPressTimer)
+    dayNightLongPressTimer = null
+  }
+}
+
+/* ── Computed ── */
 const dayNightState = computed(() => gameStore.currentGame?.dayNightState ?? null)
 
 const dayNightClass = computed(() => {
@@ -210,22 +266,32 @@ const dayNightLabel = computed(() => {
   return t('tokens.dayNight')
 })
 
+/* ── Toggle handlers ── */
 function handleToggleMonarch() {
+  const wasBefore = props.player.isMonarch
   gameStore.toggleMonarch(props.player.id)
-  if (!props.player.isMonarch) playMonarchCrown()
+  if (!wasBefore) playMonarchCrown()
+  showToast(t('playerDetail.monarch') + (wasBefore ? ' ✕' : ' ✓'))
 }
 
 function handleToggleInitiative() {
+  const wasBefore = props.player.hasInitiative
   gameStore.toggleInitiative(props.player.id)
-  if (!props.player.hasInitiative) playInitiative()
+  if (!wasBefore) playInitiative()
+  showToast(t('playerDetail.initiative') + (wasBefore ? ' ✕' : ' ✓'))
 }
 
 function handleToggleCityBlessing() {
+  const wasBefore = props.player.cityBlessing
   gameStore.toggleCityBlessing(props.player.id)
+  showToast(t('tokens.cityBlessing') + (wasBefore ? ' ✕' : ' ✓'))
 }
 
 function handleToggleDayNight() {
   gameStore.toggleDayNight()
+  const newState = gameStore.currentGame?.dayNightState
+  if (newState === 'day') showToast('☀ ' + t('tokens.day'))
+  else if (newState === 'night') showToast('☽ ' + t('tokens.night'))
 }
 
 function handleExperienceChange(amount: number) {
@@ -257,14 +323,47 @@ function handleCastCommander(commanderIndex: number) {
   font-family: var(--font-beleren);
 }
 
-/* ── Toggle buttons: ultra-compact 2x2 grid ── */
-.token-toggle {
+/* ── Toast feedback — centered overlay ── */
+.token-toast {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  border-radius: 8px;
+  padding: 6px 14px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.toast-enter-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.toast-leave-active {
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+.toast-enter-from {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.85);
+}
+.toast-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(1.05);
+}
+
+/* ── Icon-only toggle buttons: 1×4 row ── */
+.token-icon-btn {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 6px;
-  border-radius: 6px;
-  min-height: 28px;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   transition: background 0.15s, box-shadow 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
@@ -279,84 +378,82 @@ function handleCastCommander(commanderIndex: number) {
 }
 .token-monarch {
   background: rgba(212, 168, 67, 0.15);
-  box-shadow: inset 0 0 8px rgba(212, 168, 67, 0.15);
+  box-shadow: inset 0 0 6px rgba(212, 168, 67, 0.2);
 }
 .token-initiative {
   background: rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.15);
 }
 .token-city {
   background: rgba(52, 211, 153, 0.15);
-  box-shadow: inset 0 0 8px rgba(52, 211, 153, 0.15);
+  box-shadow: inset 0 0 6px rgba(52, 211, 153, 0.2);
 }
 .token-day {
   background: rgba(250, 204, 21, 0.15);
-  box-shadow: inset 0 0 8px rgba(250, 204, 21, 0.15);
+  box-shadow: inset 0 0 6px rgba(250, 204, 21, 0.2);
 }
 .token-night {
   background: rgba(147, 197, 253, 0.15);
-  box-shadow: inset 0 0 8px rgba(147, 197, 253, 0.15);
-}
-.token-text {
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.6);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  box-shadow: inset 0 0 6px rgba(147, 197, 253, 0.2);
 }
 
-/* ── Stepper rows: single-line with inline controls ── */
-.stepper-row {
+/* ── Counter grid: 2×2 layout ── */
+.counter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+}
+.counter-cell {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 4px;
-  min-height: 28px;
-  border-radius: 6px;
+  gap: 3px;
+  padding: 1px 3px;
+  min-height: 26px;
+  border-radius: 4px;
   background: rgba(0, 0, 0, 0.12);
 }
-.stepper-label {
-  flex: 1;
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.6);
-  min-width: 0;
+.counter-label {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
 }
 .stepper-controls {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
+  margin-left: auto;
 }
 .stepper-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.7);
   font-weight: bold;
-  font-size: 13px;
+  font-size: 11px;
   -webkit-tap-highlight-color: transparent;
 }
 .stepper-btn:active {
   background: rgba(255, 255, 255, 0.2);
 }
 .stepper-val {
-  min-width: 18px;
+  min-width: 14px;
   text-align: center;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Ring pips ── */
+/* ── Ring pips (inside counter grid) ── */
 .ring-pip {
-  width: 12px;
-  height: 12px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   transition: background 0.15s, box-shadow 0.15s;
   -webkit-tap-highlight-color: transparent;
@@ -369,5 +466,50 @@ function handleCastCommander(commanderIndex: number) {
   background: rgba(245, 158, 11, 0.6);
   border: 1px solid rgba(245, 158, 11, 0.8);
   box-shadow: 0 0 4px rgba(245, 158, 11, 0.4);
+}
+
+/* ── Commander rows: compact ── */
+.commander-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  min-height: 28px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.2);
+}
+.commander-tax-btn {
+  display: flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: rgba(232, 96, 10, 0.2);
+  font-size: 9px;
+  font-weight: 700;
+  color: #e8600a;
+  -webkit-tap-highlight-color: transparent;
+}
+.commander-tax-btn:active {
+  background: rgba(232, 96, 10, 0.3);
+}
+
+/* ── Game result button ── */
+.token-game-result {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.1);
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(239, 68, 68, 0.7);
+  -webkit-tap-highlight-color: transparent;
+}
+.token-game-result:active {
+  background: rgba(239, 68, 68, 0.2);
 }
 </style>
