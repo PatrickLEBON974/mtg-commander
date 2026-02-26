@@ -105,13 +105,14 @@ export function usePlayerGridLayout() {
   // ─── Rotation helpers ─────────────────────────────────────────────
 
   function getFaceToFaceRotation(index: number, count: number): number {
+    // 5 players: faceToFace disabled — fall back to default
+    if (count === 5) return 0
     // Split by rows: top row ↓ (180°), remaining rows ↑ (0°)
     // For all counts, row 0 = indices 0–1 face down.
     // This ensures no mixed directions on any row.
     if (count <= 2) return index === 0 ? 180 : 0
     // 3 players: P0,P1 (row 0) ↓, P2 (row 1) ↑
     // 4 players: P0,P1 (row 0) ↓, P2,P3 (row 1) ↑
-    // 5 players: P0,P1 (row 0) ↓, P2,P3,P4 (rows 1–2) ↑
     // 6 players: P0,P1 (row 0) ↓, P2,P3,P4,P5 (rows 1–2) ↑
     return index < 2 ? 180 : 0
   }
@@ -131,9 +132,10 @@ export function usePlayerGridLayout() {
     }
 
     // 5 players: grid "p0 p1" / "p2 p3" / "p4 p4"
-    // Left column (P0,P2) →, right column (P1,P3) ←, P4 (full-width) →
+    // Left column (P0,P2) →, right column (P1,P3) ←
+    // P4 (full-width bottom) faces outward toward the bottom-edge player (0°)
     if (count === 5) {
-      return [90, 270, 90, 270, 90][index] ?? 90
+      return [90, 270, 90, 270, 0][index] ?? 90
     }
 
     // 6 players: left column →, right column ←
