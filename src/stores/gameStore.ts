@@ -32,6 +32,9 @@ function createPlayer(index: number, settings: GameSettings): PlayerState {
     energyCounters: 0,
     isMonarch: false,
     hasInitiative: false,
+    cityBlessing: false,
+    ringLevel: 0,
+    radCounters: 0,
   }
 }
 
@@ -62,6 +65,15 @@ export const useGameStore = defineStore('game', () => {
     }
     if (savedGame.customPositionMap === undefined) {
       savedGame.customPositionMap = null
+    }
+    if (savedGame.dayNightState === undefined) {
+      savedGame.dayNightState = null
+    }
+    // Backfill new player fields for legacy saves
+    for (const player of savedGame.players) {
+      if (player.cityBlessing === undefined) player.cityBlessing = false
+      if (player.ringLevel === undefined) player.ringLevel = 0
+      if (player.radCounters === undefined) player.radCounters = 0
     }
     currentGame.value = savedGame
   }
@@ -153,6 +165,7 @@ export const useGameStore = defineStore('game', () => {
       activeFlashPlayerIds: [],
       gamePhase: 'seating',
       customPositionMap: null,
+      dayNightState: null,
     }
   }
 
@@ -406,6 +419,100 @@ export const useGameStore = defineStore('game', () => {
     toggleExclusiveStatus(playerId, 'hasInitiative', 'initiative_change', 'game.initiativeGain', 'game.initiativeLose')
   }
 
+  function toggleCityBlessing(playerId: string) {
+    if (!currentGame.value) return
+    const player = currentGame.value.players.find((p) => p.id === playerId)
+    if (!player) return
+    player.cityBlessing = !player.cityBlessing
+    addAction(
+      'city_blessing_change',
+      playerId,
+      player.cityBlessing ? 1 : 0,
+      player.cityBlessing ? 'game.cityBlessingGain' : 'game.cityBlessingLose',
+      { name: player.name },
+    )
+  }
+
+  function setRingLevel(playerId: string, level: number) {
+    if (!currentGame.value) return
+    const player = currentGame.value.players.find((p) => p.id === playerId)
+    if (!player) return
+    const previousLevel = player.ringLevel
+    player.ringLevel = Math.max(0, Math.min(4, level))
+    if (player.ringLevel === previousLevel) return
+    addAction(
+      'ring_level_change',
+      playerId,
+      player.ringLevel,
+      'game.ringLevelChange',
+      { name: player.name, level: player.ringLevel },
+      undefined,
+      undefined,
+      previousLevel,
+    )
+  }
+
+  function changeRadCounters(playerId: string, amount: number) {
+    if (!currentGame.value) return
+    const player = currentGame.value.players.find((p) => p.id === playerId)
+    if (!player) return
+    player.radCounters = Math.max(0, player.radCounters + amount)
+    addAction('rad_change', playerId, amount, 'game.counterChange', {
+      name: player.name,
+      sign: amount > 0 ? '+' : '',
+      amount: Math.abs(amount),
+      counter: 'rad',
+    })
+  }
+
+  function toggleDayNight() {
+    if (!currentGame.value) return
+    const currentState = currentGame.value.dayNightState
+    if (currentState === null) {
+      currentGame.value.dayNightState = 'day'
+    } else {
+      currentGame.value.dayNightState = currentState === 'day' ? 'night' : 'day'
+    }
+    // Use first player as action owner for global events
+    const firstPlayer = currentGame.value.players[0]
+    if (!firstPlayer) return
+    addAction(
+      'day_night_change',
+      firstPlayer.id,
+      currentGame.value.dayNightState === 'day' ? 1 : 0,
+      currentGame.value.dayNightState === 'day' ? 'game.dayNightDay' : 'game.dayNightNight',
+      {},
+      undefined,
+      undefined,
+      currentState === 'day' ? 1 : currentState === 'night' ? 0 : -1,
+    )
+  }
+
+  function declareGameResult(playerId: string, result: 'winner' | 'eliminated' | 'surrender' | 'draw') {
+    if (!currentGame.value) return
+    const player = currentGame.value.players.find((p) => p.id === playerId)
+    if (!player) return
+
+    switch (result) {
+      case 'winner':
+        addAction('game_result', playerId, 1, 'game.resultWinner', { name: player.name })
+        endGame()
+        break
+      case 'eliminated':
+        player.lifeTotal = 0
+        addAction('game_result', playerId, 0, 'game.resultEliminated', { name: player.name })
+        break
+      case 'surrender':
+        player.lifeTotal = 0
+        addAction('game_result', playerId, -1, 'game.resultSurrender', { name: player.name })
+        break
+      case 'draw':
+        addAction('game_result', playerId, 2, 'game.resultDraw', { name: player.name })
+        endGame()
+        break
+    }
+  }
+
   function updatePlayerName(playerId: string, newName: string) {
     if (!currentGame.value) return
     const player = currentGame.value.players.find((p) => p.id === playerId)
@@ -561,6 +668,30 @@ export const useGameStore = defineStore('game', () => {
           player.hasInitiative = true
         }
         break
+      case 'city_blessing_change':
+        player.cityBlessing = !player.cityBlessing
+        break
+      case 'ring_level_change':
+        if (action.previousValue !== undefined) {
+          player.ringLevel = action.previousValue
+        }
+        break
+      case 'rad_change':
+        player.radCounters = Math.max(0, player.radCounters - action.value)
+        break
+      case 'day_night_change': {
+        if (!currentGame.value) break
+        const previousDayNightValue = action.previousValue
+        if (previousDayNightValue === -1) {
+          currentGame.value.dayNightState = null
+        } else {
+          currentGame.value.dayNightState = previousDayNightValue === 1 ? 'day' : 'night'
+        }
+        break
+      }
+      case 'game_result':
+        // Game result undo is complex — skip reversal for now
+        break
       case 'behavior_rule_life':
         player.lifeTotal -= action.value
         break
@@ -648,6 +779,23 @@ export const useGameStore = defineStore('game', () => {
         } else {
           player.hasInitiative = false
         }
+        break
+      case 'city_blessing_change':
+        player.cityBlessing = action.value === 1
+        break
+      case 'ring_level_change':
+        player.ringLevel = action.value
+        break
+      case 'rad_change':
+        player.radCounters = Math.max(0, player.radCounters + action.value)
+        break
+      case 'day_night_change': {
+        if (!currentGame.value) break
+        currentGame.value.dayNightState = action.value === 1 ? 'day' : 'night'
+        break
+      }
+      case 'game_result':
+        // Game result redo — skip for now
         break
       case 'behavior_rule_life':
         player.lifeTotal += action.value
@@ -763,6 +911,11 @@ export const useGameStore = defineStore('game', () => {
     isPlayerDead,
     toggleMonarch,
     toggleInitiative,
+    toggleCityBlessing,
+    setRingLevel,
+    changeRadCounters,
+    toggleDayNight,
+    declareGameResult,
     advanceTurn,
     undoLastAction,
     undoUntilPlayerAlive,

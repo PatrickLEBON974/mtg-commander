@@ -92,6 +92,7 @@
               :player="player"
               :is-current-turn="player.id === gameStore.currentTurnPlayer?.id"
               :is-flashing="flashingPlayerIds.includes(player.id)"
+              :card-rotation="getCardRotation(index)"
               :commander-damage-attacker-id="commanderDragState?.targetPlayerId === player.id ? commanderDragState.attackerPlayerId : null"
               @state-changed="onPlayerStateChanged"
               @turn-advanced="onTurnAdvanced"
@@ -295,7 +296,7 @@ const registryStore = usePlayerRegistryStore()
 // Initialize behavior rules engine (watches game state, fires effects)
 const { flashingPlayerIds, flashTimerZone, announceMessages, isOvertimeDisplayActive } = useBehaviorRuleEngine()
 
-const { playerGridClass, gridStyle, cardOuterClasses, cardOuterStyle, cardRotationStyle } = usePlayerGridLayout()
+const { playerGridClass, gridStyle, getCardRotation, cardOuterClasses, cardOuterStyle, cardRotationStyle } = usePlayerGridLayout()
 
 const showHistory = ref(false)
 const showLayoutPicker = ref(false)

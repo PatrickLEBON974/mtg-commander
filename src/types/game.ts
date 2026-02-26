@@ -17,6 +17,9 @@ export interface PlayerState {
   energyCounters: number
   isMonarch: boolean
   hasInitiative: boolean
+  cityBlessing: boolean
+  ringLevel: number // 0-4 (0 = no ring, 1-4 = The Ring tempts you levels)
+  radCounters: number
 }
 
 export type GamePhase = 'seating' | 'initiative' | 'playing'
@@ -36,6 +39,7 @@ export interface GameState {
   activeFlashPlayerIds: string[]
   gamePhase: GamePhase
   customPositionMap: number[] | null
+  dayNightState: 'day' | 'night' | null // null = not yet established
 }
 
 export interface GameAction {
@@ -62,6 +66,11 @@ export type GameActionType =
   | 'energy_change'
   | 'monarch_change'
   | 'initiative_change'
+  | 'city_blessing_change'
+  | 'ring_level_change'
+  | 'rad_change'
+  | 'day_night_change'
+  | 'game_result'
   | 'turn_advance'
   | 'behavior_rule_life'
   | 'behavior_rule_counter'
@@ -275,4 +284,7 @@ export const EMPTY_PLAYER_COUNTERS = {
   energyCounters: 0,
   isMonarch: false,
   hasInitiative: false,
+  cityBlessing: false,
+  ringLevel: 0,
+  radCounters: 0,
 } as const
