@@ -48,69 +48,6 @@
           />
         </ion-item>
       </template>
-    </ion-list>
-
-    <!-- Behavior Rules Section -->
-    <ion-list :inset="true">
-      <ion-list-header>
-        <ion-label>{{ t('rules.sectionTitle') }}</ion-label>
-      </ion-list-header>
-
-      <!-- Profile selector -->
-      <ion-item lines="inset">
-        <ion-icon :icon="shieldCheckmarkOutline" slot="start" color="tertiary" />
-        <ion-label>{{ t('rules.selectProfile') }}</ion-label>
-        <ion-select
-          :value="settingsStore.gameSettings.selectedBehaviorProfileId"
-          interface="action-sheet"
-          @ionChange="onProfileChange($event.detail.value)"
-        >
-          <ion-select-option
-            v-for="profile in settingsStore.behaviorRuleProfiles"
-            :key="profile.id"
-            :value="profile.id"
-          >
-            {{ profile.isPreset ? t(`rules.profiles.${profile.id === 'default' ? 'default' : profile.id === 'fast-game' ? 'fastGame' : 'relaxed'}`) : profile.name }}
-          </ion-select-option>
-        </ion-select>
-      </ion-item>
-
-      <!-- Rules list with toggles -->
-      <ion-item
-        v-for="(entry, index) in settingsStore.behaviorRules"
-        :key="entry.rule.id"
-        :lines="index === settingsStore.behaviorRules.length - 1 ? 'none' : 'inset'"
-        button
-        @click="openRuleEditor(entry.rule)"
-      >
-        <ion-label>
-          <h3>{{ getRuleName(entry.rule) }}</h3>
-          <p>{{ getRuleDescription(entry.rule) }}</p>
-        </ion-label>
-        <ion-toggle
-          slot="end"
-          :checked="entry.enabled"
-          @ionChange.stop="settingsStore.toggleRuleInProfile(entry.rule.id, $event.detail.checked)"
-        />
-      </ion-item>
-
-      <!-- Add custom rule button -->
-      <ion-item button lines="none" @click="openRuleEditor(null)">
-        <ion-icon :icon="addOutline" slot="start" color="primary" />
-        <ion-label color="primary">{{ t('rules.editor.createTitle') }}</ion-label>
-      </ion-item>
-
-      <!-- Save as profile (if modified) -->
-      <ion-item v-if="isProfileModified" button lines="none" @click="promptSaveAsProfile">
-        <ion-icon :icon="saveOutline" slot="start" color="success" />
-        <ion-label color="success">{{ t('rules.saveAsProfile') }}</ion-label>
-      </ion-item>
-    </ion-list>
-
-    <ion-list :inset="true">
-      <ion-list-header>
-        <ion-label>{{ t('home.rules') }}</ion-label>
-      </ion-list-header>
 
       <ion-item lines="inset">
         <ion-icon :icon="shieldOutline" slot="start" color="warning" />
@@ -135,20 +72,102 @@
       </ion-item>
     </ion-list>
 
-    <ion-list-header>
-      <ion-label>{{ t('home.playerList') }}</ion-label>
-    </ion-list-header>
+    <!-- Behavior Rules Section (collapsible, closed by default) -->
+    <ion-list :inset="true">
+      <ion-item button lines="none" @click="isBehaviorRulesOpen = !isBehaviorRulesOpen">
+        <ion-icon :icon="shieldCheckmarkOutline" slot="start" color="tertiary" />
+        <ion-label>{{ t('rules.sectionTitle') }}</ion-label>
+        <ion-icon
+          slot="end"
+          :icon="chevronDownOutline"
+          class="collapsible-chevron"
+          :class="{ 'collapsible-chevron--open': isBehaviorRulesOpen }"
+        />
+      </ion-item>
+    </ion-list>
 
-    <ion-reorder-group :disabled="false" @ionItemReorder="handleReorder($event)">
-      <PlayerSelectItem
-        v-for="(player, index) in playerConfigs"
-        :key="player.id"
-        :model-value="player"
-        :player-index="index"
-        :used-profile-ids="usedProfileIds"
-        @update:model-value="playerConfigs[index] = $event"
-      />
-    </ion-reorder-group>
+    <Transition name="collapse">
+      <ion-list v-if="isBehaviorRulesOpen" :inset="true" class="mt-0">
+        <!-- Profile selector -->
+        <ion-item lines="inset">
+          <ion-icon :icon="shieldCheckmarkOutline" slot="start" color="tertiary" />
+          <ion-label>{{ t('rules.selectProfile') }}</ion-label>
+          <ion-select
+            :value="settingsStore.gameSettings.selectedBehaviorProfileId"
+            interface="action-sheet"
+            @ionChange="onProfileChange($event.detail.value)"
+          >
+            <ion-select-option
+              v-for="profile in settingsStore.behaviorRuleProfiles"
+              :key="profile.id"
+              :value="profile.id"
+            >
+              {{ profile.isPreset ? t(`rules.profiles.${profile.id === 'default' ? 'default' : profile.id === 'fast-game' ? 'fastGame' : 'relaxed'}`) : profile.name }}
+            </ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <!-- Rules list with toggles -->
+        <ion-item
+          v-for="(entry, index) in settingsStore.behaviorRules"
+          :key="entry.rule.id"
+          :lines="index === settingsStore.behaviorRules.length - 1 ? 'none' : 'inset'"
+          button
+          @click="openRuleEditor(entry.rule)"
+        >
+          <ion-label>
+            <h3>{{ getRuleName(entry.rule) }}</h3>
+            <p>{{ getRuleDescription(entry.rule) }}</p>
+          </ion-label>
+          <ion-toggle
+            slot="end"
+            :checked="entry.enabled"
+            @ionChange.stop="settingsStore.toggleRuleInProfile(entry.rule.id, $event.detail.checked)"
+          />
+        </ion-item>
+
+        <!-- Add custom rule button -->
+        <ion-item button lines="none" @click="openRuleEditor(null)">
+          <ion-icon :icon="addOutline" slot="start" color="primary" />
+          <ion-label color="primary">{{ t('rules.editor.createTitle') }}</ion-label>
+        </ion-item>
+
+        <!-- Save as profile (if modified) -->
+        <ion-item v-if="isProfileModified" button lines="none" @click="promptSaveAsProfile">
+          <ion-icon :icon="saveOutline" slot="start" color="success" />
+          <ion-label color="success">{{ t('rules.saveAsProfile') }}</ion-label>
+        </ion-item>
+      </ion-list>
+    </Transition>
+
+    <!-- Player list (collapsible, closed by default) -->
+    <ion-list :inset="true">
+      <ion-item button lines="none" @click="isPlayersOpen = !isPlayersOpen">
+        <ion-icon :icon="peopleOutline" slot="start" color="tertiary" />
+        <ion-label>{{ t('home.playerList') }}</ion-label>
+        <ion-icon
+          slot="end"
+          :icon="chevronDownOutline"
+          class="collapsible-chevron"
+          :class="{ 'collapsible-chevron--open': isPlayersOpen }"
+        />
+      </ion-item>
+    </ion-list>
+
+    <Transition name="collapse">
+      <div v-if="isPlayersOpen">
+        <ion-reorder-group :disabled="false" @ionItemReorder="handleReorder($event)">
+          <PlayerSelectItem
+            v-for="(player, index) in playerConfigs"
+            :key="player.id"
+            :model-value="player"
+            :player-index="index"
+            :used-profile-ids="usedProfileIds"
+            @update:model-value="playerConfigs[index] = $event"
+          />
+        </ion-reorder-group>
+      </div>
+    </Transition>
 
     <div class="p-4">
       <ion-button expand="block" color="primary" data-sound="none" @click="handleConfirm">
@@ -195,6 +214,7 @@ import {
   shieldCheckmarkOutline,
   addOutline,
   saveOutline,
+  chevronDownOutline,
 } from 'ionicons/icons'
 import { useSettingsStore } from '@/stores/settingsStore'
 import AppModal from '@/components/ui/AppModal.vue'
@@ -217,26 +237,25 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const settingsStore = useSettingsStore()
 
+const isBehaviorRulesOpen = ref(false)
+const isPlayersOpen = ref(false)
+
 // ─── Stepper options ──────────────────────────────────────────────────
 const commanderDamageOptions = computed(() => [
   { value: 0, label: t('common.off') },
-  { value: 21, label: '21' },
+  ...Array.from({ length: 40 }, (_, i) => ({ value: i + 1, label: String(i + 1) })),
 ])
 const poisonOptions = computed(() => [
   { value: 0, label: t('common.off') },
-  { value: 5, label: '5' },
-  { value: 10, label: '10' },
-  { value: 15, label: '15' },
-  { value: 20, label: '20' },
+  ...Array.from({ length: 20 }, (_, i) => ({ value: i + 1, label: String(i + 1) })),
 ])
 
-const turnTimerOptions = [
-  { value: 60, label: '1:00' },
-  { value: 90, label: '1:30' },
-  { value: 120, label: '2:00' },
-  { value: 180, label: '3:00' },
-  { value: 300, label: '5:00' },
-]
+const turnTimerOptions = Array.from({ length: 59 }, (_, i) => {
+  const seconds = (i + 1) * 10
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = seconds % 60
+  return { value: seconds, label: `${minutes}:${String(remainingSeconds).padStart(2, '0')}` }
+})
 
 // ─── Player configs ───────────────────────────────────────────────────
 let nextConfigId = 0
@@ -369,3 +388,34 @@ function handleConfirm() {
   emit('confirm', playerConfigs.value)
 }
 </script>
+
+<style scoped>
+.collapsible-chevron {
+  transition: transform 0.25s ease;
+  font-size: 18px;
+  color: var(--ion-color-medium);
+}
+
+.collapsible-chevron--open {
+  transform: rotate(180deg);
+}
+
+.collapse-enter-active {
+  transition: all 0.25s ease-out;
+  overflow: hidden;
+}
+.collapse-leave-active {
+  transition: all 0.2s ease-in;
+  overflow: hidden;
+}
+.collapse-enter-from,
+.collapse-leave-to {
+  opacity: 0;
+  max-height: 0;
+}
+.collapse-enter-to,
+.collapse-leave-from {
+  opacity: 1;
+  max-height: 2000px;
+}
+</style>

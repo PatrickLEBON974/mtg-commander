@@ -33,12 +33,14 @@ export const QUICK_COMMANDER_DAMAGE_OPTIONS = [1, 2, 3, 5, 10]
 
 // ─── Shared stepper options (HomeView + SettingsView) ───────────────
 export const PLAYER_COUNT_OPTIONS = [2, 3, 4, 5, 6].map((v) => ({ value: v, label: String(v) }))
-export const STARTING_LIFE_OPTIONS = [
-  { value: 20, label: '20' },
-  { value: 25, label: '25' },
-  { value: 30, label: '30' },
-  { value: 40, label: '40' },
-]
+function rangeOptions(from: number, to: number): { value: number; label: string }[] {
+  return Array.from({ length: to - from + 1 }, (_, i) => {
+    const value = from + i
+    return { value, label: String(value) }
+  })
+}
+
+export const STARTING_LIFE_OPTIONS = rangeOptions(1, 50)
 
 // ─── Player colours (mana identity order) ──────────────────────────
 import type { ManaColor } from '@/types/game'

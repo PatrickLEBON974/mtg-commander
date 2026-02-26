@@ -8,13 +8,13 @@ import type { LayoutMode } from '@/services/persistence'
 // The positionMap in each LayoutEntry maps player index → slot number.
 
 const GRIDS = {
-  '1x2':             { areas: '"p0" "p1"',                       columns: '1fr',     rows: '1fr 1fr' },
-  '2x1':             { areas: '"p0 p1"',                         columns: '1fr 1fr', rows: '1fr' },
-  '2x2':             { areas: '"p0 p1" "p2 p3"',                 columns: '1fr 1fr', rows: '1fr 1fr' },
-  '2x2_span_bottom': { areas: '"p0 p1" "p2 p2"',                 columns: '1fr 1fr', rows: '2fr 1fr' },
-  '2x2_span_left':   { areas: '"p0 p1" "p0 p2"',                 columns: '1fr 2fr', rows: '1fr 1fr' },
-  '2x3':             { areas: '"p0 p1" "p2 p3" "p4 p5"',         columns: '1fr 1fr', rows: '1fr 1fr 1fr' },
-  '2x3_span_bottom': { areas: '"p0 p1" "p2 p3" "p4 p4"',         columns: '1fr 1fr', rows: '2fr 2fr 1fr' },
+  '1x2':             { areas: '"p0" "p1"',                       columns: '1fr',     rows: '1fr 1fr',         clockwiseOrder: [0, 1] },
+  '2x1':             { areas: '"p0 p1"',                         columns: '1fr 1fr', rows: '1fr',             clockwiseOrder: [0, 1] },
+  '2x2':             { areas: '"p0 p1" "p2 p3"',                 columns: '1fr 1fr', rows: '1fr 1fr',         clockwiseOrder: [0, 1, 3, 2] },
+  '2x2_span_bottom': { areas: '"p0 p1" "p2 p2"',                 columns: '1fr 1fr', rows: '2fr 1fr',         clockwiseOrder: [0, 1, 2] },
+  '2x2_span_left':   { areas: '"p0 p1" "p0 p2"',                 columns: '1fr 2fr', rows: '1fr 1fr',         clockwiseOrder: [0, 1, 2] },
+  '2x3':             { areas: '"p0 p1" "p2 p3" "p4 p5"',         columns: '1fr 1fr', rows: '1fr 1fr 1fr',     clockwiseOrder: [0, 1, 3, 5, 4, 2] },
+  '2x3_span_bottom': { areas: '"p0 p1" "p2 p3" "p4 p4"',         columns: '1fr 1fr', rows: '2fr 2fr 1fr',     clockwiseOrder: [0, 1, 3, 4, 2] },
 } as const
 
 type GridType = keyof typeof GRIDS
@@ -129,10 +129,14 @@ export function usePlayerGridLayout() {
     }
   }
 
+  const clockwiseSlotOrder = computed(() => GRIDS[layout.value.gridType].clockwiseOrder)
+
   return {
     playerGridClass: computed(() => ''),
     gridStyle,
     getSlot,
+    getCardRotation,
+    clockwiseSlotOrder,
     cardOuterClasses,
     cardOuterStyle,
     cardRotationStyle,

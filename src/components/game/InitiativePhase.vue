@@ -56,7 +56,7 @@ import { playDiceRoll, playVictory } from '@/services/sounds'
 
 const { t } = useI18n()
 const gameStore = useGameStore()
-const { gridStyle, cardOuterClasses, cardOuterStyle, cardRotationStyle } = usePlayerGridLayout()
+const { gridStyle, cardOuterClasses, cardOuterStyle, cardRotationStyle, getSlot, clockwiseSlotOrder } = usePlayerGridLayout()
 
 const displayValues = ref<Record<string, number>>({})
 const rollingPlayerIds = ref<Set<string>>(new Set())
@@ -177,7 +177,41 @@ onMounted(async () => {
   playVictory()
   await delay(2500)
 
-  gameStore.reorderPlayersForTurnOrder(order)
+  // Build turn order: winner first, direction determined by second-highest roller's position
+  const winnerId = order[0]!
+  const game = gameStore.currentGame!
+  const slotToPlayerId: Record<number, string> = {}
+  game.players.forEach((player, index) => {
+    slotToPlayerId[getSlot(index)] = player.id
+  })
+
+  const clockwiseSlots = clockwiseSlotOrder.value
+  const winnerPlayerIndex = game.players.findIndex(p => p.id === winnerId)
+  const winnerSlot = getSlot(winnerPlayerIndex)
+  const winnerClockwiseIndex = clockwiseSlots.indexOf(winnerSlot)
+
+  // Determine direction from the second-highest roller's seat
+  let direction = 1 // default clockwise
+  if (order.length >= 2) {
+    const secondId = order[1]!
+    const secondPlayerIndex = game.players.findIndex(p => p.id === secondId)
+    const secondSlot = getSlot(secondPlayerIndex)
+    const secondClockwiseIndex = clockwiseSlots.indexOf(secondSlot)
+    const clockwiseDistance = (secondClockwiseIndex - winnerClockwiseIndex + clockwiseSlots.length) % clockwiseSlots.length
+    // If the second player is closer going counter-clockwise, reverse direction
+    if (clockwiseDistance > clockwiseSlots.length / 2) {
+      direction = -1
+    }
+  }
+
+  const turnOrder: string[] = []
+  for (let i = 0; i < clockwiseSlots.length; i++) {
+    const clockwiseIndex = (winnerClockwiseIndex + i * direction + clockwiseSlots.length) % clockwiseSlots.length
+    const slot = clockwiseSlots[clockwiseIndex]!
+    turnOrder.push(slotToPlayerId[slot]!)
+  }
+
+  gameStore.reorderPlayersForTurnOrder(turnOrder)
   gameStore.setGamePhase('playing')
 })
 </script>

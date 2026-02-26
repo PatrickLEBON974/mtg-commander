@@ -6,6 +6,7 @@
 
     <div class="relative min-h-0 flex-1">
       <div
+        ref="seatingGridRef"
         class="grid h-full gap-2 p-2"
         :style="gridStyle"
       >
@@ -119,7 +120,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGameStore } from '@/stores/gameStore'
 import { usePlayerGridLayout } from '@/composables/usePlayerGridLayout'
@@ -127,8 +128,9 @@ import { isDragLocked } from '@/composables/useDragLock'
 
 const { t } = useI18n()
 const gameStore = useGameStore()
-const { gridStyle, cardOuterClasses, cardOuterStyle, cardRotationStyle, getSlot } = usePlayerGridLayout()
+const { gridStyle, cardOuterClasses, cardOuterStyle, cardRotationStyle, getSlot, clockwiseSlotOrder } = usePlayerGridLayout()
 
+const seatingGridRef = ref<HTMLElement | null>(null)
 const playerCount = computed(() => gameStore.currentGame?.players.length ?? 4)
 
 // ─── Card drag-to-swap ───────────────────────────────────────────────
@@ -159,6 +161,75 @@ onMounted(() => {
 
 function handleValidate() {
   gameStore.setGamePhase('initiative')
+}
+
+// ─── FLIP card slide animation ───────────────────────────────────────
+
+function rotatePositionsClockwise(direction: 1 | -1) {
+  const game = gameStore.currentGame
+  if (!game) return
+
+  const count = game.players.length
+  const currentMap = game.customPositionMap ?? Array.from({ length: count }, (_, i) => i)
+  const order = clockwiseSlotOrder.value
+
+  const newMap = currentMap.map(currentSlot => {
+    const indexInOrder = order.indexOf(currentSlot)
+    if (indexInOrder === -1) return currentSlot
+    const nextIndex = (indexInOrder + direction + order.length) % order.length
+    return order[nextIndex]!
+  })
+
+  gameStore.setCustomPositionMap(newMap)
+}
+
+function animatedRotatePositions(direction: 1 | -1) {
+  const gridElement = seatingGridRef.value
+  if (!gridElement) {
+    rotatePositionsClockwise(direction)
+    return
+  }
+
+  const cells = Array.from(gridElement.children) as HTMLElement[]
+
+  cells.forEach(cell => {
+    cell.style.transition = 'none'
+    cell.style.translate = ''
+  })
+  gridElement.getBoundingClientRect()
+
+  const firstRects = cells.map(cell => cell.getBoundingClientRect())
+
+  rotatePositionsClockwise(direction)
+
+  nextTick(() => {
+    cells.forEach((cell, i) => {
+      const last = cell.getBoundingClientRect()
+      const dx = firstRects[i]!.left - last.left
+      const dy = firstRects[i]!.top - last.top
+
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return
+
+      cell.style.transition = 'none'
+      cell.style.translate = `${dx}px ${dy}px`
+    })
+
+    gridElement.getBoundingClientRect()
+
+    cells.forEach(cell => {
+      if (cell.style.translate && cell.style.translate !== '0px 0px') {
+        cell.style.transition = 'translate 0.35s cubic-bezier(0.22, 1, 0.36, 1)'
+        cell.style.translate = '0 0'
+      }
+    })
+
+    setTimeout(() => {
+      cells.forEach(cell => {
+        cell.style.transition = ''
+        cell.style.translate = ''
+      })
+    }, 400)
+  })
 }
 
 // ─── Dial rotation logic ─────────────────────────────────────────────
@@ -204,12 +275,12 @@ function onDialTouchMove(event: TouchEvent) {
   const targetSteps = Math.round(dragDeltaAccumulator / stepDegrees)
 
   while (stepsInCurrentDrag < targetSteps) {
-    gameStore.rotatePositions(1)
+    animatedRotatePositions(1)
     stepsInCurrentDrag++
     vibrate()
   }
   while (stepsInCurrentDrag > targetSteps) {
-    gameStore.rotatePositions(-1)
+    animatedRotatePositions(-1)
     stepsInCurrentDrag--
     vibrate()
   }
@@ -261,9 +332,66 @@ function onCardTouchMove(event: TouchEvent) {
 
 function onCardTouchEnd() {
   if (cardDragActive && dragSourceIndex.value !== null && dragTargetIndex.value !== null) {
-    gameStore.swapPlayerPositions(dragSourceIndex.value, dragTargetIndex.value)
+    animateSwap(dragSourceIndex.value, dragTargetIndex.value)
   }
   cleanupCardDrag()
+}
+
+function animateSwap(sourceIndex: number, targetIndex: number) {
+  const gridElement = seatingGridRef.value
+  if (!gridElement) {
+    gameStore.swapPlayerPositions(sourceIndex, targetIndex)
+    return
+  }
+
+  const cells = Array.from(gridElement.children) as HTMLElement[]
+  const sourceCell = cells[sourceIndex]
+  const targetCell = cells[targetIndex]
+  if (!sourceCell || !targetCell) {
+    gameStore.swapPlayerPositions(sourceIndex, targetIndex)
+    return
+  }
+
+  const sourceRect = sourceCell.getBoundingClientRect()
+  const targetRect = targetCell.getBoundingClientRect()
+
+  gameStore.swapPlayerPositions(sourceIndex, targetIndex)
+  vibrate()
+
+  nextTick(() => {
+    const affected = [
+      { cell: sourceCell, firstRect: sourceRect },
+      { cell: targetCell, firstRect: targetRect },
+    ]
+
+    affected.forEach(({ cell, firstRect }) => {
+      const lastRect = cell.getBoundingClientRect()
+      const dx = firstRect.left - lastRect.left
+      const dy = firstRect.top - lastRect.top
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return
+
+      cell.style.transition = 'none'
+      cell.style.translate = `${dx}px ${dy}px`
+      cell.style.zIndex = '5'
+    })
+
+    gridElement.getBoundingClientRect()
+
+    affected.forEach(({ cell }) => {
+      if (cell.style.translate && cell.style.translate !== '0px 0px') {
+        cell.style.transition = 'translate 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
+        cell.style.translate = '0 0'
+      }
+    })
+
+    setTimeout(() => {
+      affected.forEach(({ cell }) => {
+        cell.style.transition = ''
+        cell.style.translate = ''
+        cell.style.zIndex = ''
+      })
+    }, 450)
+  })
 }
 
 function onCardTouchCancel() {

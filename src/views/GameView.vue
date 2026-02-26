@@ -31,14 +31,30 @@
         <!-- Game timer (v-show to ensure per-player timer tick always runs) -->
         <GameTimer v-show="gameStore.settings.enableTimer" :is-flashing="flashTimerZone" :is-overtime="isOvertimeDisplayActive" />
 
-        <!-- Turn indicator -->
-        <div class="flex items-center justify-between px-4 py-2" role="status">
+        <!-- Turn indicator + action buttons -->
+        <div class="flex items-center gap-2 px-3 py-1.5" role="status">
           <span class="text-xs text-text-secondary">
             {{ t('game.turn', { n: gameStore.currentGame?.turnNumber }) }}
           </span>
           <span class="text-xs font-semibold text-accent">
             {{ gameStore.currentTurnPlayer?.name }}
           </span>
+          <div class="ml-auto flex items-center gap-1">
+            <button
+              class="topbar-action-btn"
+              :aria-label="t('dice.title')"
+              @click="showDiceRoller = true"
+            >
+              <IconDie :size="16" />
+            </button>
+            <button
+              class="topbar-action-btn"
+              :aria-label="t('game.menu')"
+              @click="openGameMenu"
+            >
+              <ion-icon :icon="menuOutline" />
+            </button>
+          </div>
         </div>
 
         <!-- Behavior rule announce messages -->
@@ -84,25 +100,21 @@
           </div>
         </div>
 
-        <!-- Floating action buttons -->
+        <!-- Floating next turn button -->
         <div class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-          <div class="pointer-events-auto flex flex-col gap-3">
-            <button
-              class="floating-game-btn"
-              :aria-label="t('game.nextTurn')"
-              data-sound="none"
-              @click="handleAdvanceTurn"
-            >
-              <ion-icon :icon="playForwardOutline" />
-            </button>
-            <button
-              class="floating-game-btn"
-              :aria-label="t('game.menu')"
-              @click="openGameMenu"
-            >
-              <ion-icon :icon="menuOutline" />
-            </button>
-          </div>
+          <button
+            class="floating-next-turn-btn pointer-events-auto"
+            :aria-label="t('game.nextTurn')"
+            data-sound="none"
+            @click="handleAdvanceTurn"
+          >
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" class="text-white/80 drop-shadow-sm">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" opacity="0.3" />
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" />
+              <path d="M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              <path d="m12 16 4-4-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
         </div>
       </div>
     </ion-content>
@@ -251,7 +263,7 @@ import {
   alertController,
   toastController,
 } from '@ionic/vue'
-import { arrowUndoOutline, arrowRedoOutline, playForwardOutline, listOutline, flagOutline, gridOutline, menuOutline } from 'ionicons/icons'
+import { arrowUndoOutline, arrowRedoOutline, listOutline, flagOutline, gridOutline, menuOutline } from 'ionicons/icons'
 import { useGameStore } from '@/stores/gameStore'
 import { useMultiplayerStore } from '@/stores/multiplayerStore'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -532,22 +544,41 @@ function onTurnAdvanced() {
 </script>
 
 <style scoped>
-.floating-game-btn {
+.topbar-action-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 16px;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.topbar-action-btn:active {
+  transform: scale(0.9);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.floating-next-turn-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 66px;
+  height: 66px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.8);
-  font-size: 20px;
+  font-size: 30px;
   transition: transform 0.15s ease, background 0.15s ease;
 }
 
-.floating-game-btn:active {
+.floating-next-turn-btn:active {
   transform: scale(0.9);
   background: rgba(0, 0, 0, 0.6);
 }
@@ -604,4 +635,5 @@ function onTurnAdvanced() {
   opacity: 0;
   transform: translateY(-8px);
 }
+
 </style>

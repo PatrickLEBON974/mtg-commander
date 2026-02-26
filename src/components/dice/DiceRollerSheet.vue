@@ -431,7 +431,8 @@ watch(() => props.isOpen, (open) => {
 /* --- Die picker --- */
 
 .dice-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 6px;
 }
 
