@@ -14,8 +14,8 @@ export const PLAYER_NAME_MAX_LENGTH = 30
 // ─── Timing ─────────────────────────────────────────────────────────
 export const GAME_STATE_SAVE_DEBOUNCE_MS = 500
 export const MULTIPLAYER_PUSH_DEBOUNCE_MS = 300
-export const TIMER_TICK_INTERVAL_MS = 1000
 export const TURN_TIMER_WARNING_SECONDS = 10
+export const TIMER_B_LAST_MINUTE_SECONDS = 60
 export const LONG_PRESS_DURATION_MS = 500
 export const FLOAT_ANIMATION_DELAY_MS = 50
 

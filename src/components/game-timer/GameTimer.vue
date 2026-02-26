@@ -1,14 +1,28 @@
 <template>
-  <div class="flex items-center justify-center gap-3 bg-surface-light px-4 py-2" :class="{ 'game-timer-flash': isFlashing }">
+  <div
+    class="flex items-center justify-center gap-3 px-4 py-3"
+    :class="[
+      isRunning ? 'bg-surface-light' : 'bg-life-negative/10',
+      { 'game-timer-flash': isFlashing },
+    ]"
+  >
     <button
-      class="flex h-10 w-10 items-center justify-center rounded-full text-text-secondary active:text-text-primary"
+      class="flex h-12 w-12 items-center justify-center rounded-full transition-colors"
+      :class="isRunning
+        ? 'bg-white/10 text-text-secondary active:bg-white/20'
+        : 'bg-life-negative/20 text-life-negative active:bg-life-negative/30'"
       :aria-label="isRunning ? t('game.pause') : t('game.resume')"
-      @click="toggleTimer"
+      @click="handleToggle"
     >
-      <ion-icon :icon="isRunning ? pauseOutline : playOutline" class="text-lg" />
+      <ion-icon :icon="isRunning ? pauseOutline : playOutline" class="text-xl" />
     </button>
 
-    <!-- Game timer -->
+    <!-- Paused label -->
+    <span v-if="!isRunning" class="text-xs font-semibold uppercase tracking-wider text-life-negative animate-pulse">
+      {{ t('game.pause') }}
+    </span>
+
+    <!-- Game elapsed time -->
     <span class="font-mono text-base tabular-nums text-text-primary">
       {{ formattedGameTime }}
     </span>
@@ -18,135 +32,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { computed } from 'vue'
 import { IonIcon } from '@ionic/vue'
 import { playOutline, pauseOutline } from 'ionicons/icons'
 import { useI18n } from 'vue-i18n'
 import { useGameStore } from '@/stores/gameStore'
-import { useSettingsStore } from '@/stores/settingsStore'
-import { TIMER_TICK_INTERVAL_MS } from '@/config/gameConstants'
+import { useGameClock } from '@/composables/useGameClock'
+import { tapFeedback } from '@/services/haptics'
+import { formatMsToTimer } from '@/utils/time'
 
 const props = defineProps<{ isFlashing?: boolean; isOvertime?: boolean }>()
 
 const { t } = useI18n()
 const gameStore = useGameStore()
-const settingsStore = useSettingsStore()
+const { isRunning, toggleTimer } = useGameClock()
 
-// Sync pause state with store (persists across page reloads)
-const isRunning = ref(gameStore.currentGame?.isRunning ?? true)
-const lastResumedAt = ref(Date.now())
-const accumulatedBeforePause = ref(gameStore.currentGame?.elapsedMs ?? 0)
-let intervalId: ReturnType<typeof setInterval> | null = null
-
-// If game was restored paused, don't reset lastResumedAt
-if (!isRunning.value) {
-  lastResumedAt.value = 0
-}
-
-const formattedGameTime = computed(() => {
-  const totalSeconds = Math.floor((gameStore.currentGame?.elapsedMs ?? 0) / 1000)
-  const hours = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const seconds = totalSeconds % 60
-
-  const minutesPadded = String(minutes).padStart(2, '0')
-  const secondsPadded = String(seconds).padStart(2, '0')
-
-  if (hours > 0) return `${hours}:${minutesPadded}:${secondsPadded}`
-  return `${minutesPadded}:${secondsPadded}`
-})
-
-// Reset round time when turn changes
-watch(
-  () => gameStore.currentGame?.currentTurnPlayerIndex,
-  (newIndex) => {
-    if (gameStore.currentGame && newIndex !== undefined) {
-      if (!gameStore.currentGame.playerRoundTimeMs) gameStore.currentGame.playerRoundTimeMs = {}
-      const newPlayer = gameStore.currentGame.players[newIndex]
-      if (newPlayer) {
-        gameStore.currentGame.playerRoundTimeMs[newPlayer.id] = 0
-      }
-    }
-  },
+const formattedGameTime = computed(() =>
+  formatMsToTimer(gameStore.currentGame?.elapsedMs ?? 0),
 )
 
-// Reset local timer state when a new game starts
-watch(
-  () => gameStore.currentGame?.id,
-  () => {
-    const game = gameStore.currentGame
-    if (!game) return
-    accumulatedBeforePause.value = game.elapsedMs
-    isRunning.value = game.isRunning
-    if (isRunning.value) {
-      lastResumedAt.value = Date.now()
-    }
-  },
-)
-
-// Sync if store isRunning changes externally (e.g. endGame)
-watch(
-  () => gameStore.currentGame?.isRunning,
-  (storeIsRunning) => {
-    if (storeIsRunning === false && isRunning.value) {
-      // Game ended externally — pause the timer
-      accumulatedBeforePause.value = accumulatedBeforePause.value + (Date.now() - lastResumedAt.value)
-      isRunning.value = false
-    }
-  },
-)
-
-function tick() {
-  if (!gameStore.currentGame || !isRunning.value) return
-
-  gameStore.currentGame.elapsedMs = accumulatedBeforePause.value + (Date.now() - lastResumedAt.value)
-
-  // Per-player time tracking
-  if (!gameStore.currentGame.playerPlayTimeMs) gameStore.currentGame.playerPlayTimeMs = {}
-  if (!gameStore.currentGame.playerRoundTimeMs) gameStore.currentGame.playerRoundTimeMs = {}
-
-  // Total play time: increments for whoever has effective priority
-  const priorityPlayer = gameStore.effectivePriorityPlayer
-  if (priorityPlayer) {
-    gameStore.currentGame.playerPlayTimeMs[priorityPlayer.id] =
-      (gameStore.currentGame.playerPlayTimeMs[priorityPlayer.id] ?? 0) + TIMER_TICK_INTERVAL_MS
-  }
-
-  // Round time: increments for whoever currently holds the clock
-  // (priority player if someone responded, otherwise the turn player)
-  if (priorityPlayer) {
-    gameStore.currentGame.playerRoundTimeMs[priorityPlayer.id] =
-      (gameStore.currentGame.playerRoundTimeMs[priorityPlayer.id] ?? 0) + TIMER_TICK_INTERVAL_MS
-  }
+function handleToggle() {
+  toggleTimer()
+  tapFeedback()
 }
-
-function toggleTimer() {
-  if (isRunning.value) {
-    // Pausing: save the current elapsed time
-    accumulatedBeforePause.value = accumulatedBeforePause.value + (Date.now() - lastResumedAt.value)
-  } else {
-    // Resuming: reset the resume timestamp
-    lastResumedAt.value = Date.now()
-  }
-  isRunning.value = !isRunning.value
-
-  // Sync pause state to store for persistence
-  if (gameStore.currentGame) {
-    gameStore.currentGame.isRunning = isRunning.value
-  }
-}
-
-onMounted(() => {
-  // If game was restored and is running, sync lastResumedAt
-  if (isRunning.value) {
-    lastResumedAt.value = Date.now()
-  }
-  intervalId = setInterval(tick, TIMER_TICK_INTERVAL_MS)
-})
-
-onUnmounted(() => {
-  if (intervalId) clearInterval(intervalId)
-})
 </script>
 
 <style scoped>

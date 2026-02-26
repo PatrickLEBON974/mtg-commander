@@ -130,8 +130,9 @@
       <div class="px-4 py-5">
         <h3 class="mb-4 text-center text-base font-semibold text-text-primary">{{ t('game.layoutTitle') }}</h3>
         <div class="flex flex-wrap justify-center gap-3">
-          <!-- Default -->
+          <!-- Default (hidden at 5 players) -->
           <button
+            v-if="currentPlayerCount !== 5"
             class="flex flex-col items-center gap-2 rounded-xl px-4 py-3 card-lift"
             :class="settingsStore.layoutMode === 'default' ? 'bg-accent/20 ring-2 ring-accent' : 'bg-surface-card'"
             @click="selectLayoutMode('default')"
@@ -183,8 +184,9 @@
             </span>
           </button>
 
-          <!-- Star -->
+          <!-- Star (only for 4 players) -->
           <button
+            v-if="currentPlayerCount === 4"
             class="flex flex-col items-center gap-2 rounded-xl px-4 py-3 card-lift"
             :class="settingsStore.layoutMode === 'star' ? 'bg-accent/20 ring-2 ring-accent' : 'bg-surface-card'"
             @click="selectLayoutMode('star')"
@@ -300,6 +302,8 @@ const showLayoutPicker = ref(false)
 const showDiceRoller = ref(false)
 const showGameMenu = ref(false)
 
+const currentPlayerCount = computed(() => gameStore.currentGame?.players.length ?? 4)
+
 // Sync game menu modal state with shared fullscreen composable
 watch(isGameMenuOpen, (open) => {
   if (!open && showGameMenu.value) {
@@ -356,6 +360,16 @@ function selectLayoutMode(mode: LayoutMode) {
   settingsStore.layoutMode = mode
   showLayoutPicker.value = false
 }
+
+// Auto-correct layout mode for player counts that don't support it
+watch(currentPlayerCount, (count) => {
+  if (count === 5 && settingsStore.layoutMode === 'default') {
+    settingsStore.layoutMode = 'faceToFace'
+  }
+  if (count !== 4 && settingsStore.layoutMode === 'star') {
+    settingsStore.layoutMode = 'faceToFace'
+  }
+}, { immediate: true })
 
 // --- Game actions ---
 

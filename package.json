@@ -21,6 +21,7 @@
     "@boengli/capacitor-fullscreen": "^0.0.19",
     "@capacitor-community/sqlite": "^8.0.0",
     "@capacitor/android": "^8.1.0",
+    "@capacitor/app": "^8.0.1",
     "@capacitor/core": "^8.1.0",
     "@capacitor/haptics": "^8.0.0",
     "@capacitor/screen-orientation": "^8.0.1",

@@ -21,7 +21,7 @@
       v-if="showMarchingBorder"
       class="life-tracker-priority-track pointer-events-none absolute inset-0 z-[1] rounded-2xl"
     >
-      <div class="life-tracker-priority-spinner absolute inset-[-50%]" />
+      <div class="life-tracker-priority-spinner absolute inset-[-75%]" />
     </div>
 
     <!-- Rotating border glow — active turn -->
@@ -29,7 +29,7 @@
       v-if="isCurrentTurn && isActivePlayer && !isPriorityTaken"
       class="life-tracker-glow-track pointer-events-none absolute inset-0 z-[1] rounded-2xl"
     >
-      <div class="life-tracker-glow-spinner absolute inset-[-50%]" />
+      <div class="life-tracker-glow-spinner absolute inset-[-75%]" />
     </div>
 
     <!-- Life flash overlay -->
@@ -688,16 +688,19 @@ function onDetailClose() {
   background: conic-gradient(
     from 0deg,
     transparent 0%,
-    transparent 60%,
-    rgba(232, 96, 10, 0.3) 67%,
-    rgba(255, 180, 60, 0.7) 74%,
-    rgba(255, 220, 120, 0.9) 78%,
-    rgba(255, 180, 60, 0.7) 82%,
-    rgba(232, 96, 10, 0.3) 89%,
-    transparent 96%,
+    transparent 45%,
+    rgba(232, 96, 10, 0.15) 52%,
+    rgba(232, 96, 10, 0.3) 58%,
+    rgba(255, 180, 60, 0.6) 66%,
+    rgba(255, 220, 120, 0.9) 72%,
+    rgba(255, 180, 60, 0.6) 78%,
+    rgba(232, 96, 10, 0.3) 84%,
+    rgba(232, 96, 10, 0.15) 90%,
+    transparent 97%,
     transparent 100%
   );
-  animation: glow-spin 2.5s linear infinite;
+  animation: glow-spin 3s linear infinite;
+  filter: blur(1px);
 }
 
 @keyframes glow-spin {
@@ -720,16 +723,19 @@ function onDetailClose() {
   background: conic-gradient(
     from 0deg,
     transparent 0%,
-    transparent 60%,
-    rgba(74, 144, 226, 0.3) 67%,
-    rgba(100, 180, 255, 0.7) 74%,
-    rgba(150, 210, 255, 0.9) 78%,
-    rgba(100, 180, 255, 0.7) 82%,
-    rgba(74, 144, 226, 0.3) 89%,
-    transparent 96%,
+    transparent 45%,
+    rgba(74, 144, 226, 0.15) 52%,
+    rgba(74, 144, 226, 0.3) 58%,
+    rgba(100, 180, 255, 0.6) 66%,
+    rgba(150, 210, 255, 0.9) 72%,
+    rgba(100, 180, 255, 0.6) 78%,
+    rgba(74, 144, 226, 0.3) 84%,
+    rgba(74, 144, 226, 0.15) 90%,
+    transparent 97%,
     transparent 100%
   );
-  animation: priority-spin 2.5s linear infinite;
+  animation: priority-spin 3s linear infinite;
+  filter: blur(1px);
 }
 
 @keyframes priority-spin {

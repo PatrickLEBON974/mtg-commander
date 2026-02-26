@@ -76,8 +76,28 @@ export interface GameSettings {
   enableTimer: boolean
   enableTurnTimer: boolean
   turnTimerSeconds: number
+  activeTimerRuleIds: string[]
   activeBehaviorRuleIds: string[]
   selectedBehaviorProfileId: string
+}
+
+// ─── Timer Rules (simple rule engine for turn/game timers) ──────────
+
+export type RuleTriggerType = 'timer_b_remaining' | 'timer_b_expired' | 'timer_a_exceeded'
+export type RuleEffectType = 'overtime_display' | 'repeated_buzz' | 'aggressive_flash' | 'play_sound'
+
+export interface TimerRule {
+  id: string
+  name: string
+  trigger: {
+    type: RuleTriggerType
+    thresholdSeconds: number
+  }
+  effect: {
+    type: RuleEffectType
+    repeatIntervalSeconds?: number
+    soundType?: 'warning' | 'urgent'
+  }
 }
 
 // ─── Behavior Rules ──────────────────────────────────────────────────
@@ -241,6 +261,7 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   enableTimer: true,
   enableTurnTimer: false,
   turnTimerSeconds: 120,
+  activeTimerRuleIds: [],
   activeBehaviorRuleIds: [],
   selectedBehaviorProfileId: 'default',
 }

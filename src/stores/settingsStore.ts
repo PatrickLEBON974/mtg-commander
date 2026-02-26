@@ -1,10 +1,54 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
-import type { GameSettings, BehaviorRuleProfile, BehaviorRule, BehaviorRuleInProfile } from '@/types/game'
+import type { GameSettings, BehaviorRuleProfile, BehaviorRule, BehaviorRuleInProfile, TimerRule } from '@/types/game'
 import { DEFAULT_GAME_SETTINGS } from '@/types/game'
 import { saveSettings, loadSettings, savePreferences, loadPreferences, saveBehaviorProfiles, loadBehaviorProfiles } from '@/services/persistence'
 import { DEFAULT_PROFILES, BEHAVIOR_RULE_TEMPLATES } from '@/rules/behaviorRulePresets'
 import type { LayoutMode } from '@/services/persistence'
+
+// ─── Default timer rules (shipped with the app) ────────────────────
+const DEFAULT_TIMER_RULES: TimerRule[] = [
+  {
+    id: 'default_last_minute_flash',
+    name: 'Last minute flash',
+    trigger: { type: 'timer_b_remaining', thresholdSeconds: 60 },
+    effect: { type: 'aggressive_flash' },
+  },
+  {
+    id: 'default_expired_buzz',
+    name: 'Expired buzz',
+    trigger: { type: 'timer_b_expired', thresholdSeconds: 0 },
+    effect: { type: 'repeated_buzz', repeatIntervalSeconds: 30 },
+  },
+  {
+    id: 'default_expired_sound',
+    name: 'Expired sound',
+    trigger: { type: 'timer_b_expired', thresholdSeconds: 0 },
+    effect: { type: 'play_sound', soundType: 'urgent' },
+  },
+  {
+    id: 'default_overtime_display',
+    name: 'Overtime display',
+    trigger: { type: 'timer_b_expired', thresholdSeconds: 0 },
+    effect: { type: 'overtime_display' },
+  },
+]
+
+const TIMER_RULES_STORAGE_KEY = 'mtg_commander_timer_rules'
+
+function loadTimerRules(): TimerRule[] {
+  const stored = localStorage.getItem(TIMER_RULES_STORAGE_KEY)
+  if (!stored) return [...DEFAULT_TIMER_RULES]
+  try {
+    return JSON.parse(stored) ?? [...DEFAULT_TIMER_RULES]
+  } catch {
+    return [...DEFAULT_TIMER_RULES]
+  }
+}
+
+function saveTimerRules(rules: TimerRule[]) {
+  localStorage.setItem(TIMER_RULES_STORAGE_KEY, JSON.stringify(rules))
+}
 
 export const useSettingsStore = defineStore('settings', () => {
   const gameSettings = ref<GameSettings>({ ...DEFAULT_GAME_SETTINGS })
@@ -15,6 +59,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const language = ref<'fr' | 'en'>('fr')
   const cardSecondLanguage = ref<string | null>(null)
   const layoutMode = ref<LayoutMode>('default')
+  const timerRules = ref<TimerRule[]>(loadTimerRules())
 
   // ─── Behavior Rule Profiles ──────────────────────────────────────────
   const behaviorRuleProfiles = ref<BehaviorRuleProfile[]>(
@@ -31,6 +76,11 @@ export const useSettingsStore = defineStore('settings', () => {
   const savedSettings = loadSettings()
   if (savedSettings) {
     gameSettings.value = { ...DEFAULT_GAME_SETTINGS, ...savedSettings }
+  }
+
+  // If activeTimerRuleIds is empty (new install or first time), activate all defaults
+  if (gameSettings.value.activeTimerRuleIds.length === 0 && timerRules.value.length > 0) {
+    gameSettings.value.activeTimerRuleIds = timerRules.value.map((rule) => rule.id)
   }
 
   // Load persisted preferences on init
@@ -50,6 +100,9 @@ export const useSettingsStore = defineStore('settings', () => {
 
   // Persist profiles on change
   watch(behaviorRuleProfiles, (value) => saveBehaviorProfiles(value), { deep: true })
+
+  // Persist timer rules on change
+  watch(timerRules, (rules) => saveTimerRules(rules), { deep: true })
 
   // Persist preferences on change
   watch(
@@ -204,6 +257,27 @@ export const useSettingsStore = defineStore('settings', () => {
     gameSettings.value = { ...gameSettings.value, ...partial }
   }
 
+  // ─── Timer rule CRUD ─────────────────────────────────────────────────
+
+  function addTimerRule(rule: TimerRule) {
+    timerRules.value.push(rule)
+  }
+
+  function updateTimerRule(ruleId: string, updatedRule: TimerRule) {
+    const index = timerRules.value.findIndex((rule) => rule.id === ruleId)
+    if (index >= 0) {
+      timerRules.value[index] = updatedRule
+    }
+  }
+
+  function removeTimerRule(ruleId: string) {
+    timerRules.value = timerRules.value.filter((rule) => rule.id !== ruleId)
+    // Also remove from active rules in game settings
+    gameSettings.value.activeTimerRuleIds = gameSettings.value.activeTimerRuleIds.filter(
+      (id) => id !== ruleId,
+    )
+  }
+
   function resetToDefaults() {
     gameSettings.value = { ...DEFAULT_GAME_SETTINGS }
     behaviorRuleProfiles.value = structuredClone(DEFAULT_PROFILES)
@@ -245,5 +319,10 @@ export const useSettingsStore = defineStore('settings', () => {
     addRuleToProfile,
     deleteRuleFromProfile,
     saveCurrentAsProfile,
+    // Timer rules
+    timerRules,
+    addTimerRule,
+    updateTimerRule,
+    removeTimerRule,
   }
 })

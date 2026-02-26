@@ -51,6 +51,48 @@
         </ion-item>
       </ion-list>
 
+      <!-- Timer Rules Section -->
+      <ion-list :inset="true" data-animate>
+        <ion-list-header>
+          <ion-label>{{ t('settings.timerRules') }}</ion-label>
+        </ion-list-header>
+
+        <ion-item v-if="settingsStore.timerRules.length === 0" lines="none">
+          <ion-label color="medium">
+            <p>{{ t('settings.timerRulesDescription') }}</p>
+          </ion-label>
+        </ion-item>
+
+        <ion-item-sliding v-for="rule in settingsStore.timerRules" :key="rule.id">
+          <ion-item button lines="inset" @click="openEditRule(rule)">
+            <ion-icon :icon="ruleEffectIcon(rule.effect.type)" slot="start" :color="ruleEffectColor(rule.effect.type)" />
+            <ion-label>
+              <h2>{{ rule.name }}</h2>
+              <p>{{ ruleTriggerSummary(rule) }}</p>
+            </ion-label>
+          </ion-item>
+          <ion-item-options side="end">
+            <ion-item-option color="danger" @click="confirmDeleteRule(rule.id)">
+              <ion-icon :icon="trashOutline" slot="icon-only" />
+            </ion-item-option>
+          </ion-item-options>
+        </ion-item-sliding>
+
+        <ion-item lines="none">
+          <ion-button fill="clear" color="primary" @click="openAddRule">
+            <ion-icon :icon="addOutline" slot="start" />
+            {{ t('settings.addRule') }}
+          </ion-button>
+        </ion-item>
+      </ion-list>
+
+      <TimerRuleModal
+        :is-open="showTimerRuleModal"
+        :editing-rule="editingTimerRule"
+        @close="showTimerRuleModal = false"
+        @save="handleSaveRule"
+      />
+
       <!-- Offline Data Section -->
       <ion-list :inset="true" data-animate>
         <ion-list-header>
@@ -181,6 +223,9 @@ import {
   IonList,
   IonListHeader,
   IonItem,
+  IonItemSliding,
+  IonItemOptions,
+  IonItemOption,
   IonLabel,
   IonNote,
   IonSelect,
@@ -203,12 +248,19 @@ import {
   refreshOutline,
   trashOutline,
   languageOutline,
+  addOutline,
+  flashOutline,
+  volumeMuteOutline,
+  timerOutline,
+  pulseOutline,
 } from 'ionicons/icons'
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useOfflineStore } from '@/stores/offlineStore'
 import { usePageEnterAnimation } from '@/composables/usePageEnterAnimation'
 import { toLocaleCode } from '@/utils/i18nHelpers'
+import type { TimerRule, RuleEffectType } from '@/types/game'
+import TimerRuleModal from '@/components/settings/TimerRuleModal.vue'
 
 const { t, locale } = useI18n()
 const settingsStore = useSettingsStore()
@@ -231,6 +283,81 @@ function languageLabel(code: string): string {
 const downloadSizeLabel = computed(() =>
   settingsStore.cardSecondLanguage ? '~1.5 GB' : '~162 MB',
 )
+
+// --- Timer rules ---
+const showTimerRuleModal = ref(false)
+const editingTimerRule = ref<TimerRule | null>(null)
+
+function openAddRule() {
+  editingTimerRule.value = null
+  showTimerRuleModal.value = true
+}
+
+function openEditRule(rule: TimerRule) {
+  editingTimerRule.value = rule
+  showTimerRuleModal.value = true
+}
+
+function handleSaveRule(rule: TimerRule) {
+  if (editingTimerRule.value) {
+    settingsStore.updateTimerRule(rule.id, rule)
+  } else {
+    settingsStore.addTimerRule(rule)
+    // Auto-activate new rules
+    if (!settingsStore.gameSettings.activeTimerRuleIds.includes(rule.id)) {
+      settingsStore.gameSettings.activeTimerRuleIds.push(rule.id)
+    }
+  }
+}
+
+async function confirmDeleteRule(ruleId: string) {
+  const rule = settingsStore.timerRules.find((r) => r.id === ruleId)
+  if (!rule) return
+  const alert = await alertController.create({
+    header: t('common.delete'),
+    message: `${rule.name}?`,
+    buttons: [
+      { text: t('common.cancel'), role: 'cancel' },
+      {
+        text: t('common.delete'),
+        role: 'destructive',
+        handler: () => settingsStore.removeTimerRule(ruleId),
+      },
+    ],
+  })
+  await alert.present()
+}
+
+function ruleEffectIcon(effectType: RuleEffectType): string {
+  switch (effectType) {
+    case 'aggressive_flash': return flashOutline
+    case 'repeated_buzz': return pulseOutline
+    case 'play_sound': return volumeMuteOutline
+    case 'overtime_display': return timerOutline
+    default: return timerOutline
+  }
+}
+
+function ruleEffectColor(effectType: RuleEffectType): string {
+  switch (effectType) {
+    case 'aggressive_flash': return 'danger'
+    case 'repeated_buzz': return 'warning'
+    case 'play_sound': return 'primary'
+    case 'overtime_display': return 'medium'
+    default: return 'medium'
+  }
+}
+
+function ruleTriggerSummary(rule: TimerRule): string {
+  const triggerLabel = {
+    timer_b_remaining: t('settings.triggerTimerBRemaining'),
+    timer_b_expired: t('settings.triggerTimerBExpired'),
+    timer_a_exceeded: t('settings.triggerTimerAExceeded'),
+  }[rule.trigger.type] ?? rule.trigger.type
+
+  if (rule.trigger.type === 'timer_b_expired') return triggerLabel
+  return `${triggerLabel}: ${rule.trigger.thresholdSeconds}s`
+}
 
 function resetSettings() {
   settingsStore.resetToDefaults()

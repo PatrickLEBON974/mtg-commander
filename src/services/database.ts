@@ -106,15 +106,18 @@ export async function initDatabase(): Promise<void> {
   await database.execute(CREATE_META_TABLE)
 
   // Migrate: add columns introduced after initial schema
+  const existingColumns = await database.query('PRAGMA table_info(cards);')
+  const existingColumnNames = new Set(
+    (existingColumns.values ?? []).map((row: Record<string, unknown>) => row.name as string),
+  )
+
   for (const col of [
     { name: 'printed_name', def: 'TEXT' },
     { name: 'lang', def: "TEXT DEFAULT 'en'" },
     { name: 'oracle_id', def: 'TEXT' },
   ]) {
-    try {
+    if (!existingColumnNames.has(col.name)) {
       await database.execute(`ALTER TABLE cards ADD COLUMN ${col.name} ${col.def};`)
-    } catch {
-      // Column already exists — expected after first migration
     }
   }
 
