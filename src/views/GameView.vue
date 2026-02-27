@@ -129,6 +129,21 @@
             <span class="pause-ripple-ring pause-ripple-ring-1" />
             <span class="pause-ripple-ring pause-ripple-ring-2" />
           </div>
+          <!-- Undo button — slides in when paused -->
+          <Transition name="pause-undo">
+            <button
+              v-if="!isTimerRunning && gameStore.settings.enableTimer && canGoToPreviousTurn"
+              class="pause-undo-btn pointer-events-auto"
+              :style="nextTurnTransformStyle"
+              :aria-label="t('game.previousTurn')"
+              @click="goToPreviousTurn()"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M4 10h12a4 4 0 0 1 0 8H11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="m7 7-3 3 3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </Transition>
           <button
             ref="nextTurnBtnRef"
             class="floating-next-turn-btn pointer-events-auto"
@@ -554,6 +569,27 @@ watch(currentPlayerCount, (count) => {
   }
 }, { immediate: true })
 
+// --- Previous turn (pause mode) ---
+const canGoToPreviousTurn = computed(() => {
+  const game = gameStore.currentGame
+  if (!game) return false
+  return game.turnNumber > 1 || game.currentTurnPlayerIndex > 0
+})
+
+function goToPreviousTurn() {
+  const game = gameStore.currentGame
+  if (!game) return
+  const playerCount = game.players.length
+  if (playerCount === 0) return
+  const previousIndex = (game.currentTurnPlayerIndex - 1 + playerCount) % playerCount
+  if (previousIndex >= game.currentTurnPlayerIndex) {
+    game.turnNumber = Math.max(1, game.turnNumber - 1)
+  }
+  game.currentTurnPlayerIndex = previousIndex
+  playUndo()
+  toggleTimer()
+}
+
 // --- Game actions ---
 
 function handleUndo() {
@@ -731,6 +767,45 @@ function onTurnAdvanced() {
 .topbar-action-btn:active {
   transform: scale(0.9);
   background: rgba(255, 255, 255, 0.12);
+}
+
+/* Pause undo button */
+.pause-undo-btn {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.8);
+  margin-right: 120px;
+  transition: background 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pause-undo-btn:active {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(0.9);
+}
+
+/* Pause undo slide-in transition */
+.pause-undo-enter-active {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+}
+.pause-undo-leave-active {
+  transition: transform 0.2s ease-in, opacity 0.2s ease-in;
+}
+.pause-undo-enter-from {
+  transform: translateX(30px) scale(0.5);
+  opacity: 0;
+}
+.pause-undo-leave-to {
+  transform: translateX(30px) scale(0.5);
+  opacity: 0;
 }
 
 /* Desaturate game content when paused */
