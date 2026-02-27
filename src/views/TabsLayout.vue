@@ -235,6 +235,7 @@ onMounted(() => {
     onMove: (detail: GestureDetail) => {
       if (isDragLocked.value || shouldDisableSwipe.value) return
 
+      trackRef.value?.style.setProperty('will-change', 'transform')
       isAnimating.value = false
 
       let delta = detail.deltaX
@@ -288,9 +289,10 @@ onMounted(() => {
 
   gesture.enable()
 
-  // Reset animation flag when snap transition finishes
+  // Reset animation flag and remove will-change when snap transition finishes
   trackRef.value?.addEventListener('transitionend', () => {
     isAnimating.value = false
+    trackRef.value?.style.removeProperty('will-change')
   })
 })
 
@@ -310,7 +312,6 @@ onUnmounted(() => {
 .swipe-track {
   display: flex;
   height: 100%;
-  will-change: transform;
   backface-visibility: hidden;
 }
 

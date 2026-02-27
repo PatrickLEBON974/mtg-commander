@@ -401,11 +401,11 @@ function handleConfirm() {
 }
 
 .collapse-enter-active {
-  transition: all 0.25s ease-out;
+  transition: opacity 0.25s ease-out, max-height 0.25s ease-out;
   overflow: hidden;
 }
 .collapse-leave-active {
-  transition: all 0.2s ease-in;
+  transition: opacity 0.2s ease-in, max-height 0.2s ease-in;
   overflow: hidden;
 }
 .collapse-enter-from,

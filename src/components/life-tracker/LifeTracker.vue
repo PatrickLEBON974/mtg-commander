@@ -45,7 +45,9 @@
           @animationend="flashType = null"
         />
 
-        <!-- Full-card tap zones: left = -1, right = +1 (with swipe gesture detection) -->
+        <!-- Full-card tap zones: left = -1, right = +1 (with swipe gesture detection)
+             touchmove is intentionally non-passive: onSwipeTouchMove conditionally calls
+             preventDefault() when a flip gesture is detected to prevent page scroll -->
         <div
           class="life-tap-zone absolute inset-y-0 left-0 z-[2] w-1/2"
           data-sound="none"
@@ -54,6 +56,8 @@
           @touchend="onSwipeTouchEnd"
           @touchcancel.passive="onSwipeTouchCancel"
         />
+        <!-- touchmove is intentionally non-passive: onSwipeTouchMove conditionally calls
+             preventDefault() when a flip gesture is detected to prevent page scroll -->
         <div
           class="life-tap-zone absolute inset-y-0 right-0 z-[2] w-1/2"
           data-sound="none"
@@ -151,9 +155,9 @@
             data-sound="none"
             @click="changePoisonBy(1)"
             @contextmenu.prevent="changePoisonBy(-1)"
-            @touchstart.passive="startPoisonLongPress"
-            @touchend.passive="cancelPoisonLongPress"
-            @touchcancel.passive="cancelPoisonLongPress"
+            @touchstart.passive="poisonLongPress.start"
+            @touchend.passive="poisonLongPress.cancel"
+            @touchcancel.passive="poisonLongPress.cancel"
           >
             <IconPoison :size="14" class="shrink-0" :class="player.poisonCounters > 0 ? 'text-poison' : 'text-white/40'" />
             <span class="text-xs" :class="player.poisonCounters > 0 ? 'text-poison font-bold' : 'text-white/50'">
@@ -242,7 +246,7 @@
           <!-- Commander tax -->
           <span
             v-for="(commander, commanderIndex) in player.commanders"
-            :key="commanderIndex"
+            :key="commander.id"
             class="flex items-center gap-0.5 rounded-lg bg-white/5 px-2 py-0.5 text-xs text-white/50"
           >
             <IconMana :size="10" />
@@ -253,106 +257,91 @@
           <div v-if="showAnyActionButton" class="h-4 w-px bg-white/10" />
 
           <!-- Action buttons (merged into same row) -->
-          <div v-if="showEndTurnButton" class="pointer-events-auto relative">
-            <button
-              class="group flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg bg-life-negative/10 btn-press"
-              :aria-label="t('game.endTurn')"
-              data-sound="none"
-              @click="handleAdvanceTurn"
-              @touchstart.passive="showActionTooltip('endTurn')"
-              @touchend.passive="hideActionTooltip"
-              @touchcancel.passive="hideActionTooltip"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="text-life-negative drop-shadow-sm transition-transform duration-150 group-active:scale-90">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" opacity="0.3" />
-                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" />
-                <path d="M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                <path d="m12 16 4-4-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-            </button>
-            <Transition name="tooltip-pop">
-              <span v-if="activeTooltip === 'endTurn'" class="action-tooltip">{{ t('game.endTurn') }}</span>
-            </Transition>
-          </div>
+          <ActionButton
+            :show="showEndTurnButton"
+            bg-class="bg-life-negative/10"
+            tooltip-key="game.endTurn"
+            tooltip-id="endTurn"
+            :active-tooltip="activeTooltip"
+            sound="none"
+            @click="handleAdvanceTurn"
+            @tooltip-show="showActionTooltip"
+            @tooltip-hide="hideActionTooltip"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="text-life-negative drop-shadow-sm transition-transform duration-150 group-active:scale-90">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" opacity="0.3" />
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" />
+              <path d="M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              <path d="m12 16 4-4-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </ActionButton>
 
-          <div v-if="showReclaimTurnButton" class="pointer-events-auto relative">
-            <button
-              class="group flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg bg-arena-orange/15 btn-press"
-              :aria-label="t('game.reclaimPriority')"
-              @click="handleReleasePriority"
-              @touchstart.passive="showActionTooltip('reclaimPriority')"
-              @touchend.passive="hideActionTooltip"
-              @touchcancel.passive="hideActionTooltip"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="text-arena-orange drop-shadow-sm transition-transform duration-150 group-active:scale-90">
-                <path d="M4 12a8 8 0 0 1 14-5.3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                <path d="M15 3l3 3.7-4 .3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                <circle cx="12" cy="12" r="3" fill="currentColor" opacity="0.3" />
-              </svg>
-            </button>
-            <Transition name="tooltip-pop">
-              <span v-if="activeTooltip === 'reclaimPriority'" class="action-tooltip">{{ t('game.reclaimPriority') }}</span>
-            </Transition>
-          </div>
+          <ActionButton
+            :show="showReclaimTurnButton"
+            bg-class="bg-arena-orange/15"
+            tooltip-key="game.reclaimPriority"
+            tooltip-id="reclaimPriority"
+            :active-tooltip="activeTooltip"
+            @click="handleReleasePriority"
+            @tooltip-show="showActionTooltip"
+            @tooltip-hide="hideActionTooltip"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="text-arena-orange drop-shadow-sm transition-transform duration-150 group-active:scale-90">
+              <path d="M4 12a8 8 0 0 1 14-5.3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              <path d="M15 3l3 3.7-4 .3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              <circle cx="12" cy="12" r="3" fill="currentColor" opacity="0.3" />
+            </svg>
+          </ActionButton>
 
-          <div v-if="showStartTurnButton" class="pointer-events-auto relative">
-            <button
-              class="group flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg bg-life-positive/15 btn-press"
-              :aria-label="t('game.startTurn')"
-              data-sound="none"
-              @click="handleAdvanceTurn"
-              @touchstart.passive="showActionTooltip('startTurn')"
-              @touchend.passive="hideActionTooltip"
-              @touchcancel.passive="hideActionTooltip"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="text-life-positive drop-shadow-sm transition-transform duration-150 group-active:scale-90">
-                <path d="M6 4l14 8-14 8V4z" fill="currentColor" opacity="0.3" />
-                <path d="M6 4l14 8-14 8V4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
-              </svg>
-            </button>
-            <Transition name="tooltip-pop">
-              <span v-if="activeTooltip === 'startTurn'" class="action-tooltip">{{ t('game.startTurn') }}</span>
-            </Transition>
-          </div>
+          <ActionButton
+            :show="showStartTurnButton"
+            bg-class="bg-life-positive/15"
+            tooltip-key="game.startTurn"
+            tooltip-id="startTurn"
+            :active-tooltip="activeTooltip"
+            sound="none"
+            @click="handleAdvanceTurn"
+            @tooltip-show="showActionTooltip"
+            @tooltip-hide="hideActionTooltip"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="text-life-positive drop-shadow-sm transition-transform duration-150 group-active:scale-90">
+              <path d="M6 4l14 8-14 8V4z" fill="currentColor" opacity="0.3" />
+              <path d="M6 4l14 8-14 8V4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+            </svg>
+          </ActionButton>
 
-          <div v-if="showRespondButton" class="pointer-events-auto relative">
-            <button
-              class="group flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg bg-mana-blue/20 btn-press"
-              :aria-label="t('game.respond')"
-              @click="handleRespond"
-              @touchstart.passive="showActionTooltip('respond')"
-              @touchend.passive="hideActionTooltip"
-              @touchcancel.passive="hideActionTooltip"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="text-arena-blue drop-shadow-sm transition-transform duration-150 group-active:scale-90">
-                <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" fill="currentColor" opacity="0.25" />
-                <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
-              </svg>
-            </button>
-            <Transition name="tooltip-pop">
-              <span v-if="activeTooltip === 'respond'" class="action-tooltip">{{ t('game.respond') }}</span>
-            </Transition>
-          </div>
+          <ActionButton
+            :show="showRespondButton"
+            bg-class="bg-mana-blue/20"
+            tooltip-key="game.respond"
+            tooltip-id="respond"
+            :active-tooltip="activeTooltip"
+            @click="handleRespond"
+            @tooltip-show="showActionTooltip"
+            @tooltip-hide="hideActionTooltip"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="text-arena-blue drop-shadow-sm transition-transform duration-150 group-active:scale-90">
+              <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" fill="currentColor" opacity="0.25" />
+              <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+            </svg>
+          </ActionButton>
 
-          <div v-if="showReleasePriorityButton" class="pointer-events-auto relative">
-            <button
-              class="group flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg bg-arena-gold-light/15 btn-press"
-              :aria-label="t('game.releasePriority')"
-              @click="handleReleasePriority"
-              @touchstart.passive="showActionTooltip('releasePriority')"
-              @touchend.passive="hideActionTooltip"
-              @touchcancel.passive="hideActionTooltip"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="text-arena-gold-light drop-shadow-sm transition-transform duration-150 group-active:scale-90">
-                <path d="M12 5v7" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                <path d="M12 12l5 5M12 12l-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                <path d="M5 19h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.5" />
-              </svg>
-            </button>
-            <Transition name="tooltip-pop">
-              <span v-if="activeTooltip === 'releasePriority'" class="action-tooltip">{{ t('game.releasePriority') }}</span>
-            </Transition>
-          </div>
+          <ActionButton
+            :show="showReleasePriorityButton"
+            bg-class="bg-arena-gold-light/15"
+            tooltip-key="game.releasePriority"
+            tooltip-id="releasePriority"
+            :active-tooltip="activeTooltip"
+            @click="handleReleasePriority"
+            @tooltip-show="showActionTooltip"
+            @tooltip-hide="hideActionTooltip"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="text-arena-gold-light drop-shadow-sm transition-transform duration-150 group-active:scale-90">
+              <path d="M12 5v7" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              <path d="M12 12l5 5M12 12l-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M5 19h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.5" />
+            </svg>
+          </ActionButton>
         </div>
 
         <!-- Death overlay (animated) -->
@@ -441,7 +430,7 @@ import { useLifeDragGesture } from '@/composables/useLifeDragGesture'
 import { useCommanderDragDrop } from '@/composables/useCommanderDragDrop'
 import { usePlayerTimerDisplay } from '@/composables/usePlayerTimerDisplay'
 import { useTurnActions } from '@/composables/useTurnActions'
-import { useActionTooltip } from '@/composables/useActionTooltip'
+import { useLongPress } from '@/composables/useLongPress'
 import { useCardSwipeGesture } from '@/composables/useCardSwipeGesture'
 import LifeNumpad from './LifeNumpad.vue'
 import PlayerTokenPanel from './PlayerTokenPanel.vue'
@@ -457,6 +446,7 @@ import IconShield from '@/components/icons/game/IconShield.vue'
 import IconMana from '@/components/icons/game/IconMana.vue'
 import IconSkull from '@/components/icons/game/IconSkull.vue'
 import CornerAccent from '@/components/icons/decorative/CornerAccent.vue'
+import ActionButton from './ActionButton.vue'
 
 const props = defineProps<{
   player: PlayerState
@@ -488,47 +478,25 @@ const flashType = ref<'positive' | 'negative' | null>(null)
 // --- Flip axis: rotate in the swipe direction, accounting for card CSS rotation ---
 
 /**
- * Compute the CSS 3D rotation axis and angle sign so the card visually follows
- * the physical swipe direction, regardless of card CSS rotation (0/90/180/270°).
+ * Lookup table for CSS 3D rotation axis and angle sign based on card rotation
+ * and swipe direction. Replaces trig-based computation — the card only ever has
+ * 4 discrete orientations (0/90/180/270°).
  *
- * The .card-flip-inner div operates in the card's LOCAL coordinate system (which
- * is already rotated by `cardRotation` degrees on screen). We transform the
- * screen-space "trailing edge" vector into card-local space to pick the right axis.
- *
- * CSS 3D rotation behavior (verified against the spec rotation matrices):
- *   rotateX(+θ) → top goes INTO screen, bottom comes TOWARD viewer
- *   rotateX(-θ) → bottom goes INTO screen, top comes TOWARD viewer
- *   rotateY(+θ) → right goes INTO screen, left comes TOWARD viewer
- *   rotateY(-θ) → left goes INTO screen, right comes TOWARD viewer
- *
- * To make the card "follow the finger", the trailing edge must go into the screen.
+ * Each entry maps a swipe direction to the correct CSS rotation axis/sign so the
+ * card visually "follows the finger" regardless of card rotation.
  */
+const FLIP_AXIS_MAP: Record<string, Record<string, { axis: 'rotateX' | 'rotateY'; sign: number }>> = {
+  '0':   { up: { axis: 'rotateX', sign: 1 },  down: { axis: 'rotateX', sign: -1 }, left: { axis: 'rotateY', sign: -1 }, right: { axis: 'rotateY', sign: 1 } },
+  '90':  { up: { axis: 'rotateY', sign: -1 }, down: { axis: 'rotateY', sign: 1 },  left: { axis: 'rotateX', sign: -1 }, right: { axis: 'rotateX', sign: 1 } },
+  '180': { up: { axis: 'rotateX', sign: -1 }, down: { axis: 'rotateX', sign: 1 },  left: { axis: 'rotateY', sign: 1 },  right: { axis: 'rotateY', sign: -1 } },
+  '270': { up: { axis: 'rotateY', sign: 1 },  down: { axis: 'rotateY', sign: -1 }, left: { axis: 'rotateX', sign: 1 },  right: { axis: 'rotateX', sign: -1 } },
+}
+
 const flipAxisAndSign = computed(() => {
-  const dir = flipDirection.value
-  const rotationDeg = props.cardRotation ?? 0
-
-  // Trailing edge = screen-space unit vector of the card edge that follows the finger
-  // UP swipe → bottom edge trails (0,+1), DOWN → top (0,-1), LEFT → right (+1,0), RIGHT → left (-1,0)
-  const trailingX = dir === 'left' ? 1 : dir === 'right' ? -1 : 0
-  const trailingY = dir === 'up' ? 1 : dir === 'down' ? -1 : 0
-
-  // Transform from screen-space to card-local space using inverse of CSS rotate(R deg)
-  const rad = (-rotationDeg * Math.PI) / 180
-  const cosR = Math.cos(rad)
-  const sinR = Math.sin(rad)
-  const localX = trailingX * cosR - trailingY * sinR
-  const localY = trailingX * sinR + trailingY * cosR
-
-  if (Math.abs(localY) >= Math.abs(localX)) {
-    // Y-dominant in card space → rotateX (signs inverted per user preference)
-    return { axis: 'rotateX' as const, sign: localY > 0 ? 1 : -1 }
-  }
-  // X-dominant in card space → rotateY (signs inverted per user preference)
-  return { axis: 'rotateY' as const, sign: localX > 0 ? -1 : 1 }
+  const rotation = String(props.cardRotation ?? 0)
+  const direction = flipDirection.value ?? 'down'
+  return FLIP_AXIS_MAP[rotation]?.[direction] ?? { axis: 'rotateX' as const, sign: -1 }
 })
-
-const flipAxisFn = computed(() => flipAxisAndSign.value.axis)
-const flipAngleSign = computed(() => flipAxisAndSign.value.sign)
 
 /**
  * Stored axis/sign from the flip that opened the card back.
@@ -539,8 +507,8 @@ const storedFlipAxis = ref<'rotateX' | 'rotateY'>('rotateX')
 const storedFlipSign = ref(-1)
 
 /** Use computed axis when flipping forward, stored axis when card is already flipped */
-const effectiveFlipAxis = computed(() => isFlipped.value ? storedFlipAxis.value : flipAxisFn.value)
-const effectiveFlipSign = computed(() => isFlipped.value ? storedFlipSign.value : flipAngleSign.value)
+const effectiveFlipAxis = computed(() => isFlipped.value ? storedFlipAxis.value : flipAxisAndSign.value.axis)
+const effectiveFlipSign = computed(() => isFlipped.value ? storedFlipSign.value : flipAxisAndSign.value.sign)
 
 const flipInlineStyle = computed(() => {
   // During active drag: use inline transform for interactive feedback
@@ -595,8 +563,8 @@ const {
     },
     onFlip() {
       // Store the axis/sign computed for this specific swipe direction + card rotation
-      storedFlipAxis.value = flipAxisFn.value
-      storedFlipSign.value = flipAngleSign.value
+      storedFlipAxis.value = flipAxisAndSign.value.axis
+      storedFlipSign.value = flipAxisAndSign.value.sign
       isFlipped.value = true
     },
     onFlipBack() {
@@ -647,7 +615,25 @@ const {
   onLifeChange: (amount) => changeLifeBy(amount),
 })
 
-const { activeTooltip, showActionTooltip, hideActionTooltip } = useActionTooltip()
+// --- Action tooltip (inlined) ---
+type ActionTooltipKey = 'endTurn' | 'startTurn' | 'respond' | 'releasePriority' | 'reclaimPriority'
+const activeTooltip = ref<ActionTooltipKey | null>(null)
+let tooltipTimer: ReturnType<typeof setTimeout> | null = null
+
+function showActionTooltip(key: ActionTooltipKey) {
+  tooltipTimer = setTimeout(() => {
+    activeTooltip.value = key
+    if (settingsStore.hapticFeedback) tapFeedback()
+  }, LONG_PRESS_DURATION_MS)
+}
+
+function hideActionTooltip() {
+  if (tooltipTimer) {
+    clearTimeout(tooltipTimer)
+    tooltipTimer = null
+  }
+  activeTooltip.value = null
+}
 
 // --- Computed state ---
 
@@ -709,7 +695,7 @@ watch(() => props.player.isMonarch, (newValue, oldValue) => {
 })
 
 onUnmounted(() => {
-  cancelPoisonLongPress()
+  poisonLongPress.cancel()
   stopLifeRepeat()
   hideActionTooltip()
   cleanupCommanderDrag()
@@ -780,17 +766,10 @@ function changePoisonBy(amount: number) {
   emit('stateChanged')
 }
 
-let poisonLongPressTimer: ReturnType<typeof setTimeout> | null = null
-function startPoisonLongPress() {
-  poisonLongPressTimer = setTimeout(() => {
-    changePoisonBy(-1)
-    if (settingsStore.hapticFeedback) heavyFeedback()
-    poisonLongPressTimer = null
-  }, LONG_PRESS_DURATION_MS)
-}
-function cancelPoisonLongPress() {
-  if (poisonLongPressTimer) { clearTimeout(poisonLongPressTimer); poisonLongPressTimer = null }
-}
+const poisonLongPress = useLongPress(() => {
+  changePoisonBy(-1)
+  if (settingsStore.hapticFeedback) heavyFeedback()
+}, LONG_PRESS_DURATION_MS)
 
 // --- Commander (from card back) ---
 
@@ -935,36 +914,6 @@ void hasPriority
 .life-tracker-timer-zone {
   background: rgba(0, 0, 0, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-/* Action tooltip */
-.action-tooltip {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  white-space: nowrap;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  color: white;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(8px);
-  pointer-events: none;
-  z-index: 30;
-}
-
-.tooltip-pop-enter-active {
-  transition: opacity 0.15s ease-out, transform 0.15s ease-out;
-}
-.tooltip-pop-leave-active {
-  transition: opacity 0.1s ease-in, transform 0.1s ease-in;
-}
-.tooltip-pop-enter-from,
-.tooltip-pop-leave-to {
-  opacity: 0;
-  transform: translateX(-50%) scale(0.85) translateY(4px);
 }
 
 /* Aggressive flash — triggered by rules engine */

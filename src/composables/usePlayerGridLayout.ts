@@ -175,7 +175,6 @@ export function usePlayerGridLayout() {
   }
 
   return {
-    playerGridClass: computed(() => ''),
     gridStyle,
     getSlot,
     getCardRotation,

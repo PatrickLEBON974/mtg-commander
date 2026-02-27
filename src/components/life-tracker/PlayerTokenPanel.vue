@@ -75,9 +75,9 @@
         <IconExperience :size="10" class="text-arena-blue shrink-0" />
         <span class="counter-label">{{ t('playerDetail.experience') }}</span>
         <div class="stepper-controls" data-sound="none">
-          <button class="stepper-btn" @click="handleExperienceChange(-1)">-</button>
+          <button class="stepper-btn" :aria-label="t('aria.decreaseExperience')" @click="handleExperienceChange(-1)">-</button>
           <span class="stepper-val text-arena-blue" :class="{ 'opacity-40': player.experienceCounters === 0 }">{{ player.experienceCounters }}</span>
-          <button class="stepper-btn" @click="handleExperienceChange(1)">+</button>
+          <button class="stepper-btn" :aria-label="t('aria.increaseExperience')" @click="handleExperienceChange(1)">+</button>
         </div>
       </div>
 
@@ -86,9 +86,9 @@
         <IconEnergy :size="10" class="text-arena-gold shrink-0" />
         <span class="counter-label">{{ t('playerDetail.energy') }}</span>
         <div class="stepper-controls" data-sound="none">
-          <button class="stepper-btn" @click="handleEnergyChange(-1)">-</button>
+          <button class="stepper-btn" :aria-label="t('aria.decreaseEnergy')" @click="handleEnergyChange(-1)">-</button>
           <span class="stepper-val text-arena-gold" :class="{ 'opacity-40': player.energyCounters === 0 }">{{ player.energyCounters }}</span>
-          <button class="stepper-btn" @click="handleEnergyChange(1)">+</button>
+          <button class="stepper-btn" :aria-label="t('aria.increaseEnergy')" @click="handleEnergyChange(1)">+</button>
         </div>
       </div>
 
@@ -100,9 +100,9 @@
         </svg>
         <span class="counter-label">{{ t('tokens.rad') }}</span>
         <div class="stepper-controls" data-sound="none">
-          <button class="stepper-btn" @click="handleRadChange(-1)">-</button>
+          <button class="stepper-btn" :aria-label="t('aria.decreaseRad')" @click="handleRadChange(-1)">-</button>
           <span class="stepper-val text-green-400" :class="{ 'opacity-40': player.radCounters === 0 }">{{ player.radCounters }}</span>
-          <button class="stepper-btn" @click="handleRadChange(1)">+</button>
+          <button class="stepper-btn" :aria-label="t('aria.increaseRad')" @click="handleRadChange(1)">+</button>
         </div>
       </div>
 
@@ -119,6 +119,7 @@
             :key="pipLevel"
             class="ring-pip"
             :class="pipLevel <= player.ringLevel ? 'ring-pip-on' : 'ring-pip-off'"
+            :aria-label="t('aria.setRingLevel', { level: pipLevel })"
             @click="handleSetRingLevel(pipLevel === player.ringLevel ? 0 : pipLevel)"
           />
         </div>
@@ -186,6 +187,7 @@ import { computed, ref, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { PlayerState } from '@/types/game'
 import { useGameStore } from '@/stores/gameStore'
+import { useLongPress } from '@/composables/useLongPress'
 import { playExperienceChange, playEnergyChange, playCommanderCast, playInitiative, playMonarchCrown } from '@/services/sounds'
 import IconCrown from '@/components/icons/game/IconCrown.vue'
 import IconShield from '@/components/icons/game/IconShield.vue'
@@ -220,35 +222,26 @@ function showToast(message: string) {
 onBeforeUnmount(() => { if (toastTimer) clearTimeout(toastTimer) })
 
 /* ── Day/Night long-press to reset ── */
-let dayNightLongPressTimer: ReturnType<typeof setTimeout> | null = null
-let dayNightLongPressed = false
+const dayNightLongPress = useLongPress(() => {
+  if (gameStore.currentGame) {
+    gameStore.currentGame.dayNightState = null
+  }
+  showToast(t('tokens.dayNight') + ' ✕')
+}, 600)
 
 function onDayNightPointerDown() {
-  dayNightLongPressed = false
-  dayNightLongPressTimer = setTimeout(() => {
-    dayNightLongPressed = true
-    if (gameStore.currentGame) {
-      gameStore.currentGame.dayNightState = null
-    }
-    showToast(t('tokens.dayNight') + ' ✕')
-  }, 600)
+  dayNightLongPress.start()
 }
 
 function onDayNightPointerUp() {
-  if (dayNightLongPressTimer) {
-    clearTimeout(dayNightLongPressTimer)
-    dayNightLongPressTimer = null
-  }
-  if (!dayNightLongPressed) {
+  dayNightLongPress.cancel()
+  if (!dayNightLongPress.isTriggered()) {
     handleToggleDayNight()
   }
 }
 
 function onDayNightPointerLeave() {
-  if (dayNightLongPressTimer) {
-    clearTimeout(dayNightLongPressTimer)
-    dayNightLongPressTimer = null
-  }
+  dayNightLongPress.cancel()
 }
 
 /* ── Computed ── */
@@ -430,8 +423,11 @@ function handleCastCommander(commanderIndex: number) {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
+  padding: 8px;
+  margin: -8px;
+  box-sizing: content-box;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.7);
@@ -454,6 +450,9 @@ function handleCastCommander(commanderIndex: number) {
 .ring-pip {
   width: 15px;
   height: 15px;
+  padding: 14px;
+  margin: -14px;
+  box-sizing: content-box;
   border-radius: 50%;
   transition: background 0.15s, box-shadow 0.15s;
   -webkit-tap-highlight-color: transparent;

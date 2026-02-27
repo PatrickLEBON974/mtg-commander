@@ -49,6 +49,9 @@ export function useBehaviorRuleEngine() {
   // Intervals for repeated effects, keyed by `ruleId:effectIndex`
   const repeatedIntervals = new Map<string, ReturnType<typeof setInterval>>()
 
+  // Track rules with fireOnce that have already fired
+  const firedOnceRuleIds = new Set<string>()
+
   // ─── Computed outputs ────────────────────────────────────────────
 
   const isOvertimeDisplayActive = computed(() => overtimeDisplayFlag.value)
@@ -331,6 +334,14 @@ export function useBehaviorRuleEngine() {
           const rule = findRuleById(result.ruleId)
           if (!rule) continue
 
+          // Skip rules that have fireOnce set and have already fired
+          if (rule.fireOnce && firedOnceRuleIds.has(result.ruleId)) continue
+
+          // Track fireOnce rules
+          if (rule.fireOnce) {
+            firedOnceRuleIds.add(result.ruleId)
+          }
+
           const newState: ActiveRuleState = {
             ruleId: result.ruleId,
             activatedAt: Date.now(),
@@ -385,6 +396,7 @@ export function useBehaviorRuleEngine() {
 
   function clearAllState(): void {
     clearAllIntervals()
+    firedOnceRuleIds.clear()
     activeRuleStates.value = new Map()
     flashingPlayerIdSet.value = new Set()
     flashTimerZoneFlag.value = false

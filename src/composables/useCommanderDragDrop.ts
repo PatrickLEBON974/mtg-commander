@@ -145,6 +145,8 @@ export function useCommanderDragDrop(options: UseCommanderDragDropOptions) {
     commanderDragIndicator.appendChild(swordSvg)
     Object.assign(commanderDragIndicator.style, {
       position: 'fixed',
+      top: '0',
+      left: '0',
       zIndex: '100',
       pointerEvents: 'none',
       display: 'flex',
@@ -155,15 +157,14 @@ export function useCommanderDragDrop(options: UseCommanderDragDropOptions) {
       borderRadius: '50%',
       backgroundColor: 'rgba(245, 158, 11, 0.9)',
       boxShadow: '0 4px 20px rgba(245, 158, 11, 0.4), 0 2px 8px rgba(0,0,0,0.5)',
-      transform: 'translate(-50%, -50%)',
+      willChange: 'transform',
     })
     document.body.appendChild(commanderDragIndicator)
   }
 
   function moveCommanderDragIndicator(x: number, y: number) {
     if (commanderDragIndicator) {
-      commanderDragIndicator.style.left = `${x}px`
-      commanderDragIndicator.style.top = `${y}px`
+      commanderDragIndicator.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`
     }
   }
 

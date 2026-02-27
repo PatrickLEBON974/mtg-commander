@@ -316,6 +316,9 @@ export default {
     received: 'Received damage',
     removeDamage: 'Remove 1 damage',
   },
+  lifeNumpad: {
+    title: 'Set Life',
+  },
   commanderPicker: {
     title: 'Choose a commander',
     searchPlaceholder: 'Search for a commander...',
@@ -355,6 +358,13 @@ export default {
     poison: 'Poison: {count}. Tap +1, long press -1',
     commanderDamage: 'Commander damage: {damage}',
     playerEliminated: '{name} eliminated: {reason}',
+    decreaseExperience: 'Decrease experience counters',
+    increaseExperience: 'Increase experience counters',
+    decreaseEnergy: 'Decrease energy counters',
+    increaseEnergy: 'Increase energy counters',
+    decreaseRad: 'Decrease rad counters',
+    increaseRad: 'Increase rad counters',
+    setRingLevel: 'Set ring level to {level}',
   },
   dice: {
     title: 'Dice',

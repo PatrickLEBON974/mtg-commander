@@ -700,13 +700,23 @@ ion-content::part(scroll) {
    ANIMATION — Ambient glow pulse
    ============================================= */
 
-@keyframes glow-breathe {
-  0%, 100% { box-shadow: 0 0 8px var(--glow-color, rgba(232, 96, 10, 0.4)); }
-  50% { box-shadow: 0 0 20px var(--glow-color, rgba(232, 96, 10, 0.6)); }
+.glow-breathe {
+  position: relative;
 }
 
-.glow-breathe {
-  animation: glow-breathe 2s ease-in-out infinite;
+.glow-breathe::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 15px 2px var(--glow-color, rgba(232, 96, 10, 0.4));
+  animation: glow-breathe-opacity 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes glow-breathe-opacity {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.9; }
 }
 
 /* =============================================
@@ -726,13 +736,23 @@ ion-content::part(scroll) {
    ANIMATION — Low-life danger pulse
    ============================================= */
 
-@keyframes danger-pulse {
-  0%, 100% { border-color: rgba(239, 68, 68, 0.3); }
-  50% { border-color: rgba(239, 68, 68, 0.7); }
+.danger-pulse {
+  position: relative;
 }
 
-.danger-pulse {
-  animation: danger-pulse 1.5s ease-in-out infinite;
+.danger-pulse::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid rgba(239, 68, 68, 0.7);
+  animation: danger-pulse-opacity 1.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes danger-pulse-opacity {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
 }
 
 /* =============================================

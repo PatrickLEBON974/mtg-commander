@@ -1,8 +1,6 @@
 import { onUnmounted } from 'vue'
 import gsap from 'gsap'
-
-const prefersReducedMotion =
-  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+import { prefersReducedMotion } from '@/utils/motion'
 
 const MAX_ACTIVE_FLOATS = 5
 const activeFloats: HTMLElement[] = []
@@ -22,7 +20,7 @@ export function useFloatingNumbers(options: FloatingNumberOptions) {
   const localFloats: HTMLElement[] = []
 
   function addFloat(value: number, variant: 'life' | 'poison' | 'commander' = 'life') {
-    if (prefersReducedMotion) return
+    if (prefersReducedMotion.value) return
 
     const container = options.containerRef()
     if (!container) return

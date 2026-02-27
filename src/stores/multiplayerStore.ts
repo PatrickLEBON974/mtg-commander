@@ -140,10 +140,12 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
     const gameStore = useGameStore()
     if (!gameStore.currentGame) return
 
-    // Update turn info
-    gameStore.currentGame.currentTurnPlayerIndex = remoteState.currentTurnPlayerIndex
-    gameStore.currentGame.turnNumber = remoteState.turnNumber
-    gameStore.currentGame.isRunning = remoteState.isRunning
+    // Update turn info via gameStore action
+    gameStore.applyRemoteGameSync({
+      currentTurnPlayerIndex: remoteState.currentTurnPlayerIndex,
+      turnNumber: remoteState.turnNumber,
+      isRunning: remoteState.isRunning,
+    })
 
     // Update each player's state from remote
     for (const player of gameStore.currentGame.players) {
@@ -155,29 +157,38 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
         // A remote device may have dealt commander damage to this local player,
         // so we take the higher value for each damage source (damage only increases).
         const remoteDamage = remotePlayer.commanderDamageReceived ?? {}
+        const mergedDamage: Record<string, number> = { ...player.commanderDamageReceived }
+        let lifeDelta = 0
         for (const [sourceCommanderId, remoteDamageValue] of Object.entries(remoteDamage)) {
           const localDamageValue = player.commanderDamageReceived[sourceCommanderId] ?? 0
           if (remoteDamageValue > localDamageValue) {
-            const damageIncrease = remoteDamageValue - localDamageValue
-            player.commanderDamageReceived[sourceCommanderId] = remoteDamageValue
-            player.lifeTotal -= damageIncrease
+            lifeDelta -= remoteDamageValue - localDamageValue
+            mergedDamage[sourceCommanderId] = remoteDamageValue
           }
+        }
+        if (lifeDelta !== 0) {
+          gameStore.applyRemotePlayerSync(player.id, {
+            commanderDamageReceived: mergedDamage,
+            lifeTotal: player.lifeTotal + lifeDelta,
+          })
         }
         continue
       }
 
       // For remote players, accept full state from remote (their device is source of truth)
-      player.lifeTotal = Number.isFinite(remotePlayer.lifeTotal) ? remotePlayer.lifeTotal : player.lifeTotal
-      player.commanderDamageReceived = remotePlayer.commanderDamageReceived
-      player.poisonCounters = Number.isFinite(remotePlayer.poisonCounters) ? Math.max(0, remotePlayer.poisonCounters) : player.poisonCounters
-      player.experienceCounters = Number.isFinite(remotePlayer.experienceCounters) ? Math.max(0, remotePlayer.experienceCounters) : player.experienceCounters
-      player.energyCounters = Number.isFinite(remotePlayer.energyCounters) ? Math.max(0, remotePlayer.energyCounters) : player.energyCounters
-      player.isMonarch = remotePlayer.isMonarch
-      player.hasInitiative = remotePlayer.hasInitiative
-      player.commanders = remotePlayer.commanders.map((commander) => ({
-        ...commander,
-        id: commander.id || crypto.randomUUID(),
-      }))
+      gameStore.applyRemotePlayerSync(player.id, {
+        lifeTotal: Number.isFinite(remotePlayer.lifeTotal) ? remotePlayer.lifeTotal : player.lifeTotal,
+        commanderDamageReceived: remotePlayer.commanderDamageReceived,
+        poisonCounters: Number.isFinite(remotePlayer.poisonCounters) ? Math.max(0, remotePlayer.poisonCounters) : player.poisonCounters,
+        experienceCounters: Number.isFinite(remotePlayer.experienceCounters) ? Math.max(0, remotePlayer.experienceCounters) : player.experienceCounters,
+        energyCounters: Number.isFinite(remotePlayer.energyCounters) ? Math.max(0, remotePlayer.energyCounters) : player.energyCounters,
+        isMonarch: remotePlayer.isMonarch,
+        hasInitiative: remotePlayer.hasInitiative,
+        commanders: remotePlayer.commanders.map((commander) => ({
+          ...commander,
+          id: commander.id || crypto.randomUUID(),
+        })),
+      })
     }
   }
 
@@ -280,7 +291,51 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
       energyCounters: 0,
       isMonarch: false,
       hasInitiative: false,
+      cityBlessing: false,
+      ringLevel: 0,
+      radCounters: 0,
     }))
+  }
+
+  /**
+   * Push a remote player's state if the action modified a player on another device
+   * (e.g. commander damage dealt to another device's player).
+   */
+  function pushRemotePlayerIfNeeded(action: { type: string; playerId: string }) {
+    if (!isMultiplayer.value) return
+    if (
+      action.type === 'commander_damage' &&
+      action.playerId &&
+      !isLocalPlayer(action.playerId)
+    ) {
+      pushRemotePlayerState(action.playerId)
+    }
+  }
+
+  /**
+   * Sync local state after a game action: push local player state,
+   * and check if the latest history entry affected a remote player.
+   */
+  function syncAfterAction() {
+    if (!isMultiplayer.value) return
+    const gameStore = useGameStore()
+
+    pushLocalPlayerState()
+
+    // Check the most recent history entry for cross-device modifications
+    const history = gameStore.currentGame?.history
+    if (history && history.length > 0) {
+      pushRemotePlayerIfNeeded(history[history.length - 1]!)
+    }
+  }
+
+  /**
+   * Sync turn advancement to remote: push turn state and local player state.
+   */
+  function syncTurnAdvance() {
+    if (!isMultiplayer.value) return
+    pushTurnAdvance()
+    pushLocalPlayerState()
   }
 
   async function disconnect() {
@@ -326,8 +381,11 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
     joinExistingRoom,
     pushLocalPlayerState,
     pushRemotePlayerState,
+    pushRemotePlayerIfNeeded,
     pushFullGameState,
     pushTurnAdvance,
+    syncAfterAction,
+    syncTurnAdvance,
     createMultiplayerGame,
     disconnect,
   }

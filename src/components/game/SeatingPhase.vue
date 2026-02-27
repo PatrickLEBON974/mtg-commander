@@ -120,11 +120,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGameStore } from '@/stores/gameStore'
 import { usePlayerGridLayout } from '@/composables/usePlayerGridLayout'
 import { isDragLocked } from '@/composables/useDragLock'
+import { animateFLIP } from '@/utils/animateFLIP'
 
 const { t } = useI18n()
 const gameStore = useGameStore()
@@ -183,7 +184,7 @@ function rotatePositionsClockwise(direction: 1 | -1) {
   gameStore.setCustomPositionMap(newMap)
 }
 
-function animatedRotatePositions(direction: 1 | -1) {
+async function animatedRotatePositions(direction: 1 | -1) {
   const gridElement = seatingGridRef.value
   if (!gridElement) {
     rotatePositionsClockwise(direction)
@@ -191,44 +192,9 @@ function animatedRotatePositions(direction: 1 | -1) {
   }
 
   const cells = Array.from(gridElement.children) as HTMLElement[]
-
-  cells.forEach(cell => {
-    cell.style.transition = 'none'
-    cell.style.translate = ''
-  })
-  gridElement.getBoundingClientRect()
-
-  const firstRects = cells.map(cell => cell.getBoundingClientRect())
-
-  rotatePositionsClockwise(direction)
-
-  nextTick(() => {
-    cells.forEach((cell, i) => {
-      const last = cell.getBoundingClientRect()
-      const dx = firstRects[i]!.left - last.left
-      const dy = firstRects[i]!.top - last.top
-
-      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return
-
-      cell.style.transition = 'none'
-      cell.style.translate = `${dx}px ${dy}px`
-    })
-
-    gridElement.getBoundingClientRect()
-
-    cells.forEach(cell => {
-      if (cell.style.translate && cell.style.translate !== '0px 0px') {
-        cell.style.transition = 'translate 0.35s cubic-bezier(0.22, 1, 0.36, 1)'
-        cell.style.translate = '0 0'
-      }
-    })
-
-    setTimeout(() => {
-      cells.forEach(cell => {
-        cell.style.transition = ''
-        cell.style.translate = ''
-      })
-    }, 400)
+  await animateFLIP(cells, () => rotatePositionsClockwise(direction), {
+    duration: 0.35,
+    ease: 'cubic-bezier(0.22, 1, 0.36, 1)',
   })
 }
 
@@ -337,7 +303,7 @@ function onCardTouchEnd() {
   cleanupCardDrag()
 }
 
-function animateSwap(sourceIndex: number, targetIndex: number) {
+async function animateSwap(sourceIndex: number, targetIndex: number) {
   const gridElement = seatingGridRef.value
   if (!gridElement) {
     gameStore.swapPlayerPositions(sourceIndex, targetIndex)
@@ -352,45 +318,18 @@ function animateSwap(sourceIndex: number, targetIndex: number) {
     return
   }
 
-  const sourceRect = sourceCell.getBoundingClientRect()
-  const targetRect = targetCell.getBoundingClientRect()
+  const swappedCells = [sourceCell, targetCell]
 
-  gameStore.swapPlayerPositions(sourceIndex, targetIndex)
-  vibrate()
+  // Elevate swapped cells above others during animation
+  swappedCells.forEach(cell => { cell.style.zIndex = '5' })
 
-  nextTick(() => {
-    const affected = [
-      { cell: sourceCell, firstRect: sourceRect },
-      { cell: targetCell, firstRect: targetRect },
-    ]
-
-    affected.forEach(({ cell, firstRect }) => {
-      const lastRect = cell.getBoundingClientRect()
-      const dx = firstRect.left - lastRect.left
-      const dy = firstRect.top - lastRect.top
-      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return
-
-      cell.style.transition = 'none'
-      cell.style.translate = `${dx}px ${dy}px`
-      cell.style.zIndex = '5'
-    })
-
-    gridElement.getBoundingClientRect()
-
-    affected.forEach(({ cell }) => {
-      if (cell.style.translate && cell.style.translate !== '0px 0px') {
-        cell.style.transition = 'translate 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
-        cell.style.translate = '0 0'
-      }
-    })
-
-    setTimeout(() => {
-      affected.forEach(({ cell }) => {
-        cell.style.transition = ''
-        cell.style.translate = ''
-        cell.style.zIndex = ''
-      })
-    }, 450)
+  await animateFLIP(swappedCells, () => {
+    gameStore.swapPlayerPositions(sourceIndex, targetIndex)
+    vibrate()
+  }, {
+    duration: 0.4,
+    ease: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+    additionalResets: ['zIndex'],
   })
 }
 
@@ -416,10 +355,17 @@ function createDragIndicator(x: number, y: number) {
 
   dragIndicator = document.createElement('div')
   dragIndicator.className = 'seating-drag-indicator'
-  dragIndicator.innerHTML = `
-    <span class="drag-dot" style="background: var(--color-mana-${player.color})"></span>
-    <span class="drag-name">${player.name}</span>
-  `
+
+  const dotEl = document.createElement('span')
+  dotEl.className = 'seating-drag-dot'
+  dotEl.style.background = `var(--color-mana-${player.color})`
+
+  const nameEl = document.createElement('span')
+  nameEl.className = 'seating-drag-name'
+  nameEl.textContent = player.name
+
+  dragIndicator.appendChild(dotEl)
+  dragIndicator.appendChild(nameEl)
   dragIndicator.style.left = `${x}px`
   dragIndicator.style.top = `${y}px`
   document.body.appendChild(dragIndicator)
@@ -574,14 +520,14 @@ function updateDropTarget(x: number, y: number) {
   white-space: nowrap;
 }
 
-.drag-dot {
+.seating-drag-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
-.drag-name {
+.seating-drag-name {
   font-size: 13px;
   font-weight: 600;
   color: #fff;

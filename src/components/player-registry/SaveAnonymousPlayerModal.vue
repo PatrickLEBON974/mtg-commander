@@ -180,8 +180,14 @@ function handleSave() {
   -webkit-tap-highlight-color: transparent;
 }
 
-.mana-dot-button:hover {
-  transform: scale(1.15);
+@media (hover: hover) {
+  .mana-dot-button:hover {
+    transform: scale(1.15);
+  }
+}
+
+.mana-dot-button:active:not(.mana-dot-selected) {
+  transform: scale(1.1);
 }
 
 .mana-dot-selected {

@@ -1,9 +1,7 @@
 import { createAnimation } from '@ionic/vue'
 import type { Animation } from '@ionic/vue'
 import gsap from 'gsap'
-
-const prefersReducedMotion =
-  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+import { prefersReducedMotion } from '@/utils/motion'
 
 /**
  * Custom Ionic modal enter/leave animations with GSAP content stagger.
@@ -20,13 +18,13 @@ export function useModalAnimation() {
 
     const rootAnimation = createAnimation()
       .addElement(baseEl)
-      .duration(prefersReducedMotion ? 1 : 400)
+      .duration(prefersReducedMotion.value ? 1 : 400)
 
     if (backdropEl) {
       const backdropAnimation = createAnimation()
         .addElement(backdropEl)
         .fromTo('opacity', '0', 'var(--backdrop-opacity)')
-        .duration(prefersReducedMotion ? 1 : 400)
+        .duration(prefersReducedMotion.value ? 1 : 400)
       rootAnimation.addAnimation(backdropAnimation)
     }
 
@@ -35,12 +33,12 @@ export function useModalAnimation() {
         .addElement(wrapperEl)
         .fromTo('opacity', '0', '1')
         .fromTo('transform', 'scale(0.85)', 'scale(1)')
-        .duration(prefersReducedMotion ? 1 : 400)
+        .duration(prefersReducedMotion.value ? 1 : 400)
         .easing('cubic-bezier(0.25, 0.46, 0.45, 0.94)')
       rootAnimation.addAnimation(wrapperAnimation)
     }
 
-    if (!prefersReducedMotion) {
+    if (!prefersReducedMotion.value) {
       rootAnimation.onFinish(() => {
         // Stagger inner [data-animate] children after modal opens
         const animateTargets = wrapperEl?.querySelectorAll('[data-animate]')
@@ -71,13 +69,13 @@ export function useModalAnimation() {
 
     const rootAnimation = createAnimation()
       .addElement(baseEl)
-      .duration(prefersReducedMotion ? 1 : 250)
+      .duration(prefersReducedMotion.value ? 1 : 250)
 
     if (backdropEl) {
       const backdropAnimation = createAnimation()
         .addElement(backdropEl)
         .fromTo('opacity', 'var(--backdrop-opacity)', '0')
-        .duration(prefersReducedMotion ? 1 : 250)
+        .duration(prefersReducedMotion.value ? 1 : 250)
       rootAnimation.addAnimation(backdropAnimation)
     }
 
@@ -86,7 +84,7 @@ export function useModalAnimation() {
         .addElement(wrapperEl)
         .fromTo('opacity', '1', '0')
         .fromTo('transform', 'translateY(0%)', 'translateY(100%)')
-        .duration(prefersReducedMotion ? 1 : 250)
+        .duration(prefersReducedMotion.value ? 1 : 250)
         .easing('cubic-bezier(0.55, 0.06, 0.68, 0.19)')
       rootAnimation.addAnimation(wrapperAnimation)
     }

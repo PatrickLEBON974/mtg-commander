@@ -1,4 +1,6 @@
-import type { GameState, GameSettings } from '@/types/game'
+import type { GameState, GameSettings, GameAction } from '@/types/game'
+import type { GameRecord } from '@/types/player'
+import type { PlayerProfile } from '@/types/playerRegistry'
 import { SCRYFALL_CACHE_MAX_ENTRIES } from '@/config/gameConstants'
 
 const GAME_STATE_KEY = 'mtg_commander_game_state'
@@ -36,6 +38,14 @@ export function loadGameState(): GameState | null {
 }
 
 /**
+ * Legacy shape of GameAction before i18n migration — included a pre-translated
+ * `description` string instead of `descriptionKey` / `descriptionParams`.
+ */
+interface LegacyGameAction extends GameAction {
+  description?: string
+}
+
+/**
  * Migrate legacy GameAction entries that used a pre-translated `description`
  * string to the new `descriptionKey` / `descriptionParams` format.
  * Old actions without a `descriptionKey` get a literal fallback so the
@@ -43,8 +53,7 @@ export function loadGameState(): GameState | null {
  */
 function migrateGameActions(gameState: GameState): void {
   for (const action of gameState.history) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const legacyAction = action as any
+    const legacyAction = action as LegacyGameAction
     if (!action.descriptionKey && legacyAction.description) {
       action.descriptionKey = legacyAction.description
       delete legacyAction.description
@@ -93,6 +102,44 @@ export function saveBehaviorProfiles(profiles: unknown) {
 
 export function loadBehaviorProfiles(): unknown | null {
   return readLocalStorageJson<unknown | null>(BEHAVIOR_PROFILES_KEY, null)
+}
+
+// Game records (stats)
+const GAME_RECORDS_KEY = 'mtg_commander_game_records'
+
+export function saveGameRecords(records: GameRecord[]): void {
+  localStorage.setItem(GAME_RECORDS_KEY, JSON.stringify(records))
+}
+
+export function loadGameRecords(): GameRecord[] {
+  const stored = localStorage.getItem(GAME_RECORDS_KEY)
+  if (!stored) return []
+  try {
+    const parsed = JSON.parse(stored)
+    if (!Array.isArray(parsed)) return []
+    return parsed as GameRecord[]
+  } catch {
+    return []
+  }
+}
+
+// Player registry (profiles)
+const PLAYER_PROFILES_KEY = 'mtg_commander_player_profiles'
+
+export function savePlayerRegistry(profiles: PlayerProfile[]): void {
+  localStorage.setItem(PLAYER_PROFILES_KEY, JSON.stringify(profiles))
+}
+
+export function loadPlayerRegistry(): PlayerProfile[] {
+  const stored = localStorage.getItem(PLAYER_PROFILES_KEY)
+  if (!stored) return []
+  try {
+    const parsed = JSON.parse(stored)
+    if (!Array.isArray(parsed)) return []
+    return parsed as PlayerProfile[]
+  } catch {
+    return []
+  }
 }
 
 // Scryfall response cache

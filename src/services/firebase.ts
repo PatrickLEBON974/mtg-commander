@@ -60,6 +60,7 @@ export async function initFirebase(): Promise<Database> {
     await signInAnonymously(auth)
   } catch (error) {
     console.error('[Firebase] Anonymous auth failed:', error)
+    throw error
   }
   database = getDatabase(firebaseApp)
   return database

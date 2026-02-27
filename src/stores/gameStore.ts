@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onScopeDispose } from 'vue'
 import type {
   GameState,
   GamePhase,
@@ -9,9 +9,10 @@ import type {
   GameSettings,
 } from '@/types/game'
 import { DEFAULT_GAME_SETTINGS } from '@/types/game'
-import { COMMANDER_TAX_PER_CAST, GAME_STATE_SAVE_DEBOUNCE_MS, PLAYER_COLORS } from '@/config/gameConstants'
+import { COMMANDER_TAX_PER_CAST, GAME_STATE_SAVE_DEBOUNCE_MS, PLAYER_COLORS, MAX_HISTORY_LENGTH, LIFE_CHANGE_BATCH_MS } from '@/config/gameConstants'
 import { saveGameState, loadGameState } from '@/services/persistence'
 import { useStatsStore } from '@/stores/statsStore'
+import { applyActionReverse as applyReverse, applyActionForward as applyForward } from '@/utils/gameActionHandlers'
 
 function generateId(): string {
   return crypto.randomUUID()
@@ -102,8 +103,8 @@ export const useGameStore = defineStore('game', () => {
     { deep: true },
   )
 
-  function setPlayerProfileMapping(mapping: Record<string, { playerProfileId: string; deckId?: string }>) {
-    playerProfileMapping.value = mapping
+  function findPlayerById(playerId: string): PlayerState | undefined {
+    return currentGame.value?.players.find((player) => player.id === playerId)
   }
 
   const isGameActive = computed(() => currentGame.value !== null)
@@ -131,18 +132,29 @@ export const useGameStore = defineStore('game', () => {
   const effectivePriorityPlayer = computed(() => {
     if (!currentGame.value) return null
     if (currentGame.value.priorityPlayerId) {
-      return currentGame.value.players.find((p) => p.id === currentGame.value!.priorityPlayerId) ?? null
+      return findPlayerById(currentGame.value.priorityPlayerId) ?? null
     }
     return currentTurnPlayer.value
   })
 
-  function isPlayerDead(player: PlayerState): boolean {
+  function checkPlayerDead(player: PlayerState): boolean {
     if (player.lifeTotal <= 0) return true
     if (settings.value.poisonThreshold > 0 && player.poisonCounters >= settings.value.poisonThreshold) return true
     for (const damage of Object.values(player.commanderDamageReceived)) {
       if (damage >= settings.value.commanderDamageThreshold) return true
     }
     return false
+  }
+
+  const playerDeadStatusMap = computed<Record<string, boolean>>(() => {
+    if (!currentGame.value) return {}
+    return Object.fromEntries(
+      currentGame.value.players.map((player) => [player.id, checkPlayerDead(player)])
+    )
+  })
+
+  function isPlayerDead(player: PlayerState): boolean {
+    return playerDeadStatusMap.value[player.id] ?? false
   }
 
   function startNewGame() {
@@ -246,14 +258,15 @@ export const useGameStore = defineStore('game', () => {
       previousValue,
     }
     currentGame.value.history.push(action)
+    if (currentGame.value.history.length > MAX_HISTORY_LENGTH) {
+      currentGame.value.history = currentGame.value.history.slice(-MAX_HISTORY_LENGTH)
+    }
     redoStack.value = [] // Clear redo on new action
   }
 
-  const LIFE_CHANGE_BATCH_MS = 1000
-
   function changeLife(playerId: string, amount: number) {
     if (!currentGame.value) return
-    const player = currentGame.value.players.find((p) => p.id === playerId)
+    const player = findPlayerById(playerId)
     if (!player) return
 
     player.lifeTotal += amount
@@ -290,7 +303,7 @@ export const useGameStore = defineStore('game', () => {
 
   function dealCommanderDamage(targetPlayerId: string, commanderId: string, amount: number) {
     if (!currentGame.value) return
-    const targetPlayer = currentGame.value.players.find((p) => p.id === targetPlayerId)
+    const targetPlayer = findPlayerById(targetPlayerId)
     if (!targetPlayer) return
 
     const currentDamage = targetPlayer.commanderDamageReceived[commanderId] ?? 0
@@ -319,7 +332,7 @@ export const useGameStore = defineStore('game', () => {
     amount: number,
   ) {
     if (!currentGame.value) return
-    const player = currentGame.value.players.find((p) => p.id === playerId)
+    const player = findPlayerById(playerId)
     if (!player) return
 
     player[counterKey] = Math.max(0, player[counterKey] + amount)
@@ -345,7 +358,7 @@ export const useGameStore = defineStore('game', () => {
 
   function castCommander(playerId: string, commanderIndex: number) {
     if (!currentGame.value) return
-    const player = currentGame.value.players.find((p) => p.id === playerId)
+    const player = findPlayerById(playerId)
     if (!player || !player.commanders[commanderIndex]) return
 
     player.commanders[commanderIndex].castCount++
@@ -390,7 +403,7 @@ export const useGameStore = defineStore('game', () => {
     loseDescriptionKey: string,
   ) {
     if (!currentGame.value) return
-    const player = currentGame.value.players.find((p) => p.id === playerId)
+    const player = findPlayerById(playerId)
     if (!player) return
     const previousHolder = currentGame.value.players.find((p) => p[statusKey])
     const previousHolderId = previousHolder?.id
@@ -421,7 +434,7 @@ export const useGameStore = defineStore('game', () => {
 
   function toggleCityBlessing(playerId: string) {
     if (!currentGame.value) return
-    const player = currentGame.value.players.find((p) => p.id === playerId)
+    const player = findPlayerById(playerId)
     if (!player) return
     player.cityBlessing = !player.cityBlessing
     addAction(
@@ -435,7 +448,7 @@ export const useGameStore = defineStore('game', () => {
 
   function setRingLevel(playerId: string, level: number) {
     if (!currentGame.value) return
-    const player = currentGame.value.players.find((p) => p.id === playerId)
+    const player = findPlayerById(playerId)
     if (!player) return
     const previousLevel = player.ringLevel
     player.ringLevel = Math.max(0, Math.min(4, level))
@@ -454,7 +467,7 @@ export const useGameStore = defineStore('game', () => {
 
   function changeRadCounters(playerId: string, amount: number) {
     if (!currentGame.value) return
-    const player = currentGame.value.players.find((p) => p.id === playerId)
+    const player = findPlayerById(playerId)
     if (!player) return
     player.radCounters = Math.max(0, player.radCounters + amount)
     addAction('rad_change', playerId, amount, 'game.counterChange', {
@@ -490,7 +503,7 @@ export const useGameStore = defineStore('game', () => {
 
   function declareGameResult(playerId: string, result: 'winner' | 'eliminated' | 'surrender' | 'draw') {
     if (!currentGame.value) return
-    const player = currentGame.value.players.find((p) => p.id === playerId)
+    const player = findPlayerById(playerId)
     if (!player) return
 
     switch (result) {
@@ -515,21 +528,21 @@ export const useGameStore = defineStore('game', () => {
 
   function updatePlayerName(playerId: string, newName: string) {
     if (!currentGame.value) return
-    const player = currentGame.value.players.find((p) => p.id === playerId)
+    const player = findPlayerById(playerId)
     if (!player) return
     player.name = newName
   }
 
   function addPlayerCommander(playerId: string, cardName: string, imageUri: string) {
     if (!currentGame.value) return
-    const player = currentGame.value.players.find((p) => p.id === playerId)
+    const player = findPlayerById(playerId)
     if (!player) return
     player.commanders.push({ id: generateId(), cardName, imageUri, castCount: 0 })
   }
 
   function removePlayerCommander(playerId: string, commanderIndex: number) {
     if (!currentGame.value) return
-    const player = currentGame.value.players.find((p) => p.id === playerId)
+    const player = findPlayerById(playerId)
     if (!player) return
     player.commanders.splice(commanderIndex, 1)
   }
@@ -597,236 +610,20 @@ export const useGameStore = defineStore('game', () => {
   const canRedo = computed(() => redoStack.value.length > 0)
   const nextRedoAction = computed(() => redoStack.value.length > 0 ? redoStack.value[redoStack.value.length - 1] : null)
 
-  function applyActionReverse(action: GameAction) {
-    if (!currentGame.value) return
-    const player = currentGame.value.players.find((p) => p.id === action.playerId)
-    if (!player) return
-
-    switch (action.type) {
-      case 'life_change':
-        player.lifeTotal -= action.value
-        break
-      case 'commander_damage':
-        if (action.commanderId) {
-          const previousDamage = player.commanderDamageReceived[action.commanderId] ?? 0
-          player.commanderDamageReceived[action.commanderId] = Math.max(0, previousDamage - action.value)
-          player.lifeTotal += action.value
-        }
-        break
-      case 'poison_change':
-        player.poisonCounters = Math.max(0, player.poisonCounters - action.value)
-        break
-      case 'experience_change':
-        player.experienceCounters = Math.max(0, player.experienceCounters - action.value)
-        break
-      case 'energy_change':
-        player.energyCounters = Math.max(0, player.energyCounters - action.value)
-        break
-      case 'commander_cast': {
-        const commander = player.commanders[action.value]
-        if (commander) {
-          commander.castCount = Math.max(0, commander.castCount - 1)
-        }
-        break
-      }
-      case 'turn_advance': {
-        if (action.previousValue !== undefined) {
-          currentGame.value.currentTurnPlayerIndex = action.previousValue
-        } else {
-          // Fallback for old actions without previousValue
-          const playerCount = currentGame.value.players.length
-          currentGame.value.currentTurnPlayerIndex = (currentGame.value.currentTurnPlayerIndex - 1 + playerCount) % playerCount
-        }
-        currentGame.value.turnNumber = Math.max(1, currentGame.value.turnNumber - 1)
-        break
-      }
-      case 'monarch_change':
-        if (action.value === 1) {
-          // Was toggled ON -> undo by toggling OFF
-          player.isMonarch = false
-          // Restore previous monarch if one existed
-          if (action.targetPlayerId) {
-            const previousMonarch = currentGame.value.players.find((p) => p.id === action.targetPlayerId)
-            if (previousMonarch) previousMonarch.isMonarch = true
-          }
-        } else {
-          // Was toggled OFF -> undo by toggling ON
-          player.isMonarch = true
-        }
-        break
-      case 'initiative_change':
-        if (action.value === 1) {
-          // Was toggled ON -> undo by toggling OFF
-          player.hasInitiative = false
-          // Restore previous initiative holder if one existed
-          if (action.targetPlayerId) {
-            const previousHolder = currentGame.value.players.find((p) => p.id === action.targetPlayerId)
-            if (previousHolder) previousHolder.hasInitiative = true
-          }
-        } else {
-          // Was toggled OFF -> undo by toggling ON
-          player.hasInitiative = true
-        }
-        break
-      case 'city_blessing_change':
-        player.cityBlessing = !player.cityBlessing
-        break
-      case 'ring_level_change':
-        if (action.previousValue !== undefined) {
-          player.ringLevel = action.previousValue
-        }
-        break
-      case 'rad_change':
-        player.radCounters = Math.max(0, player.radCounters - action.value)
-        break
-      case 'day_night_change': {
-        if (!currentGame.value) break
-        const previousDayNightValue = action.previousValue
-        if (previousDayNightValue === -1) {
-          currentGame.value.dayNightState = null
-        } else {
-          currentGame.value.dayNightState = previousDayNightValue === 1 ? 'day' : 'night'
-        }
-        break
-      }
-      case 'game_result':
-        // Game result undo is complex — skip reversal for now
-        break
-      case 'behavior_rule_life':
-        player.lifeTotal -= action.value
-        break
-      case 'behavior_rule_counter':
-        if (action.commanderId === 'poisonCounters') {
-          player.poisonCounters = Math.max(0, player.poisonCounters - action.value)
-        } else if (action.commanderId === 'experienceCounters') {
-          player.experienceCounters = Math.max(0, player.experienceCounters - action.value)
-        } else if (action.commanderId === 'energyCounters') {
-          player.energyCounters = Math.max(0, player.energyCounters - action.value)
-        }
-        break
-      default: {
-        const _exhaustiveCheck: never = action.type
-        console.warn('Unhandled action type:', _exhaustiveCheck)
-      }
-    }
-  }
-
-  function applyActionForward(action: GameAction) {
-    if (!currentGame.value) return
-    const player = currentGame.value.players.find((p) => p.id === action.playerId)
-    if (!player) return
-
-    switch (action.type) {
-      case 'life_change':
-        player.lifeTotal += action.value
-        break
-      case 'commander_damage':
-        if (action.commanderId) {
-          const currentDamage = player.commanderDamageReceived[action.commanderId] ?? 0
-          player.commanderDamageReceived[action.commanderId] = currentDamage + action.value
-          player.lifeTotal -= action.value
-        }
-        break
-      case 'poison_change':
-        player.poisonCounters = Math.max(0, player.poisonCounters + action.value)
-        break
-      case 'experience_change':
-        player.experienceCounters = Math.max(0, player.experienceCounters + action.value)
-        break
-      case 'energy_change':
-        player.energyCounters = Math.max(0, player.energyCounters + action.value)
-        break
-      case 'commander_cast': {
-        const commander = player.commanders[action.value]
-        if (commander) {
-          commander.castCount++
-        }
-        break
-      }
-      case 'turn_advance': {
-        const playerCount = currentGame.value.players.length
-        if (playerCount === 0) break
-        let nextIndex = (currentGame.value.currentTurnPlayerIndex + 1) % playerCount
-        let checkedCount = 0
-        while (checkedCount < playerCount) {
-          const candidate = currentGame.value.players[nextIndex]
-          if (candidate && !isPlayerDead(candidate)) break
-          checkedCount++
-          nextIndex = (nextIndex + 1) % playerCount
-        }
-        currentGame.value.currentTurnPlayerIndex = nextIndex
-        currentGame.value.turnNumber = action.value // restore the turn number from the action
-        break
-      }
-      case 'monarch_change':
-        if (action.value === 1) {
-          // Re-apply toggling ON: clear all, set this player
-          for (const otherPlayer of currentGame.value.players) {
-            otherPlayer.isMonarch = false
-          }
-          player.isMonarch = true
-        } else {
-          // Re-apply toggling OFF
-          player.isMonarch = false
-        }
-        break
-      case 'initiative_change':
-        if (action.value === 1) {
-          for (const otherPlayer of currentGame.value.players) {
-            otherPlayer.hasInitiative = false
-          }
-          player.hasInitiative = true
-        } else {
-          player.hasInitiative = false
-        }
-        break
-      case 'city_blessing_change':
-        player.cityBlessing = action.value === 1
-        break
-      case 'ring_level_change':
-        player.ringLevel = action.value
-        break
-      case 'rad_change':
-        player.radCounters = Math.max(0, player.radCounters + action.value)
-        break
-      case 'day_night_change': {
-        if (!currentGame.value) break
-        currentGame.value.dayNightState = action.value === 1 ? 'day' : 'night'
-        break
-      }
-      case 'game_result':
-        // Game result redo — skip for now
-        break
-      case 'behavior_rule_life':
-        player.lifeTotal += action.value
-        break
-      case 'behavior_rule_counter':
-        if (action.commanderId === 'poisonCounters') {
-          player.poisonCounters = Math.max(0, player.poisonCounters + action.value)
-        } else if (action.commanderId === 'experienceCounters') {
-          player.experienceCounters = Math.max(0, player.experienceCounters + action.value)
-        } else if (action.commanderId === 'energyCounters') {
-          player.energyCounters = Math.max(0, player.energyCounters + action.value)
-        }
-        break
-      default: {
-        const _exhaustiveCheck: never = action.type
-        console.warn('Unhandled action type:', _exhaustiveCheck)
-      }
-    }
-  }
-
   function undoLastAction() {
     if (!currentGame.value || currentGame.value.history.length === 0) return
     const lastAction = currentGame.value.history.pop()!
-    applyActionReverse(lastAction)
+    applyReverse(currentGame.value.players, lastAction, {
+      commanderDamageThreshold: settings.value.commanderDamageThreshold,
+      poisonThreshold: settings.value.poisonThreshold,
+    }, currentGame.value)
     redoStack.value.push(lastAction)
   }
 
   /** Undo actions until a specific player is no longer dead (max 50 to prevent infinite loop) */
   function undoUntilPlayerAlive(playerId: string) {
     if (!currentGame.value) return
-    const player = currentGame.value.players.find((p) => p.id === playerId)
+    const player = findPlayerById(playerId)
     if (!player) return
     let safety = 50
     while (isPlayerDead(player) && currentGame.value.history.length > 0 && safety-- > 0) {
@@ -837,7 +634,10 @@ export const useGameStore = defineStore('game', () => {
   function redoLastAction() {
     if (!currentGame.value || redoStack.value.length === 0) return
     const action = redoStack.value.pop()!
-    applyActionForward(action)
+    applyForward(currentGame.value.players, action, {
+      commanderDamageThreshold: settings.value.commanderDamageThreshold,
+      poisonThreshold: settings.value.poisonThreshold,
+    }, currentGame.value)
     currentGame.value.history.push(action)
   }
 
@@ -871,11 +671,37 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
+  function setPlayerDetails(playerId: string, details: { name?: string; color?: PlayerState['color'] }) {
+    if (!currentGame.value) return
+    const player = findPlayerById(playerId)
+    if (!player) return
+    if (details.name !== undefined) player.name = details.name
+    if (details.color !== undefined) player.color = details.color
+  }
+
+  function applyRemotePlayerSync(playerId: string, remoteData: Partial<PlayerState>) {
+    if (!currentGame.value) return
+    const player = findPlayerById(playerId)
+    if (!player) return
+    Object.assign(player, remoteData)
+  }
+
+  function applyRemoteGameSync(remoteState: { currentTurnPlayerIndex?: number; turnNumber?: number; isRunning?: boolean }) {
+    if (!currentGame.value) return
+    if (remoteState.currentTurnPlayerIndex !== undefined) currentGame.value.currentTurnPlayerIndex = remoteState.currentTurnPlayerIndex
+    if (remoteState.turnNumber !== undefined) currentGame.value.turnNumber = remoteState.turnNumber
+    if (remoteState.isRunning !== undefined) currentGame.value.isRunning = remoteState.isRunning
+  }
+
   function resetGame() {
     currentGame.value = null
     playerProfileMapping.value = {}
     localStorage.removeItem(PROFILE_MAPPING_KEY)
   }
+
+  onScopeDispose(() => {
+    if (saveDebounceTimer !== null) clearTimeout(saveDebounceTimer)
+  })
 
   return {
     currentGame,
@@ -922,7 +748,9 @@ export const useGameStore = defineStore('game', () => {
     redoLastAction,
     endGame,
     resetGame,
+    setPlayerDetails,
+    applyRemotePlayerSync,
+    applyRemoteGameSync,
     playerProfileMapping,
-    setPlayerProfileMapping,
   }
 })

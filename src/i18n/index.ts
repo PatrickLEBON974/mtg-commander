@@ -1,8 +1,8 @@
 import { createI18n } from 'vue-i18n'
-import fr from './locales/fr'
 import en from './locales/en'
+import fr from './locales/fr'
 
-export type MessageSchema = typeof fr
+export type MessageSchema = typeof en
 
 const i18n = createI18n<[MessageSchema], 'fr' | 'en'>({
   legacy: false,

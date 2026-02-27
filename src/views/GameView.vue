@@ -87,7 +87,6 @@
         <!-- Player grid -->
         <div
           class="grid min-h-0 flex-1 gap-2 p-2"
-          :class="playerGridClass"
           :style="gridStyle"
         >
           <div
@@ -308,7 +307,6 @@ import type { LayoutMode } from '@/services/persistence'
 import LifeTracker from '@/components/life-tracker/LifeTracker.vue'
 import { useGameClock } from '@/composables/useGameClock'
 import { formatMsToTimer } from '@/utils/time'
-import { tapFeedback } from '@/services/haptics'
 import { usePlayerGridLayout } from '@/composables/usePlayerGridLayout'
 import GameHistoryModal from '@/components/life-tracker/GameHistoryModal.vue'
 import AppModal from '@/components/ui/AppModal.vue'
@@ -332,12 +330,12 @@ const registryStore = usePlayerRegistryStore()
 const { flashingPlayerIds, flashTimerZone, announceMessages, isOvertimeDisplayActive } = useBehaviorRuleEngine()
 
 // Game clock (singleton — starts the RAF tick loop)
-const { isRunning: isTimerRunning, toggleTimer } = useGameClock()
+const { isRunning: isTimerRunning } = useGameClock()
 const formattedGameTime = computed(() =>
   formatMsToTimer(gameStore.currentGame?.elapsedMs ?? 0),
 )
 
-const { playerGridClass, gridStyle, getCardRotation, getInnerCornerStyle, cardOuterClasses, cardOuterStyle, cardRotationStyle } = usePlayerGridLayout()
+const { gridStyle, getCardRotation, getInnerCornerStyle, cardOuterClasses, cardOuterStyle, cardRotationStyle } = usePlayerGridLayout()
 
 const showHistory = ref(false)
 const showLayoutPicker = ref(false)
@@ -351,13 +349,9 @@ const nextTurnOffsetY = ref(0)
 const isNextTurnDragging = ref(false)
 let nextTurnDragStartX = 0
 let nextTurnDragStartY = 0
-let nextTurnHasMoved = false
-let nextTurnLastTapTime = 0
-let longPressTimer: ReturnType<typeof setTimeout> | null = null
-let longPressTriggered = false
 const DRAG_THRESHOLD = 6
-const DOUBLE_TAP_DELAY = 300
-const LONG_PRESS_DELAY = 500
+const SNAP_BACK_INACTIVITY_MS = 5000
+let snapBackTimer: ReturnType<typeof setTimeout> | null = null
 
 const priorityPlayerRotation = computed(() => {
   if (!settingsStore.autoOrientIcons) return 0
@@ -390,66 +384,51 @@ const nextTurnTransformStyle = computed(() => {
 function onNextTurnPointerDown(event: PointerEvent) {
   nextTurnDragStartX = event.clientX
   nextTurnDragStartY = event.clientY
-  nextTurnHasMoved = false
-  longPressTriggered = false
+  isNextTurnDragging.value = true
+  ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
   const target = event.currentTarget as HTMLElement
-  target.setPointerCapture(event.pointerId)
   target.addEventListener('pointermove', onNextTurnPointerMove)
   target.addEventListener('pointerup', onNextTurnPointerUp, { once: true })
   target.addEventListener('pointercancel', onNextTurnPointerUp, { once: true })
-
-  // Long-press → toggle pause
-  longPressTimer = setTimeout(() => {
-    if (!nextTurnHasMoved) {
-      longPressTriggered = true
-      toggleTimer()
-      tapFeedback()
-    }
-  }, LONG_PRESS_DELAY)
+  // Cancel any pending snap-back while interacting
+  if (snapBackTimer) { clearTimeout(snapBackTimer); snapBackTimer = null }
 }
 
 function onNextTurnPointerMove(event: PointerEvent) {
-  const deltaX = event.clientX - nextTurnDragStartX + nextTurnOffsetX.value
-  const deltaY = event.clientY - nextTurnDragStartY + nextTurnOffsetY.value
-  const distance = Math.sqrt(
-    (event.clientX - nextTurnDragStartX) ** 2 +
-    (event.clientY - nextTurnDragStartY) ** 2,
-  )
-  if (!nextTurnHasMoved && distance < DRAG_THRESHOLD) return
-  nextTurnHasMoved = true
-  if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null }
-  isNextTurnDragging.value = true
-  nextTurnOffsetX.value = deltaX
-  nextTurnOffsetY.value = deltaY
+  if (!isNextTurnDragging.value) return
+  nextTurnOffsetX.value += event.clientX - nextTurnDragStartX
+  nextTurnOffsetY.value += event.clientY - nextTurnDragStartY
   nextTurnDragStartX = event.clientX
   nextTurnDragStartY = event.clientY
 }
 
 function onNextTurnPointerUp(event: PointerEvent) {
-  if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null }
   const target = event.currentTarget as HTMLElement
   target.removeEventListener('pointermove', onNextTurnPointerMove)
+  if (!isNextTurnDragging.value) return
   isNextTurnDragging.value = false
-  if (!nextTurnHasMoved && !longPressTriggered) {
-    const now = Date.now()
-    if (now - nextTurnLastTapTime < DOUBLE_TAP_DELAY && (nextTurnOffsetX.value !== 0 || nextTurnOffsetY.value !== 0)) {
-      // Double-tap: snap back to center
-      snapNextTurnToCenter()
-    } else {
-      handleAdvanceTurn()
-    }
-    nextTurnLastTapTime = now
-  }
-  // Snap back to center if released near center (within 30px)
-  const distFromCenter = Math.sqrt(nextTurnOffsetX.value ** 2 + nextTurnOffsetY.value ** 2)
-  if (distFromCenter < 30) {
-    snapNextTurnToCenter()
+  const distance = Math.sqrt(
+    nextTurnOffsetX.value ** 2 + nextTurnOffsetY.value ** 2,
+  )
+  if (distance < DRAG_THRESHOLD) {
+    handleAdvanceTurn()
+  } else {
+    // Schedule snap back to center after inactivity
+    scheduleSnapBack()
   }
 }
 
 function snapNextTurnToCenter() {
   nextTurnOffsetX.value = 0
   nextTurnOffsetY.value = 0
+}
+
+function scheduleSnapBack() {
+  if (snapBackTimer) clearTimeout(snapBackTimer)
+  snapBackTimer = setTimeout(() => {
+    snapNextTurnToCenter()
+    snapBackTimer = null
+  }, SNAP_BACK_INACTIVITY_MS)
 }
 
 const currentPlayerCount = computed(() => gameStore.currentGame?.players.length ?? 4)
@@ -523,32 +502,6 @@ watch(currentPlayerCount, (count) => {
 
 // --- Game actions ---
 
-/**
- * If the given action targeted a remote player (e.g. commander damage dealt
- * to another device's player), push that player's updated state to Firebase.
- */
-function pushRemotePlayerIfNeeded(action: { type: string; playerId: string }) {
-  if (
-    action.type === 'commander_damage' &&
-    action.playerId &&
-    !multiplayerStore.isLocalPlayer(action.playerId)
-  ) {
-    multiplayerStore.pushRemotePlayerState(action.playerId)
-  }
-}
-
-function syncAfterAction() {
-  if (!multiplayerStore.isMultiplayer) return
-
-  multiplayerStore.pushLocalPlayerState()
-
-  // Check the most recent history entry for cross-device modifications
-  const history = gameStore.currentGame?.history
-  if (history && history.length > 0) {
-    pushRemotePlayerIfNeeded(history[history.length - 1]!)
-  }
-}
-
 function handleUndo() {
   // Capture the action that will be undone (last in history, before it's popped)
   const history = gameStore.currentGame?.history
@@ -561,7 +514,7 @@ function handleUndo() {
     multiplayerStore.pushLocalPlayerState()
     // If the undone action modified a remote player, push their reverted state
     if (actionToUndo) {
-      pushRemotePlayerIfNeeded(actionToUndo)
+      multiplayerStore.pushRemotePlayerIfNeeded(actionToUndo)
     }
   }
 }
@@ -577,7 +530,7 @@ function handleRedo() {
     multiplayerStore.pushLocalPlayerState()
     // If the redone action modified a remote player, push their updated state
     if (actionToRedo) {
-      pushRemotePlayerIfNeeded(actionToRedo)
+      multiplayerStore.pushRemotePlayerIfNeeded(actionToRedo)
     }
   }
 }
@@ -585,7 +538,7 @@ function handleRedo() {
 function handleAdvanceTurn() {
   gameStore.advanceTurn()
   playTurnAdvance()
-  syncTurnAdvance()
+  multiplayerStore.syncTurnAdvance()
 }
 
 async function confirmEndGame() {
@@ -693,17 +646,11 @@ function handleSkipAnonymousPlayer() {
 }
 
 function onPlayerStateChanged() {
-  syncAfterAction()
-}
-
-function syncTurnAdvance() {
-  if (!multiplayerStore.isMultiplayer) return
-  multiplayerStore.pushTurnAdvance()
-  multiplayerStore.pushLocalPlayerState()
+  multiplayerStore.syncAfterAction()
 }
 
 function onTurnAdvanced() {
-  syncTurnAdvance()
+  multiplayerStore.syncTurnAdvance()
 }
 </script>
 
@@ -771,10 +718,6 @@ function onTurnAdvanced() {
   background: rgba(0, 0, 0, 0.6);
 }
 
-@keyframes game-timer-flash {
-  0%, 100% { background-color: rgba(239, 68, 68, 0.05); }
-  50% { background-color: rgba(239, 68, 68, 0.25); }
-}
 .game-timer-flash {
   animation: game-timer-flash 0.8s ease-in-out infinite;
 }
@@ -824,10 +767,10 @@ function onTurnAdvanced() {
 }
 
 .announce-slide-enter-active {
-  transition: all 0.3s ease-out;
+  transition: opacity 0.3s ease-out, transform 0.3s ease-out;
 }
 .announce-slide-leave-active {
-  transition: all 0.2s ease-in;
+  transition: opacity 0.2s ease-in, transform 0.2s ease-in;
 }
 .announce-slide-enter-from {
   opacity: 0;

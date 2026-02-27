@@ -108,7 +108,7 @@ function handleResult(result: 'winner' | 'eliminated' | 'surrender' | 'draw') {
   gap: 8px;
   padding: 8px 10px;
   border-radius: 8px;
-  min-height: 38px;
+  min-height: 44px;
   transition: background 0.15s, box-shadow 0.15s;
   -webkit-tap-highlight-color: transparent;
 }

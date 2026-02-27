@@ -467,7 +467,7 @@ function onStatChange(field: string, event: Event) {
   color: rgba(255, 255, 255, 0.4);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: all 180ms ease;
+  transition: background 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
   white-space: nowrap;
 }
@@ -513,7 +513,7 @@ function onStatChange(field: string, event: Event) {
   background: var(--dot-color);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: all 180ms ease;
+  transition: opacity 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
   opacity: 0.3;
   flex-shrink: 0;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -545,7 +545,7 @@ function onStatChange(field: string, event: Event) {
   color: rgba(255, 255, 255, 0.35);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: all 180ms ease;
+  transition: background 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
@@ -585,7 +585,7 @@ function onStatChange(field: string, event: Event) {
   color: rgba(255, 255, 255, 0.3);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: all 180ms ease;
+  transition: background 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
@@ -617,7 +617,7 @@ function onStatChange(field: string, event: Event) {
   color: rgba(212, 168, 67, 0.5);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: all 180ms ease;
+  transition: background 180ms ease, border-color 180ms ease, color 180ms ease;
   width: 100%;
 }
 
@@ -696,13 +696,13 @@ function onStatChange(field: string, event: Event) {
   color: rgba(255, 255, 255, 0.3);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: all 180ms ease;
+  transition: background 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .rarity-gem {
   font-size: 10px;
-  transition: all 180ms ease;
+  transition: color 180ms ease;
 }
 
 .rarity--common .rarity-gem { color: #6b7280; }
@@ -789,9 +789,17 @@ function onStatChange(field: string, event: Event) {
 }
 
 .stat-input:focus {
-  outline: none;
   border-color: rgba(212, 168, 67, 0.4);
   box-shadow: 0 0 8px rgba(212, 168, 67, 0.15);
+}
+
+.stat-input:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.stat-input:focus-visible {
+  outline: 2px solid var(--color-arena-gold);
+  outline-offset: 2px;
 }
 
 .stat-separator {
@@ -817,7 +825,7 @@ function onStatChange(field: string, event: Event) {
   letter-spacing: 0.3px;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: all 150ms ease;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
   width: 100%;
 }
 

@@ -67,7 +67,7 @@
         <p class="text-center text-sm text-text-secondary">{{ t('commanderDamage.whichCommander') }}</p>
         <button
           v-for="(commander, commanderIndex) in selectedAttacker.commanders"
-          :key="commanderIndex"
+          :key="commander.id"
           class="attacker-card flex items-center gap-4 rounded-2xl p-4 active:scale-[0.97]"
           :style="{ '--card-mana': `var(--color-mana-${selectedAttacker.color})` }"
           @click="selectedCommanderIndex = commanderIndex"
@@ -201,16 +201,12 @@ const totalSteps = computed(() => {
 })
 
 // Auto-select attacker when opened via drag-drop
-watch(() => props.isOpen, (open) => {
-  if (open && props.initialAttackerId) {
-    const attacker = otherPlayers.value.find((p) => p.id === props.initialAttackerId)
-    if (attacker) {
-      selectAttacker(attacker)
-    }
+watch([() => props.isOpen, () => props.initialAttackerId], ([open, attackerId]) => {
+  if (open && attackerId) {
+    const foundAttacker = otherPlayers.value.find((p) => p.id === attackerId)
+    if (foundAttacker) selectAttacker(foundAttacker)
   }
-  if (!open) {
-    resetSelection()
-  }
+  if (!open) resetSelection()
 })
 
 const otherPlayers = computed(() =>

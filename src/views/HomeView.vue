@@ -239,10 +239,9 @@ function confirmNewGame(confirmedPlayerConfigs: PlayerConfigExtended[]) {
   // Apply player names, colors, and commanders from modal config
   const mapping: Record<string, { playerProfileId: string; deckId?: string }> = {}
   confirmedPlayerConfigs.forEach((config, index) => {
-    const player = gameStore.currentGame!.players[index]
+    const player = gameStore.currentGame?.players[index]
     if (player) {
-      player.name = config.name
-      player.color = config.color
+      gameStore.setPlayerDetails(player.id, { name: config.name, color: config.color })
       if (config.playerProfileId) {
         mapping[player.id] = {
           playerProfileId: config.playerProfileId,
@@ -260,7 +259,7 @@ function confirmNewGame(confirmedPlayerConfigs: PlayerConfigExtended[]) {
       }
     }
   })
-  gameStore.setPlayerProfileMapping(mapping)
+  gameStore.playerProfileMapping = mapping
   router.push('/game')
 }
 

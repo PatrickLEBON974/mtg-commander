@@ -1,21 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import type { GameRecord } from '@/types/player'
-import { MAX_RECENT_GAMES } from '@/config/gameConstants'
-
-const STORAGE_KEY = 'mtg_commander_game_records'
-
-function loadGameRecords(): GameRecord[] {
-  const stored = localStorage.getItem(STORAGE_KEY)
-  if (!stored) return []
-  try {
-    const parsed = JSON.parse(stored)
-    if (!Array.isArray(parsed)) return []
-    return parsed as GameRecord[]
-  } catch {
-    return []
-  }
-}
+import { MAX_RECENT_GAMES, MAX_STORED_GAME_RECORDS } from '@/config/gameConstants'
+import { loadGameRecords, saveGameRecords } from '@/services/persistence'
 
 export const useStatsStore = defineStore('stats', () => {
   const gameRecords = ref<GameRecord[]>(loadGameRecords())
@@ -23,7 +10,7 @@ export const useStatsStore = defineStore('stats', () => {
   watch(
     gameRecords,
     (records) => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
+      saveGameRecords(records)
     },
     { deep: true },
   )
@@ -33,6 +20,9 @@ export const useStatsStore = defineStore('stats', () => {
       ...record,
       id: crypto.randomUUID(),
     })
+    if (gameRecords.value.length > MAX_STORED_GAME_RECORDS) {
+      gameRecords.value = gameRecords.value.slice(-MAX_STORED_GAME_RECORDS)
+    }
   }
 
   const totalGamesPlayed = computed(() => gameRecords.value.length)

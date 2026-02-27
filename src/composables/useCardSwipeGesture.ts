@@ -1,5 +1,6 @@
 import { ref, type Ref } from 'vue'
 import { isDragLocked } from '@/composables/useDragLock'
+import { useLongPress } from '@/composables/useLongPress'
 
 // Thresholds for gesture detection
 const TAP_MAX_DISTANCE = 10
@@ -54,8 +55,6 @@ export function useCardSwipeGesture(
   let activeSide: 'left' | 'right' = 'left'
   let gestureDecided = false
   let isFlipGesture = false
-  let longPressTimer: ReturnType<typeof setTimeout> | null = null
-  let longPressTriggered = false
   /** Which screen-space axis controls flip progress ('x' or 'y') */
   let progressAxis: 'x' | 'y' = 'y'
   /** Sign multiplier so progress is always positive in the swipe direction */
@@ -65,12 +64,11 @@ export function useCardSwipeGesture(
   const flipDirection = ref<FlipAxis>('up')
   const isGestureActive = ref(false)
 
-  function clearLongPressTimer() {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer)
-      longPressTimer = null
+  const longPress = useLongPress(() => {
+    if (!gestureDecided) {
+      callbacks.onLongPressStart(activeSide)
     }
-  }
+  }, LONG_PRESS_MIN_DURATION_MS)
 
   function onTouchStart(event: TouchEvent, side: 'left' | 'right') {
     const touch = event.touches[0]
@@ -82,18 +80,11 @@ export function useCardSwipeGesture(
     activeSide = side
     gestureDecided = false
     isFlipGesture = false
-    longPressTriggered = false
     isGestureActive.value = true
     flipDragProgress.value = isFlipped.value ? 1 : 0
 
-    clearLongPressTimer()
-    longPressTimer = setTimeout(() => {
-      if (!gestureDecided) {
-        longPressTriggered = true
-        callbacks.onLongPressStart(activeSide)
-      }
-      longPressTimer = null
-    }, LONG_PRESS_MIN_DURATION_MS)
+    longPress.reset()
+    longPress.start()
   }
 
   function onTouchMove(event: TouchEvent) {
@@ -107,10 +98,10 @@ export function useCardSwipeGesture(
 
     // Cancel long press if moved enough
     if (distance > TAP_MAX_DISTANCE) {
-      clearLongPressTimer()
-      if (longPressTriggered) {
+      longPress.cancel()
+      if (longPress.isTriggered()) {
         callbacks.onLongPressEnd()
-        longPressTriggered = false
+        longPress.reset()
       }
     }
 
@@ -165,11 +156,11 @@ export function useCardSwipeGesture(
 
   function onTouchEnd(_event: TouchEvent) {
     if (!isGestureActive.value) return
-    clearLongPressTimer()
+    longPress.cancel()
 
     const elapsed = Date.now() - startTime
 
-    if (longPressTriggered) {
+    if (longPress.isTriggered()) {
       callbacks.onLongPressEnd()
       reset()
       return
@@ -196,8 +187,8 @@ export function useCardSwipeGesture(
   }
 
   function onTouchCancel() {
-    clearLongPressTimer()
-    if (longPressTriggered) {
+    longPress.cancel()
+    if (longPress.isTriggered()) {
       callbacks.onLongPressEnd()
     }
     reset()
@@ -207,13 +198,13 @@ export function useCardSwipeGesture(
     isGestureActive.value = false
     gestureDecided = false
     isFlipGesture = false
-    longPressTriggered = false
+    longPress.reset()
     isDragLocked.value = false
     flipDragProgress.value = isFlipped.value ? 1 : 0
   }
 
   function cleanup() {
-    clearLongPressTimer()
+    longPress.cancel()
     reset()
   }
 

@@ -3,20 +3,7 @@ import { ref, computed, watch } from 'vue'
 import type { PlayerProfile, Deck, CommanderCardSnapshot } from '@/types/playerRegistry'
 import type { ManaColor } from '@/types/game'
 import { MAX_PLAYER_PROFILES, MAX_DECKS_PER_PLAYER } from '@/config/gameConstants'
-
-const STORAGE_KEY = 'mtg_commander_player_profiles'
-
-function loadPlayerProfiles(): PlayerProfile[] {
-  const stored = localStorage.getItem(STORAGE_KEY)
-  if (!stored) return []
-  try {
-    const parsed = JSON.parse(stored)
-    if (!Array.isArray(parsed)) return []
-    return parsed as PlayerProfile[]
-  } catch {
-    return []
-  }
-}
+import { loadPlayerRegistry, savePlayerRegistry } from '@/services/persistence'
 
 export function generateDeckName(commanders: CommanderCardSnapshot[]): string {
   if (commanders.length === 0) return ''
@@ -24,12 +11,12 @@ export function generateDeckName(commanders: CommanderCardSnapshot[]): string {
 }
 
 export const usePlayerRegistryStore = defineStore('playerRegistry', () => {
-  const playerProfiles = ref<PlayerProfile[]>(loadPlayerProfiles())
+  const playerProfiles = ref<PlayerProfile[]>(loadPlayerRegistry())
 
   watch(
     playerProfiles,
     (profiles) => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles))
+      savePlayerRegistry(profiles)
     },
     { deep: true },
   )

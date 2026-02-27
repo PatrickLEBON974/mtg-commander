@@ -1,4 +1,5 @@
-import { createApp, watch, type Ref } from 'vue'
+import { createApp, watch } from 'vue'
+import type { Composer } from 'vue-i18n'
 import { createPinia } from 'pinia'
 import { IonicVue } from '@ionic/vue'
 import { SplashScreen } from '@capacitor/splash-screen'
@@ -44,15 +45,16 @@ router.isReady().then(async () => {
 
   // Sync i18n locale with user settings
   const settingsStore = useSettingsStore()
-  ;(i18n.global.locale as unknown as Ref<string>).value = settingsStore.language
+  const i18nGlobal = i18n.global as unknown as Composer
+  i18nGlobal.locale.value = settingsStore.language
 
   // Sync html lang attribute with locale
   document.documentElement.lang = settingsStore.language
-  watch(
+  const stopLocaleWatch = watch(
     () => settingsStore.language,
     (newLang) => {
       document.documentElement.lang = newLang
-      ;(i18n.global.locale as unknown as Ref<string>).value = newLang
+      i18nGlobal.locale.value = newLang
     },
   )
 

@@ -1,3 +1,5 @@
+import type en from './en'
+
 export default {
   common: {
     close: 'Fermer',
@@ -316,6 +318,9 @@ export default {
     received: 'Degats recus',
     removeDamage: 'Retirer 1 degat',
   },
+  lifeNumpad: {
+    title: 'Modifier la vie',
+  },
   commanderPicker: {
     title: 'Choisir un commandant',
     searchPlaceholder: 'Rechercher un commandant...',
@@ -355,6 +360,13 @@ export default {
     poison: 'Poison: {count}. Tap +1, appui long -1',
     commanderDamage: 'Degats commandant: {damage}',
     playerEliminated: '{name} elimine: {reason}',
+    decreaseExperience: 'Diminuer les compteurs d\'experience',
+    increaseExperience: 'Augmenter les compteurs d\'experience',
+    decreaseEnergy: 'Diminuer les compteurs d\'energie',
+    increaseEnergy: 'Augmenter les compteurs d\'energie',
+    decreaseRad: 'Diminuer les compteurs de radiation',
+    increaseRad: 'Augmenter les compteurs de radiation',
+    setRingLevel: 'Definir le niveau de l\'anneau a {level}',
   },
   dice: {
     title: 'Des',
@@ -507,4 +519,4 @@ export default {
     announceCommanderDanger: 'DANGER COMMANDANT',
     announceEliminated: '{name} ELIMINE',
   },
-}
+} satisfies typeof en

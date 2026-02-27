@@ -1,8 +1,6 @@
 import { onMounted, onUnmounted } from 'vue'
 import gsap from 'gsap'
-
-const prefersReducedMotion =
-  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+import { prefersReducedMotion } from '@/utils/motion'
 
 /**
  * Choreographed page-enter animation using GSAP timeline.
@@ -22,7 +20,7 @@ export function usePageEnterAnimation(rootSelector = 'ion-content') {
     const targets = container.querySelectorAll('[data-animate]')
     if (targets.length === 0) return
 
-    if (prefersReducedMotion) {
+    if (prefersReducedMotion.value) {
       gsap.set(targets, { opacity: 1, y: 0 })
       return
     }

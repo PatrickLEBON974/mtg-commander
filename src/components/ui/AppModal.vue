@@ -2,8 +2,8 @@
   <ion-modal
     :is-open="isOpen"
     v-bind="$attrs"
-    :enter-animation="enterAnimation"
-    :leave-animation="leaveAnimation"
+    :enter-animation="isSheetModal ? undefined : enterAnimation"
+    :leave-animation="isSheetModal ? undefined : leaveAnimation"
     @didDismiss="$emit('close')"
   >
     <!-- Standard header with title + close button -->
@@ -33,7 +33,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, useAttrs } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   IonModal,
@@ -66,8 +66,13 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
+const attrs = useAttrs()
 
 const { enterAnimation, leaveAnimation } = useModalAnimation()
+
+// Sheet modals (with breakpoints) use Ionic's built-in slide animation.
+// Custom enter/leave animations conflict with the breakpoint transform system.
+const isSheetModal = computed(() => 'breakpoints' in attrs || 'initial-breakpoint' in attrs || 'initialBreakpoint' in attrs)
 
 const hasHeader = computed(() => props.showHeader ?? !!props.title)
 </script>

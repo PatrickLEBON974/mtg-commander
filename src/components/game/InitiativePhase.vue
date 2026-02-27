@@ -50,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGameStore } from '@/stores/gameStore'
 import { usePlayerGridLayout } from '@/composables/usePlayerGridLayout'
@@ -148,13 +148,13 @@ async function rollAndShowResults(playerIds: string[]): Promise<Record<string, n
 function groupByRollDescending(playerIds: string[], rolls: Record<string, number>): string[][] {
   const sorted = [...playerIds].sort((a, b) => rolls[b]! - rolls[a]!)
   const groups: string[][] = []
-  let i = 0
-  while (i < sorted.length) {
-    const rollValue = rolls[sorted[i]!]!
+  let currentIndex = 0
+  while (currentIndex < sorted.length) {
+    const rollValue = rolls[sorted[currentIndex]!]!
     const group: string[] = []
-    while (i < sorted.length && rolls[sorted[i]!] === rollValue) {
-      group.push(sorted[i]!)
-      i++
+    while (currentIndex < sorted.length && rolls[sorted[currentIndex]!] === rollValue) {
+      group.push(sorted[currentIndex]!)
+      currentIndex++
     }
     groups.push(group)
   }
@@ -251,12 +251,16 @@ async function resolveSecondAmongNeighbors(neighborIds: [string, string], initia
   return rollForSecondWinner(neighborIds)
 }
 
+let isMounted = true
+onUnmounted(() => { isMounted = false })
+
 onMounted(async () => {
   const players = gameStore.currentGame?.players
   if (!players) return
 
   const playerIds = players.map(p => p.id)
   const { firstId, initialRolls } = await resolveFirst(playerIds)
+  if (!isMounted) return
 
   resolvedPositions.value[firstId] = 1
 
@@ -265,12 +269,14 @@ onMounted(async () => {
   const neighborIds = getAdjacentPlayerIds(firstId)
   if (neighborIds) {
     secondId = await resolveSecondAmongNeighbors(neighborIds, initialRolls)
+    if (!isMounted) return
     resolvedPositions.value[secondId] = 2
   }
 
   phase.value = 'resolved'
   playVictory()
   await delay(2500)
+  if (!isMounted) return
 
   // Build turn order: winner first, direction determined by 2nd player's seat
   const game = gameStore.currentGame!
@@ -296,8 +302,8 @@ onMounted(async () => {
   }
 
   const turnOrder: string[] = []
-  for (let i = 0; i < clockwiseSlots.length; i++) {
-    const clockwiseIndex = (winnerClockwiseIndex + i * direction + clockwiseSlots.length) % clockwiseSlots.length
+  for (let slotStep = 0; slotStep < clockwiseSlots.length; slotStep++) {
+    const clockwiseIndex = (winnerClockwiseIndex + slotStep * direction + clockwiseSlots.length) % clockwiseSlots.length
     const slot = clockwiseSlots[clockwiseIndex]!
     turnOrder.push(slotToPlayerId[slot]!)
   }
@@ -339,7 +345,7 @@ onMounted(async () => {
 .initiative-player-name {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--text-secondary, rgba(255, 255, 255, 0.6));
+  color: var(--color-text-secondary);
 }
 
 .initiative-roll-value {
@@ -386,7 +392,7 @@ onMounted(async () => {
 }
 
 .initiative-card--tied-second {
-  border-color: var(--color-accent-blue, #4a90e2);
+  border-color: var(--color-arena-blue);
   box-shadow: 0 0 16px rgba(74, 144, 226, 0.4);
   animation: pulse-border-second 0.8s ease-in-out infinite alternate;
 }
@@ -410,7 +416,7 @@ onMounted(async () => {
 }
 
 .initiative-card--second {
-  border-color: var(--color-accent-blue, #4a90e2);
+  border-color: var(--color-arena-blue);
   box-shadow: 0 0 16px rgba(74, 144, 226, 0.35), 0 0 32px rgba(74, 144, 226, 0.12);
 }
 

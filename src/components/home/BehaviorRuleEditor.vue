@@ -71,7 +71,7 @@
 
       <ion-item
         v-for="(effect, index) in editForm.effects"
-        :key="index"
+        :key="`${effect.type}-${index}`"
         :lines="index === editForm.effects.length - 1 ? 'none' : 'inset'"
       >
         <ion-label>

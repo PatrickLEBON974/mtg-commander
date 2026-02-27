@@ -210,7 +210,7 @@ export const BEHAVIOR_RULE_TEMPLATES: BehaviorRule[] = [
     name: 'rules.penalty-turn-expired',
     trigger: { type: 'turn_timer_expired' },
     effects: [{ type: 'modify_life', amount: -1 }],
-    scope: 'per_player',
+    scope: 'global',
     fireOnce: false,
     repeatIntervalSeconds: 60,
     category: 'penalty',
@@ -221,7 +221,7 @@ export const BEHAVIOR_RULE_TEMPLATES: BehaviorRule[] = [
     name: 'rules.penalty-turn-very-long',
     trigger: { type: 'turn_timer_overtime', thresholdSeconds: 120 },
     effects: [{ type: 'modify_life', amount: -2 }],
-    scope: 'per_player',
+    scope: 'global',
     fireOnce: false,
     repeatIntervalSeconds: 60,
     category: 'penalty',
@@ -251,6 +251,16 @@ function deepCloneRule(rule: BehaviorRule): BehaviorRule {
   return structuredClone(rule)
 }
 
+function applyTriggerOverride(trigger: BehaviorRuleTrigger, overrides: Partial<BehaviorRuleTrigger>): BehaviorRuleTrigger {
+  if ('threshold' in trigger && 'threshold' in overrides && overrides.threshold !== undefined) {
+    return { ...trigger, threshold: overrides.threshold } as BehaviorRuleTrigger
+  }
+  if ('thresholdSeconds' in trigger && 'thresholdSeconds' in overrides && overrides.thresholdSeconds !== undefined) {
+    return { ...trigger, thresholdSeconds: overrides.thresholdSeconds } as BehaviorRuleTrigger
+  }
+  return trigger
+}
+
 function createProfile(
   id: string,
   name: string,
@@ -264,7 +274,7 @@ function createProfile(
 
     if (ruleOverrides) {
       if (ruleOverrides.trigger) {
-        clonedRule.trigger = { ...clonedRule.trigger, ...ruleOverrides.trigger } as BehaviorRuleTrigger
+        clonedRule.trigger = applyTriggerOverride(clonedRule.trigger, ruleOverrides.trigger)
       }
       if (ruleOverrides.repeatIntervalSeconds !== undefined) {
         clonedRule.repeatIntervalSeconds = ruleOverrides.repeatIntervalSeconds
@@ -307,9 +317,9 @@ const RELAXED_ENABLED_RULE_IDS = new Set([
 ])
 
 export const DEFAULT_PROFILES: BehaviorRuleProfile[] = [
-  createProfile('default', 'D\u00e9faut', BEHAVIOR_RULE_TEMPLATES, DEFAULT_ENABLED_RULE_IDS),
+  createProfile('default', 'rules.profiles.default', BEHAVIOR_RULE_TEMPLATES, DEFAULT_ENABLED_RULE_IDS),
 
-  createProfile('fast-game', 'Partie rapide', BEHAVIOR_RULE_TEMPLATES, ALL_RULE_IDS, {
+  createProfile('fast-game', 'rules.profiles.fastGame', BEHAVIOR_RULE_TEMPLATES, ALL_RULE_IDS, {
     'turn-timer-warning': {
       trigger: { thresholdSeconds: 20 },
     },
@@ -337,7 +347,7 @@ export const DEFAULT_PROFILES: BehaviorRuleProfile[] = [
     },
   }),
 
-  createProfile('relaxed', 'Partie tranquille', BEHAVIOR_RULE_TEMPLATES, RELAXED_ENABLED_RULE_IDS, {
+  createProfile('relaxed', 'rules.profiles.relaxed', BEHAVIOR_RULE_TEMPLATES, RELAXED_ENABLED_RULE_IDS, {
     'low-life-warning': {
       trigger: { threshold: 5 },
     },

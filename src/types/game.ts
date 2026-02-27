@@ -8,7 +8,7 @@ export interface Commander {
 export interface PlayerState {
   id: string
   name: string
-  color: ManaColor
+  color: PlayerColor
   lifeTotal: number
   commanders: Commander[]
   commanderDamageReceived: Record<string, number> // commanderId -> damage
@@ -77,6 +77,9 @@ export type GameActionType =
 
 export type ManaColor = 'white' | 'blue' | 'black' | 'red' | 'green' | 'colorless' | 'gold'
 
+/** Player-assignable colors — excludes 'colorless' which is not a valid player identity */
+export type PlayerColor = Exclude<ManaColor, 'colorless'>
+
 export interface GameSettings {
   startingLife: number
   commanderDamageThreshold: number
@@ -85,28 +88,8 @@ export interface GameSettings {
   enableTimer: boolean
   enableTurnTimer: boolean
   turnTimerSeconds: number
-  activeTimerRuleIds: string[]
   activeBehaviorRuleIds: string[]
   selectedBehaviorProfileId: string
-}
-
-// ─── Timer Rules (simple rule engine for turn/game timers) ──────────
-
-export type RuleTriggerType = 'timer_b_remaining' | 'timer_b_expired' | 'timer_a_exceeded'
-export type RuleEffectType = 'overtime_display' | 'repeated_buzz' | 'aggressive_flash' | 'play_sound'
-
-export interface TimerRule {
-  id: string
-  name: string
-  trigger: {
-    type: RuleTriggerType
-    thresholdSeconds: number
-  }
-  effect: {
-    type: RuleEffectType
-    repeatIntervalSeconds?: number
-    soundType?: 'warning' | 'urgent'
-  }
 }
 
 // ─── Behavior Rules ──────────────────────────────────────────────────
@@ -270,7 +253,6 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   enableTimer: true,
   enableTurnTimer: false,
   turnTimerSeconds: 120,
-  activeTimerRuleIds: [],
   activeBehaviorRuleIds: [],
   selectedBehaviorProfileId: 'default',
 }

@@ -4,6 +4,7 @@ import { getCardCount, getMeta, initDatabase, clearCards } from '@/services/data
 import { downloadBulkData, type DownloadProgress } from '@/services/bulkDownload'
 import { useSettingsStore } from './settingsStore'
 import i18n from '@/i18n'
+import type { Composer } from 'vue-i18n'
 
 export const useOfflineStore = defineStore('offline', () => {
   const isDbReady = ref(false)
@@ -17,7 +18,7 @@ export const useOfflineStore = defineStore('offline', () => {
   const formattedLastUpdate = computed(() => {
     const { t } = i18n.global
     if (!lastUpdateDate.value) return t('offline.never')
-    const currentLocale = (i18n.global.locale as unknown as { value: string }).value
+    const currentLocale = (i18n.global as unknown as Composer).locale.value
     const locale = currentLocale === 'en' ? 'en-US' : 'fr-FR'
     return new Date(lastUpdateDate.value).toLocaleDateString(locale, {
       day: 'numeric',

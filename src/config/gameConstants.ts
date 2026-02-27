@@ -12,14 +12,15 @@ export const ROOM_CODE_LENGTH = 6
 export const PLAYER_NAME_MAX_LENGTH = 30
 
 // ─── Timing ─────────────────────────────────────────────────────────
+export const LIFE_CHANGE_BATCH_MS = 1000
 export const GAME_STATE_SAVE_DEBOUNCE_MS = 500
 export const MULTIPLAYER_PUSH_DEBOUNCE_MS = 300
-export const TURN_TIMER_WARNING_SECONDS = 10
-export const TIMER_B_LAST_MINUTE_SECONDS = 60
 export const LONG_PRESS_DURATION_MS = 500
 export const FLOAT_ANIMATION_DELAY_MS = 50
 
 // ─── Limits ─────────────────────────────────────────────────────────
+export const MAX_HISTORY_LENGTH = 300
+export const MAX_STORED_GAME_RECORDS = 200
 export const MAX_RECENT_GAMES = 10
 export const SCRYFALL_CACHE_MAX_ENTRIES = 50
 export const LOCAL_SEARCH_LIMIT = 50

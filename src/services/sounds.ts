@@ -129,8 +129,8 @@ function playTone(frequency: number, duration: number, type: OscillatorType = 's
 
   oscillator.type = type
   oscillator.frequency.value = frequency
-  gainNode.gain.value = getVolume() * 0.3
-
+  const initialGain = Math.max(getVolume() * 0.3, 0.0001)
+  gainNode.gain.setValueAtTime(initialGain, context.currentTime)
   gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + duration)
 
   oscillator.connect(gainNode)

@@ -3,7 +3,7 @@
  * Extracts the duplicated autocomplete + select logic from
  * CardSearchView and CommanderPicker.
  */
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onScopeDispose } from 'vue'
 import type { ScryfallCard, CardSearchFilters } from '@/types/card'
 import { autocompleteCards, getCardByName, getCardImageUrl } from '@/services/scryfall'
 
@@ -17,6 +17,7 @@ export function useCardSearch(options: UseCardSearchOptions = {}) {
   const selectedCard = ref<ScryfallCard | null>(null)
   const isLoading = ref(false)
   let currentSearchId = 0
+  let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
   // Filters
   const commanderOnly = ref(options.initialCommanderOnly ?? false)
@@ -66,18 +67,23 @@ export function useCardSearch(options: UseCardSearchOptions = {}) {
     return getCardImageUrl(selectedCard.value, 'normal')
   })
 
-  async function onSearchInput() {
-    const searchId = ++currentSearchId
-    selectedCard.value = null
+  function onSearchInput() {
+    if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
 
+    // Handle immediate clear for short queries
     if (searchQuery.value.length < 2) {
       suggestions.value = []
+      selectedCard.value = null
       return
     }
 
-    const results = await autocompleteCards(searchQuery.value, filters.value)
-    if (searchId !== currentSearchId) return
-    suggestions.value = results
+    searchDebounceTimer = setTimeout(async () => {
+      const searchId = ++currentSearchId
+      selectedCard.value = null
+      const results = await autocompleteCards(searchQuery.value, filters.value)
+      if (searchId !== currentSearchId) return
+      suggestions.value = results
+    }, 350)
   }
 
   // Re-run search when any filter changes
@@ -147,6 +153,13 @@ export function useCardSearch(options: UseCardSearchOptions = {}) {
       rarities.value = rarities.value.filter((r) => r !== rarity)
     }
   }
+
+  onScopeDispose(() => {
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer)
+      searchDebounceTimer = null
+    }
+  })
 
   function clearAllFilters() {
     commanderOnly.value = false

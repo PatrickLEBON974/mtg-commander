@@ -32,7 +32,7 @@
 
           <!-- Player picker / roll -->
           <template v-else-if="currentView === 'playerPicker'">
-            <div class="player-picker">
+            <div class="player-picker" ref="playerPickerRef">
               <button
                 v-for="player in gamePlayers"
                 :key="player.id"
@@ -138,6 +138,7 @@ const rollResult = ref<number | null>(null)
 const displayValue = ref<number>(1)
 const isRolling = ref(false)
 const resultNumberRef = ref<HTMLElement>()
+const playerPickerRef = ref<HTMLElement>()
 const selectedPlayerIds = ref<Set<string>>(new Set())
 const highlightedPlayerId = ref<string | null>(null)
 const winnerPlayerId = ref<string | null>(null)
@@ -282,7 +283,7 @@ function rollPlayer() {
 
       // Bounce the winner row
       nextTick(() => {
-        const winnerEl = document.querySelector(`.player-row--winner`)
+        const winnerEl = playerPickerRef.value?.querySelector('.player-row--winner')
         if (winnerEl) {
           gsap.fromTo(
             winnerEl,

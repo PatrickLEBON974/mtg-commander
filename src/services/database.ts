@@ -139,7 +139,10 @@ export async function getDb(): Promise<SQLiteDBConnection> {
   if (!database) {
     await initDatabase()
   }
-  return database!
+  if (!database) {
+    throw new Error('Database initialization failed — SQLite connection could not be established')
+  }
+  return database
 }
 
 export async function getCardCount(): Promise<number> {

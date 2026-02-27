@@ -24,7 +24,7 @@
               class="h-8 w-8 opacity-80 drop-shadow-lg"
             />
             <span class="numpad-title text-xs font-bold uppercase tracking-[0.2em] text-arena-gold-light/90">
-              Set Life
+              {{ t('lifeNumpad.title') }}
             </span>
           </div>
 
@@ -104,9 +104,12 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import CornerAccent from '@/components/icons/decorative/CornerAccent.vue'
 import DividerOrnament from '@/components/icons/decorative/DividerOrnament.vue'
 import logoUrl from '@/assets/icons/ui/logo.svg'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   modelValue: number

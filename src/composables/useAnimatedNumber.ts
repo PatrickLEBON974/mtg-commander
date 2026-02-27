@@ -1,5 +1,6 @@
-import { ref, watch, type Ref } from 'vue'
+import { ref, watch, onScopeDispose, type Ref } from 'vue'
 import gsap from 'gsap'
+import { prefersReducedMotion } from '@/utils/motion'
 
 /**
  * Returns a reactive display value that smoothly animates
@@ -11,11 +12,8 @@ export function useAnimatedNumber(source: Ref<number> | (() => number)) {
   const displayValue = ref(resolveValue())
   const animationTarget = { value: resolveValue() }
 
-  const prefersReducedMotion =
-    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
   watch(resolveValue, (newValue) => {
-    if (prefersReducedMotion) {
+    if (prefersReducedMotion.value) {
       displayValue.value = newValue
       return
     }
@@ -28,6 +26,10 @@ export function useAnimatedNumber(source: Ref<number> | (() => number)) {
         displayValue.value = Math.round(animationTarget.value)
       },
     })
+  })
+
+  onScopeDispose(() => {
+    gsap.killTweensOf(animationTarget)
   })
 
   return displayValue
