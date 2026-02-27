@@ -28,17 +28,28 @@
           </span>
         </div>
 
-        <!-- Game timer (v-show to ensure per-player timer tick always runs) -->
-        <GameTimer v-show="gameStore.settings.enableTimer" :is-flashing="flashTimerZone" :is-overtime="isOvertimeDisplayActive" />
-
-        <!-- Turn indicator + action buttons -->
-        <div class="flex items-center gap-2 px-3 py-1.5" role="status">
+        <!-- Turn indicator + timer + action buttons -->
+        <div
+          class="flex items-center gap-2 px-3 py-1.5"
+          :class="{ 'game-timer-flash': flashTimerZone }"
+          role="status"
+        >
           <span class="text-xs text-text-secondary">
             {{ t('game.turn', { n: gameStore.currentGame?.turnNumber }) }}
           </span>
           <span class="text-xs font-semibold text-accent">
             {{ gameStore.currentTurnPlayer?.name }}
           </span>
+
+          <!-- Inline game timer -->
+          <span
+            v-if="gameStore.settings.enableTimer"
+            class="font-mono text-xs tabular-nums"
+            :class="isTimerRunning ? 'text-text-secondary' : 'text-life-negative animate-pulse'"
+          >
+            {{ isTimerRunning ? formattedGameTime : t('game.pause') }}
+          </span>
+
           <div class="ml-auto flex items-center gap-1">
             <button
               class="topbar-action-btn"
@@ -107,13 +118,23 @@
           <button
             ref="nextTurnBtnRef"
             class="floating-next-turn-btn pointer-events-auto"
-            :class="{ 'floating-next-turn-dragging': isNextTurnDragging }"
+            :class="{
+              'floating-next-turn-dragging': isNextTurnDragging,
+              'floating-next-turn-paused': !isTimerRunning && gameStore.settings.enableTimer,
+            }"
             :style="nextTurnTransformStyle"
             :aria-label="t('game.nextTurn')"
             data-sound="none"
             @pointerdown.prevent="onNextTurnPointerDown"
           >
-            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" class="text-white/80 drop-shadow-sm">
+            <!-- Pause icon when game is paused -->
+            <svg v-if="!isTimerRunning && gameStore.settings.enableTimer" width="30" height="30" viewBox="0 0 24 24" fill="none" class="text-life-negative drop-shadow-sm">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" opacity="0.3" />
+              <rect x="8" y="7" width="3" height="10" rx="1" fill="currentColor" />
+              <rect x="13" y="7" width="3" height="10" rx="1" fill="currentColor" />
+            </svg>
+            <!-- Normal next-turn arrow -->
+            <svg v-else width="30" height="30" viewBox="0 0 24 24" fill="none" class="text-white/80 drop-shadow-sm">
               <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" opacity="0.3" />
               <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" />
               <path d="M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
@@ -277,7 +298,9 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { usePlayerRegistryStore } from '@/stores/playerRegistryStore'
 import type { LayoutMode } from '@/services/persistence'
 import LifeTracker from '@/components/life-tracker/LifeTracker.vue'
-import GameTimer from '@/components/game-timer/GameTimer.vue'
+import { useGameClock } from '@/composables/useGameClock'
+import { formatMsToTimer } from '@/utils/time'
+import { tapFeedback } from '@/services/haptics'
 import { usePlayerGridLayout } from '@/composables/usePlayerGridLayout'
 import GameHistoryModal from '@/components/life-tracker/GameHistoryModal.vue'
 import AppModal from '@/components/ui/AppModal.vue'
@@ -300,6 +323,12 @@ const registryStore = usePlayerRegistryStore()
 // Initialize behavior rules engine (watches game state, fires effects)
 const { flashingPlayerIds, flashTimerZone, announceMessages, isOvertimeDisplayActive } = useBehaviorRuleEngine()
 
+// Game clock (singleton — starts the RAF tick loop)
+const { isRunning: isTimerRunning, toggleTimer } = useGameClock()
+const formattedGameTime = computed(() =>
+  formatMsToTimer(gameStore.currentGame?.elapsedMs ?? 0),
+)
+
 const { playerGridClass, gridStyle, getCardRotation, getInnerCornerStyle, cardOuterClasses, cardOuterStyle, cardRotationStyle } = usePlayerGridLayout()
 
 const showHistory = ref(false)
@@ -316,8 +345,11 @@ let nextTurnDragStartX = 0
 let nextTurnDragStartY = 0
 let nextTurnHasMoved = false
 let nextTurnLastTapTime = 0
+let longPressTimer: ReturnType<typeof setTimeout> | null = null
+let longPressTriggered = false
 const DRAG_THRESHOLD = 6
 const DOUBLE_TAP_DELAY = 300
+const LONG_PRESS_DELAY = 500
 
 const currentTurnRotation = computed(() => {
   const turnIndex = gameStore.currentGame?.currentTurnPlayerIndex ?? 0
@@ -340,11 +372,21 @@ function onNextTurnPointerDown(event: PointerEvent) {
   nextTurnDragStartX = event.clientX
   nextTurnDragStartY = event.clientY
   nextTurnHasMoved = false
+  longPressTriggered = false
   const target = event.currentTarget as HTMLElement
   target.setPointerCapture(event.pointerId)
   target.addEventListener('pointermove', onNextTurnPointerMove)
   target.addEventListener('pointerup', onNextTurnPointerUp, { once: true })
   target.addEventListener('pointercancel', onNextTurnPointerUp, { once: true })
+
+  // Long-press → toggle pause
+  longPressTimer = setTimeout(() => {
+    if (!nextTurnHasMoved) {
+      longPressTriggered = true
+      toggleTimer()
+      tapFeedback()
+    }
+  }, LONG_PRESS_DELAY)
 }
 
 function onNextTurnPointerMove(event: PointerEvent) {
@@ -356,6 +398,7 @@ function onNextTurnPointerMove(event: PointerEvent) {
   )
   if (!nextTurnHasMoved && distance < DRAG_THRESHOLD) return
   nextTurnHasMoved = true
+  if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null }
   isNextTurnDragging.value = true
   nextTurnOffsetX.value = deltaX
   nextTurnOffsetY.value = deltaY
@@ -364,10 +407,11 @@ function onNextTurnPointerMove(event: PointerEvent) {
 }
 
 function onNextTurnPointerUp(event: PointerEvent) {
+  if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null }
   const target = event.currentTarget as HTMLElement
   target.removeEventListener('pointermove', onNextTurnPointerMove)
   isNextTurnDragging.value = false
-  if (!nextTurnHasMoved) {
+  if (!nextTurnHasMoved && !longPressTriggered) {
     const now = Date.now()
     if (now - nextTurnLastTapTime < DOUBLE_TAP_DELAY && (nextTurnOffsetX.value !== 0 || nextTurnOffsetY.value !== 0)) {
       // Double-tap: snap back to center
@@ -687,9 +731,28 @@ function onTurnAdvanced() {
   cursor: grabbing;
 }
 
+.floating-next-turn-paused {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.4);
+  animation: pause-pulse 2s ease-in-out infinite;
+}
+
+@keyframes pause-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+  50% { box-shadow: 0 0 12px 4px rgba(239, 68, 68, 0.3); }
+}
+
 .floating-next-turn-btn:active:not(.floating-next-turn-dragging) {
   transform: scale(0.9);
   background: rgba(0, 0, 0, 0.6);
+}
+
+@keyframes game-timer-flash {
+  0%, 100% { background-color: rgba(239, 68, 68, 0.05); }
+  50% { background-color: rgba(239, 68, 68, 0.25); }
+}
+.game-timer-flash {
+  animation: game-timer-flash 0.8s ease-in-out infinite;
 }
 
 .menu-action-btn {

@@ -22,8 +22,9 @@
             'initiative-card--rolling': rollingPlayerIds.has(player.id),
             'initiative-card--tied': tiedPlayerIds.has(player.id),
             'initiative-card--dimmed': isDimmed(player.id),
-            'initiative-card--winner': resolvedPositions[player.id] === 1 && phase === 'resolved',
-            'initiative-card--second': resolvedPositions[player.id] === 2 && phase === 'resolved',
+            'initiative-card--winner': resolvedPositions[player.id] === 1,
+            'initiative-card--second': resolvedPositions[player.id] === 2,
+            'initiative-card--tied-second': tiedForSecondPlayerIds.has(player.id),
           }"
         >
           <div
@@ -63,6 +64,7 @@ const displayValues = ref<Record<string, number>>({})
 const rollingPlayerIds = ref<Set<string>>(new Set())
 const tiedPlayerIds = ref<Set<string>>(new Set())
 const resolvedPositions = ref<Record<string, number>>({})
+const tiedForSecondPlayerIds = ref<Set<string>>(new Set())
 const phase = ref<'idle' | 'rolling' | 'showing' | 'tied' | 'resolved'>('idle')
 
 const statusText = computed(() => {
@@ -73,8 +75,11 @@ const statusText = computed(() => {
 })
 
 function isDimmed(playerId: string): boolean {
+  // Never dim a player whose position is already resolved
+  if (resolvedPositions.value[playerId]) return false
+
   if (phase.value === 'tied') {
-    return !tiedPlayerIds.value.has(playerId)
+    return !tiedPlayerIds.value.has(playerId) && !tiedForSecondPlayerIds.value.has(playerId)
   }
   const totalPlayerCount = gameStore.currentGame?.players.length ?? 0
   if (phase.value === 'rolling' && rollingPlayerIds.value.size < totalPlayerCount) {
@@ -176,34 +181,74 @@ async function rollForSingleWinner(playerIds: string[]): Promise<string> {
   return rollForSingleWinner(topGroup)
 }
 
-async function resolveFirstAndSecond(playerIds: string[]): Promise<{ firstId: string; secondId: string | null }> {
-  if (playerIds.length <= 1) return { firstId: playerIds[0]!, secondId: null }
+function getAdjacentPlayerIds(firstId: string): [string, string] | null {
+  const game = gameStore.currentGame
+  if (!game || game.players.length < 3) return null
+
+  const slotToPlayerId: Record<number, string> = {}
+  game.players.forEach((player, index) => {
+    slotToPlayerId[getSlot(index)] = player.id
+  })
+
+  const slots = clockwiseSlotOrder.value
+  const firstPlayerIndex = game.players.findIndex(p => p.id === firstId)
+  const firstSlot = getSlot(firstPlayerIndex)
+  const firstClockwiseIndex = slots.indexOf(firstSlot)
+
+  const neighborClockwiseSlot = slots[(firstClockwiseIndex + 1) % slots.length]!
+  const neighborCounterClockwiseSlot = slots[(firstClockwiseIndex - 1 + slots.length) % slots.length]!
+
+  return [slotToPlayerId[neighborClockwiseSlot]!, slotToPlayerId[neighborCounterClockwiseSlot]!]
+}
+
+async function resolveFirst(playerIds: string[]): Promise<{ firstId: string; initialRolls: Record<string, number> }> {
+  const rolls = await rollAndShowResults(playerIds)
+  const initialRolls = { ...rolls }
+  const groups = groupByRollDescending(playerIds, rolls)
+  const topGroup = groups[0]!
+
+  if (topGroup.length === 1) {
+    return { firstId: topGroup[0]!, initialRolls }
+  }
+
+  // Tie for 1st — re-roll among tied only
+  await showTieAndWait(topGroup)
+  const firstId = await rollForSingleWinner(topGroup)
+  return { firstId, initialRolls }
+}
+
+async function showSecondTieAndWait(tiedIds: string[]) {
+  tiedForSecondPlayerIds.value = new Set(tiedIds)
+  phase.value = 'tied'
+  await delay(1500)
+  tiedForSecondPlayerIds.value = new Set()
+}
+
+async function rollForSecondWinner(playerIds: string[]): Promise<string> {
+  if (playerIds.length === 1) return playerIds[0]!
 
   const rolls = await rollAndShowResults(playerIds)
   const groups = groupByRollDescending(playerIds, rolls)
   const topGroup = groups[0]!
 
-  if (topGroup.length === 1) {
-    // 1st place found
-    const firstId = topGroup[0]!
+  if (topGroup.length === 1) return topGroup[0]!
 
-    if (groups.length < 2) return { firstId, secondId: null }
+  await showSecondTieAndWait(topGroup)
+  return rollForSecondWinner(topGroup)
+}
 
-    const secondGroup = groups[1]!
-    if (secondGroup.length === 1) {
-      // 2nd place found — done
-      return { firstId, secondId: secondGroup[0]! }
-    }
+async function resolveSecondAmongNeighbors(neighborIds: [string, string], initialRolls: Record<string, number>): Promise<string> {
+  const [neighborA, neighborB] = neighborIds
+  const rollA = initialRolls[neighborA]
+  const rollB = initialRolls[neighborB]
 
-    // Tie for 2nd — re-roll among tied to find 2nd
-    await showTieAndWait(secondGroup)
-    const secondId = await rollForSingleWinner(secondGroup)
-    return { firstId, secondId }
+  if (rollA !== undefined && rollB !== undefined && rollA !== rollB) {
+    return rollA > rollB ? neighborA : neighborB
   }
 
-  // Tie for 1st — re-roll among tied only, others are eliminated
-  await showTieAndWait(topGroup)
-  return resolveFirstAndSecond(topGroup)
+  // Tie or no initial rolls for neighbors — roll between them (blue tie style)
+  await showSecondTieAndWait(neighborIds)
+  return rollForSecondWinner(neighborIds)
 }
 
 onMounted(async () => {
@@ -211,10 +256,17 @@ onMounted(async () => {
   if (!players) return
 
   const playerIds = players.map(p => p.id)
-  const { firstId, secondId } = await resolveFirstAndSecond(playerIds)
+  const { firstId, initialRolls } = await resolveFirst(playerIds)
 
   resolvedPositions.value[firstId] = 1
-  if (secondId) resolvedPositions.value[secondId] = 2
+
+  // 2nd player = adjacent neighbor of 1st with highest roll (tie → re-roll between them)
+  let secondId: string | null = null
+  const neighborIds = getAdjacentPlayerIds(firstId)
+  if (neighborIds) {
+    secondId = await resolveSecondAmongNeighbors(neighborIds, initialRolls)
+    resolvedPositions.value[secondId] = 2
+  }
 
   phase.value = 'resolved'
   playVictory()
@@ -331,6 +383,17 @@ onMounted(async () => {
 @keyframes pulse-border {
   from { box-shadow: 0 0 8px rgba(232, 96, 10, 0.3); }
   to { box-shadow: 0 0 20px rgba(232, 96, 10, 0.6); }
+}
+
+.initiative-card--tied-second {
+  border-color: var(--color-accent-blue, #4a90e2);
+  box-shadow: 0 0 16px rgba(74, 144, 226, 0.4);
+  animation: pulse-border-second 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes pulse-border-second {
+  from { box-shadow: 0 0 8px rgba(74, 144, 226, 0.3); }
+  to { box-shadow: 0 0 20px rgba(74, 144, 226, 0.6); }
 }
 
 .initiative-card--dimmed {

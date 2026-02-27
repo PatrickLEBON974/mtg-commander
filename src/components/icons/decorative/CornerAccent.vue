@@ -2,18 +2,18 @@
   <svg
     class="corner-accent"
     :class="`corner-${position}`"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
+    width="32"
+    height="32"
+    viewBox="0 0 32 32"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
   >
-    <!-- Corner flourish for cards/panels -->
-    <path d="M2 2h8" stroke="#d4a843" stroke-width="0.8" opacity="0.2" />
-    <path d="M2 2v8" stroke="#d4a843" stroke-width="0.8" opacity="0.2" />
-    <circle cx="2" cy="2" r="1.5" fill="#d4a843" opacity="0.15" />
-    <!-- Decorative curve -->
-    <path d="M2 8Q2 2 8 2" stroke="#d4a843" stroke-width="0.5" opacity="0.12" fill="none" />
+    <!-- Arc following the rounded corner (matches ~16px border-radius) -->
+    <path d="M2 18 A16 16 0 0 1 18 2" stroke="#d4a843" stroke-width="0.8" opacity="0.25" fill="none" stroke-linecap="round" />
+    <!-- Inner parallel arc -->
+    <path d="M5 17 A12 12 0 0 1 17 5" stroke="#d4a843" stroke-width="0.5" opacity="0.15" fill="none" stroke-linecap="round" />
+    <!-- Small diamond on the arc -->
+    <rect x="8.5" y="2.5" width="2.5" height="2.5" rx="0.4" fill="#d4a843" opacity="0.12" transform="rotate(45 9.75 3.75)" />
   </svg>
 </template>
 

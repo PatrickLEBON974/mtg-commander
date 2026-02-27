@@ -1,10 +1,8 @@
 <template>
   <div
     ref="panelRef"
-    class="card-flip-container floating-number-container relative overflow-hidden rounded-2xl border"
+    class="card-flip-container floating-number-container relative overflow-hidden rounded-2xl"
     :class="[
-      turnBorderClass,
-      dangerPulseClass,
       isFlashing ? 'behavior-rule-flash' : '',
     ]"
     :data-commander-player="player.id"
@@ -12,11 +10,11 @@
   >
     <!-- 3D flip inner -->
     <div
-      class="card-flip-inner relative h-full w-full"
+      class="card-flip-inner relative h-full w-full rounded-2xl"
       :style="flipInlineStyle"
     >
       <!-- ═══════ CARD FRONT ═══════ -->
-      <div class="card-face card-front flex flex-col items-center justify-between gap-0 p-3" :class="playerBgClass">
+      <div class="card-face card-front flex flex-col items-center justify-between gap-0 border p-3" :class="[playerBgClass, turnBorderClass, dangerPulseClass]">
         <!-- Corner accents -->
         <CornerAccent position="top-left" />
         <CornerAccent position="top-right" />
@@ -390,7 +388,7 @@
       </div>
 
       <!-- ═══════ CARD BACK ═══════ -->
-      <div class="card-face card-back" :class="playerBgClass" :style="cardBackTransform">
+      <div class="card-face card-back border border-white/[0.04]" :class="playerBgClass" :style="cardBackTransform">
         <PlayerTokenPanel
           :player="player"
           :player-bg-class="playerBgClass"
@@ -450,7 +448,6 @@ import PlayerTokenPanel from './PlayerTokenPanel.vue'
 import GameResultOverlay from './GameResultOverlay.vue'
 import CommanderDamageModal from './CommanderDamageModal.vue'
 import CommanderPicker from '@/components/commander-zone/CommanderPicker.vue'
-import CornerAccent from '@/components/icons/decorative/CornerAccent.vue'
 import IconPoison from '@/components/icons/game/IconPoison.vue'
 import IconSwordSingle from '@/components/icons/game/IconSwordSingle.vue'
 import IconExperience from '@/components/icons/game/IconExperience.vue'
@@ -459,6 +456,7 @@ import IconCrown from '@/components/icons/game/IconCrown.vue'
 import IconShield from '@/components/icons/game/IconShield.vue'
 import IconMana from '@/components/icons/game/IconMana.vue'
 import IconSkull from '@/components/icons/game/IconSkull.vue'
+import CornerAccent from '@/components/icons/decorative/CornerAccent.vue'
 
 const props = defineProps<{
   player: PlayerState
