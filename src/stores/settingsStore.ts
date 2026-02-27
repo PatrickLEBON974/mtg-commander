@@ -59,6 +59,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const language = ref<'fr' | 'en'>('fr')
   const cardSecondLanguage = ref<string | null>(null)
   const layoutMode = ref<LayoutMode>('default')
+  const autoOrientIcons = ref(true)
   const timerRules = ref<TimerRule[]>(loadTimerRules())
 
   // ─── Behavior Rule Profiles ──────────────────────────────────────────
@@ -93,6 +94,7 @@ export const useSettingsStore = defineStore('settings', () => {
     soundEnabled.value = savedPreferences.soundEnabled ?? false
     soundVolume.value = savedPreferences.soundVolume ?? 0.5
     layoutMode.value = (savedPreferences.layoutMode as LayoutMode) ?? 'default'
+    autoOrientIcons.value = savedPreferences.autoOrientIcons ?? true
   }
 
   // Persist game settings on change
@@ -106,7 +108,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   // Persist preferences on change
   watch(
-    [hapticFeedback, keepScreenOn, cardSecondLanguage, language, soundEnabled, soundVolume, layoutMode],
+    [hapticFeedback, keepScreenOn, cardSecondLanguage, language, soundEnabled, soundVolume, layoutMode, autoOrientIcons],
     () => {
       savePreferences({
         hapticFeedback: hapticFeedback.value,
@@ -116,6 +118,7 @@ export const useSettingsStore = defineStore('settings', () => {
         soundEnabled: soundEnabled.value,
         soundVolume: soundVolume.value,
         layoutMode: layoutMode.value,
+        autoOrientIcons: autoOrientIcons.value,
       })
     },
   )
@@ -302,6 +305,7 @@ export const useSettingsStore = defineStore('settings', () => {
     language,
     cardSecondLanguage,
     layoutMode,
+    autoOrientIcons,
     cardLanguages,
     // Behavior rule profiles
     behaviorRuleProfiles,

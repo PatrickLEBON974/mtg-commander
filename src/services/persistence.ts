@@ -73,6 +73,7 @@ export interface AppPreferences {
   soundEnabled?: boolean
   soundVolume?: number
   layoutMode?: LayoutMode
+  autoOrientIcons?: boolean
 }
 
 export function savePreferences(preferences: AppPreferences) {

@@ -94,6 +94,7 @@ export default {
     layoutFaceToFace: 'Face to face',
     layoutFaceToFaceSide: 'Side by side',
     layoutStar: 'Star',
+    orientation: 'Orientation',
   },
   settings: {
     title: 'Settings',

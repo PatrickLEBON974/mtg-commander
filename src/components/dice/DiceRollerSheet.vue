@@ -2,7 +2,7 @@
   <Teleport to="body">
     <Transition name="dice-popup" @enter="onEnter" @leave="onLeave">
       <div v-if="isOpen" class="dice-overlay" @click.self="handleClose">
-        <div class="dice-popup" @click="clearAutoDismiss">
+        <div class="dice-popup" :style="popupRotationStyle" @click="clearAutoDismiss">
           <!-- Back button -->
           <button v-if="currentView !== 'picker'" class="back-btn" @click="goBack">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -99,6 +99,7 @@ import { playDiceRoll, playVictory } from '@/services/sounds'
 
 const props = defineProps<{
   isOpen: boolean
+  contentRotation?: number
 }>()
 
 const emit = defineEmits<{
@@ -107,6 +108,12 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const gameStore = useGameStore()
+
+const popupRotationStyle = computed(() => {
+  const rotation = props.contentRotation ?? 0
+  if (rotation === 0) return {}
+  return { transform: `rotate(${rotation}deg)` }
+})
 
 type ViewState = 'picker' | 'playerPicker' | 'dieResult'
 
@@ -155,12 +162,13 @@ const formattedDisplayValue = computed(() => {
 
 function onEnter(el: Element, done: () => void) {
   const popup = (el as HTMLElement).querySelector('.dice-popup')
+  const rotation = props.contentRotation ?? 0
   gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.2 })
   if (popup) {
     gsap.fromTo(
       popup,
-      { scale: 0.8, opacity: 0, y: -20 },
-      { scale: 1, opacity: 1, y: 0, duration: 0.3, ease: 'back.out(2)', onComplete: done },
+      { scale: 0.8, opacity: 0, y: -20, rotation },
+      { scale: 1, opacity: 1, y: 0, rotation, duration: 0.3, ease: 'back.out(2)', onComplete: done },
     )
   } else {
     done()
@@ -169,8 +177,9 @@ function onEnter(el: Element, done: () => void) {
 
 function onLeave(el: Element, done: () => void) {
   const popup = (el as HTMLElement).querySelector('.dice-popup')
+  const rotation = props.contentRotation ?? 0
   if (popup) {
-    gsap.to(popup, { scale: 0.8, opacity: 0, y: -10, duration: 0.2, ease: 'power2.in' })
+    gsap.to(popup, { scale: 0.8, opacity: 0, y: -10, rotation, duration: 0.2, ease: 'power2.in' })
   }
   gsap.to(el, { opacity: 0, duration: 0.2, onComplete: done })
 }

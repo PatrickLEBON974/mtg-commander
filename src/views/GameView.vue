@@ -56,14 +56,14 @@
               :aria-label="t('dice.title')"
               @click="showDiceRoller = true"
             >
-              <IconDie :size="16" />
+              <IconDie :size="16" :style="iconRotationStyle" />
             </button>
             <button
               class="topbar-action-btn"
               :aria-label="t('game.menu')"
               @click="openGameMenu"
             >
-              <ion-icon :icon="menuOutline" />
+              <ion-icon :icon="menuOutline" :style="iconRotationStyle" />
             </button>
           </div>
         </div>
@@ -75,7 +75,7 @@
             :key="messageKey"
             class="announce-banner flex items-center justify-center gap-2 rounded-lg px-3 py-1.5"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="shrink-0 text-arena-gold-light">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="shrink-0 text-arena-gold-light" :style="iconRotationStyle">
               <path d="M12 2L1 21h22L12 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
               <path d="M12 9v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
               <circle cx="12" cy="17" r="1" fill="currentColor" />
@@ -232,11 +232,11 @@
     </AppModal>
 
     <!-- Dice roller -->
-    <DiceRollerSheet :is-open="showDiceRoller" @close="showDiceRoller = false" />
+    <DiceRollerSheet :is-open="showDiceRoller" :content-rotation="priorityPlayerRotation" @close="showDiceRoller = false" />
 
     <!-- Game menu -->
     <AppModal :is-open="showGameMenu" :initial-breakpoint="0.5" :breakpoints="[0, 0.5]" @close="closeGameMenu">
-      <div class="px-4 pb-20 pt-5">
+      <div class="px-4 pb-20 pt-5 transition-transform duration-300 ease-in-out" :style="iconRotationStyle">
         <h3 class="mb-4 text-center text-base font-semibold text-text-primary">{{ t('game.menu') }}</h3>
         <div class="grid grid-cols-3 gap-3">
           <button class="menu-action-btn" :disabled="!gameStore.canUndo" data-sound="none" @click="menuUndo">
@@ -258,6 +258,14 @@
           <button class="menu-action-btn" @click="menuHistory">
             <ion-icon :icon="listOutline" />
             <span>{{ t('game.history') }}</span>
+          </button>
+          <button
+            class="menu-action-btn"
+            :class="{ 'menu-action-active': settingsStore.autoOrientIcons }"
+            @click="settingsStore.autoOrientIcons = !settingsStore.autoOrientIcons"
+          >
+            <ion-icon :icon="compassOutline" />
+            <span>{{ t('game.orientation') }}</span>
           </button>
           <button class="menu-action-btn menu-action-danger" @click="menuEndGame">
             <ion-icon :icon="flagOutline" />
@@ -291,7 +299,7 @@ import {
   alertController,
   toastController,
 } from '@ionic/vue'
-import { arrowUndoOutline, arrowRedoOutline, listOutline, flagOutline, gridOutline, menuOutline } from 'ionicons/icons'
+import { arrowUndoOutline, arrowRedoOutline, listOutline, flagOutline, gridOutline, menuOutline, compassOutline } from 'ionicons/icons'
 import { useGameStore } from '@/stores/gameStore'
 import { useMultiplayerStore } from '@/stores/multiplayerStore'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -351,16 +359,27 @@ const DRAG_THRESHOLD = 6
 const DOUBLE_TAP_DELAY = 300
 const LONG_PRESS_DELAY = 500
 
-const currentTurnRotation = computed(() => {
-  const turnIndex = gameStore.currentGame?.currentTurnPlayerIndex ?? 0
-  return getCardRotation(turnIndex)
+const priorityPlayerRotation = computed(() => {
+  if (!settingsStore.autoOrientIcons) return 0
+  const priorityPlayer = gameStore.effectivePriorityPlayer
+  if (!priorityPlayer || !gameStore.currentGame) return 0
+  const playerIndex = gameStore.currentGame.players.findIndex(
+    p => p.id === priorityPlayer.id,
+  )
+  return playerIndex >= 0 ? getCardRotation(playerIndex) : 0
+})
+
+const iconRotationStyle = computed(() => {
+  const rotation = priorityPlayerRotation.value
+  if (rotation === 0) return {}
+  return { transform: `rotate(${rotation}deg)` }
 })
 
 const nextTurnTransformStyle = computed(() => {
   const tx = nextTurnOffsetX.value
   const ty = nextTurnOffsetY.value
   const hasOffset = tx !== 0 || ty !== 0
-  const rot = currentTurnRotation.value
+  const rot = priorityPlayerRotation.value
   if (!hasOffset && rot === 0) return {}
   const parts: string[] = []
   if (hasOffset) parts.push(`translate(${tx}px, ${ty}px)`)
@@ -703,6 +722,11 @@ function onTurnAdvanced() {
   transition: transform 0.15s ease, background 0.15s ease;
 }
 
+.topbar-action-btn ion-icon,
+.topbar-action-btn :deep(svg) {
+  transition: transform 0.3s ease;
+}
+
 .topbar-action-btn:active {
   transform: scale(0.9);
   background: rgba(255, 255, 255, 0.12);
@@ -785,6 +809,12 @@ function onTurnAdvanced() {
 
 .menu-action-danger {
   color: var(--color-life-negative);
+}
+
+.menu-action-active {
+  background: rgba(232, 96, 10, 0.15);
+  color: var(--color-accent);
+  border: 1px solid rgba(232, 96, 10, 0.3);
 }
 
 .announce-banner {
