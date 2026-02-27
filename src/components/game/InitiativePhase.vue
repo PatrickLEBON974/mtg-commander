@@ -23,6 +23,7 @@
             'initiative-card--tied': tiedPlayerIds.has(player.id),
             'initiative-card--dimmed': isDimmed(player.id),
             'initiative-card--winner': resolvedPositions[player.id] === 1 && phase === 'resolved',
+            'initiative-card--second': resolvedPositions[player.id] === 2 && phase === 'resolved',
           }"
         >
           <div
@@ -75,6 +76,10 @@ function isDimmed(playerId: string): boolean {
   if (phase.value === 'tied') {
     return !tiedPlayerIds.value.has(playerId)
   }
+  const totalPlayerCount = gameStore.currentGame?.players.length ?? 0
+  if (phase.value === 'rolling' && rollingPlayerIds.value.size < totalPlayerCount) {
+    return !rollingPlayerIds.value.has(playerId)
+  }
   return false
 }
 
@@ -114,9 +119,7 @@ function animateRolling(playerIds: string[], durationMs: number): Promise<void> 
   })
 }
 
-async function resolveInitiative(playerIds: string[]): Promise<string[]> {
-  if (playerIds.length <= 1) return [...playerIds]
-
+async function rollAndShowResults(playerIds: string[]): Promise<Record<string, number>> {
   rollingPlayerIds.value = new Set(playerIds)
   tiedPlayerIds.value = new Set()
   phase.value = 'rolling'
@@ -134,32 +137,73 @@ async function resolveInitiative(playerIds: string[]): Promise<string[]> {
   phase.value = 'showing'
   await delay(1000)
 
-  const sorted = [...playerIds].sort((a, b) => finalRolls[b]! - finalRolls[a]!)
+  return finalRolls
+}
 
-  const result: string[] = []
+function groupByRollDescending(playerIds: string[], rolls: Record<string, number>): string[][] {
+  const sorted = [...playerIds].sort((a, b) => rolls[b]! - rolls[a]!)
+  const groups: string[][] = []
   let i = 0
   while (i < sorted.length) {
-    const value = finalRolls[sorted[i]!]!
+    const rollValue = rolls[sorted[i]!]!
     const group: string[] = []
-    while (i < sorted.length && finalRolls[sorted[i]!] === value) {
+    while (i < sorted.length && rolls[sorted[i]!] === rollValue) {
       group.push(sorted[i]!)
       i++
     }
+    groups.push(group)
+  }
+  return groups
+}
 
-    if (group.length === 1) {
-      result.push(group[0]!)
-    } else {
-      tiedPlayerIds.value = new Set(group)
-      phase.value = 'tied'
-      await delay(1500)
-      tiedPlayerIds.value = new Set()
+async function showTieAndWait(tiedIds: string[]) {
+  tiedPlayerIds.value = new Set(tiedIds)
+  phase.value = 'tied'
+  await delay(1500)
+  tiedPlayerIds.value = new Set()
+}
 
-      const tieResolved = await resolveInitiative(group)
-      result.push(...tieResolved)
+async function rollForSingleWinner(playerIds: string[]): Promise<string> {
+  if (playerIds.length === 1) return playerIds[0]!
+
+  const rolls = await rollAndShowResults(playerIds)
+  const groups = groupByRollDescending(playerIds, rolls)
+  const topGroup = groups[0]!
+
+  if (topGroup.length === 1) return topGroup[0]!
+
+  await showTieAndWait(topGroup)
+  return rollForSingleWinner(topGroup)
+}
+
+async function resolveFirstAndSecond(playerIds: string[]): Promise<{ firstId: string; secondId: string | null }> {
+  if (playerIds.length <= 1) return { firstId: playerIds[0]!, secondId: null }
+
+  const rolls = await rollAndShowResults(playerIds)
+  const groups = groupByRollDescending(playerIds, rolls)
+  const topGroup = groups[0]!
+
+  if (topGroup.length === 1) {
+    // 1st place found
+    const firstId = topGroup[0]!
+
+    if (groups.length < 2) return { firstId, secondId: null }
+
+    const secondGroup = groups[1]!
+    if (secondGroup.length === 1) {
+      // 2nd place found — done
+      return { firstId, secondId: secondGroup[0]! }
     }
+
+    // Tie for 2nd — re-roll among tied to find 2nd
+    await showTieAndWait(secondGroup)
+    const secondId = await rollForSingleWinner(secondGroup)
+    return { firstId, secondId }
   }
 
-  return result
+  // Tie for 1st — re-roll among tied only, others are eliminated
+  await showTieAndWait(topGroup)
+  return resolveFirstAndSecond(topGroup)
 }
 
 onMounted(async () => {
@@ -167,18 +211,16 @@ onMounted(async () => {
   if (!players) return
 
   const playerIds = players.map(p => p.id)
-  const order = await resolveInitiative(playerIds)
+  const { firstId, secondId } = await resolveFirstAndSecond(playerIds)
 
-  order.forEach((id, i) => {
-    resolvedPositions.value[id] = i + 1
-  })
+  resolvedPositions.value[firstId] = 1
+  if (secondId) resolvedPositions.value[secondId] = 2
 
   phase.value = 'resolved'
   playVictory()
   await delay(2500)
 
-  // Build turn order: winner first, direction determined by second-highest roller's position
-  const winnerId = order[0]!
+  // Build turn order: winner first, direction determined by 2nd player's seat
   const game = gameStore.currentGame!
   const slotToPlayerId: Record<number, string> = {}
   game.players.forEach((player, index) => {
@@ -186,19 +228,16 @@ onMounted(async () => {
   })
 
   const clockwiseSlots = clockwiseSlotOrder.value
-  const winnerPlayerIndex = game.players.findIndex(p => p.id === winnerId)
+  const winnerPlayerIndex = game.players.findIndex(p => p.id === firstId)
   const winnerSlot = getSlot(winnerPlayerIndex)
   const winnerClockwiseIndex = clockwiseSlots.indexOf(winnerSlot)
 
-  // Determine direction from the second-highest roller's seat
   let direction = 1 // default clockwise
-  if (order.length >= 2) {
-    const secondId = order[1]!
+  if (secondId) {
     const secondPlayerIndex = game.players.findIndex(p => p.id === secondId)
     const secondSlot = getSlot(secondPlayerIndex)
     const secondClockwiseIndex = clockwiseSlots.indexOf(secondSlot)
     const clockwiseDistance = (secondClockwiseIndex - winnerClockwiseIndex + clockwiseSlots.length) % clockwiseSlots.length
-    // If the second player is closer going counter-clockwise, reverse direction
     if (clockwiseDistance > clockwiseSlots.length / 2) {
       direction = -1
     }
@@ -305,5 +344,14 @@ onMounted(async () => {
 
 .initiative-card--winner .initiative-card-bg {
   opacity: 0.2;
+}
+
+.initiative-card--second {
+  border-color: var(--color-accent-blue, #4a90e2);
+  box-shadow: 0 0 16px rgba(74, 144, 226, 0.35), 0 0 32px rgba(74, 144, 226, 0.12);
+}
+
+.initiative-card--second .initiative-card-bg {
+  opacity: 0.18;
 }
 </style>
