@@ -20,6 +20,11 @@
       </div>
 
       <div v-else class="relative flex h-full flex-col">
+        <!-- Game content wrapper — desaturates when paused -->
+        <div
+          class="game-content-wrapper flex min-h-0 flex-1 flex-col"
+          :class="{ 'game-paused-desaturate': !isTimerRunning && gameStore.settings.enableTimer }"
+        >
         <!-- Multiplayer indicator -->
         <div v-if="multiplayerStore.isMultiplayer" class="flex items-center justify-center gap-2 bg-mana-blue/20 px-4 py-2">
           <div class="h-2 w-2 rounded-full bg-life-positive animate-pulse" />
@@ -111,9 +116,19 @@
             />
           </div>
         </div>
+        </div><!-- /game-content-wrapper -->
 
         <!-- Floating next turn button (draggable, snaps back to center) -->
         <div class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+          <!-- Pause ripple waves (outside button so they don't get clipped) -->
+          <div
+            v-if="showPauseRipple"
+            class="pause-ripple-container"
+            :style="nextTurnTransformStyle"
+          >
+            <span class="pause-ripple-ring pause-ripple-ring-1" />
+            <span class="pause-ripple-ring pause-ripple-ring-2" />
+          </div>
           <button
             ref="nextTurnBtnRef"
             class="floating-next-turn-btn pointer-events-auto"
@@ -306,6 +321,7 @@ import { usePlayerRegistryStore } from '@/stores/playerRegistryStore'
 import type { LayoutMode } from '@/services/persistence'
 import LifeTracker from '@/components/life-tracker/LifeTracker.vue'
 import { useGameClock } from '@/composables/useGameClock'
+import { useLongPress } from '@/composables/useLongPress'
 import { formatMsToTimer } from '@/utils/time'
 import { usePlayerGridLayout } from '@/composables/usePlayerGridLayout'
 import GameHistoryModal from '@/components/life-tracker/GameHistoryModal.vue'
@@ -330,10 +346,23 @@ const registryStore = usePlayerRegistryStore()
 const { flashingPlayerIds, flashTimerZone, announceMessages, isOvertimeDisplayActive } = useBehaviorRuleEngine()
 
 // Game clock (singleton — starts the RAF tick loop)
-const { isRunning: isTimerRunning } = useGameClock()
+const { isRunning: isTimerRunning, toggleTimer } = useGameClock()
 const formattedGameTime = computed(() =>
   formatMsToTimer(gameStore.currentGame?.elapsedMs ?? 0),
 )
+
+// Pause ripple animation — fires once when timer transitions to paused
+const showPauseRipple = ref(false)
+let pauseRippleTimeout: ReturnType<typeof setTimeout> | null = null
+watch(isTimerRunning, (running, wasRunning) => {
+  if (!running && wasRunning) {
+    showPauseRipple.value = true
+    if (pauseRippleTimeout) clearTimeout(pauseRippleTimeout)
+    pauseRippleTimeout = setTimeout(() => {
+      showPauseRipple.value = false
+    }, 800)
+  }
+})
 
 const { gridStyle, getCardRotation, getInnerCornerStyle, cardOuterClasses, cardOuterStyle, cardRotationStyle } = usePlayerGridLayout()
 
@@ -351,7 +380,14 @@ let nextTurnDragStartX = 0
 let nextTurnDragStartY = 0
 const DRAG_THRESHOLD = 6
 const SNAP_BACK_INACTIVITY_MS = 5000
+const LONG_PRESS_DELAY_MS = 500
 let snapBackTimer: ReturnType<typeof setTimeout> | null = null
+
+const longPress = useLongPress(() => {
+  if (gameStore.settings.enableTimer) {
+    toggleTimer()
+  }
+}, LONG_PRESS_DELAY_MS)
 
 const priorityPlayerRotation = computed(() => {
   if (!settingsStore.autoOrientIcons) return 0
@@ -385,6 +421,7 @@ function onNextTurnPointerDown(event: PointerEvent) {
   nextTurnDragStartX = event.clientX
   nextTurnDragStartY = event.clientY
   isNextTurnDragging.value = true
+  longPress.start()
   ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
   const target = event.currentTarget as HTMLElement
   target.addEventListener('pointermove', onNextTurnPointerMove)
@@ -396,8 +433,14 @@ function onNextTurnPointerDown(event: PointerEvent) {
 
 function onNextTurnPointerMove(event: PointerEvent) {
   if (!isNextTurnDragging.value) return
-  nextTurnOffsetX.value += event.clientX - nextTurnDragStartX
-  nextTurnOffsetY.value += event.clientY - nextTurnDragStartY
+  const deltaX = event.clientX - nextTurnDragStartX
+  const deltaY = event.clientY - nextTurnDragStartY
+  // Cancel long-press if finger moves beyond drag threshold
+  if (Math.abs(deltaX) > DRAG_THRESHOLD || Math.abs(deltaY) > DRAG_THRESHOLD) {
+    longPress.cancel()
+  }
+  nextTurnOffsetX.value += deltaX
+  nextTurnOffsetY.value += deltaY
   nextTurnDragStartX = event.clientX
   nextTurnDragStartY = event.clientY
 }
@@ -405,13 +448,24 @@ function onNextTurnPointerMove(event: PointerEvent) {
 function onNextTurnPointerUp(event: PointerEvent) {
   const target = event.currentTarget as HTMLElement
   target.removeEventListener('pointermove', onNextTurnPointerMove)
+  longPress.cancel()
   if (!isNextTurnDragging.value) return
   isNextTurnDragging.value = false
+  // If long-press already fired (pause toggled), skip tap/drag actions
+  if (longPress.isTriggered()) {
+    longPress.reset()
+    return
+  }
   const distance = Math.sqrt(
     nextTurnOffsetX.value ** 2 + nextTurnOffsetY.value ** 2,
   )
   if (distance < DRAG_THRESHOLD) {
-    handleAdvanceTurn()
+    // In pause mode, tap resumes the timer instead of advancing the turn
+    if (gameStore.settings.enableTimer && !isTimerRunning.value) {
+      toggleTimer()
+    } else {
+      handleAdvanceTurn()
+    }
   } else {
     // Schedule snap back to center after inactivity
     scheduleSnapBack()
@@ -679,6 +733,16 @@ function onTurnAdvanced() {
   background: rgba(255, 255, 255, 0.12);
 }
 
+/* Desaturate game content when paused */
+.game-content-wrapper {
+  transition: filter 0.4s ease, opacity 0.4s ease;
+}
+
+.game-paused-desaturate {
+  filter: grayscale(0.75) brightness(0.7);
+  opacity: 0.6;
+}
+
 .floating-next-turn-btn {
   display: flex;
   align-items: center;
@@ -711,6 +775,38 @@ function onTurnAdvanced() {
 @keyframes pause-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
   50% { box-shadow: 0 0 12px 4px rgba(239, 68, 68, 0.3); }
+}
+
+/* Pause ripple wave animation */
+.pause-ripple-container {
+  position: absolute;
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.pause-ripple-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(239, 68, 68, 0.6);
+  animation: pause-ripple-expand 800ms ease-out forwards;
+}
+
+.pause-ripple-ring-2 {
+  animation-delay: 150ms;
+}
+
+@keyframes pause-ripple-expand {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(2.8);
+    opacity: 0;
+  }
 }
 
 .floating-next-turn-btn:active:not(.floating-next-turn-dragging) {
