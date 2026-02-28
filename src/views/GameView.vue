@@ -24,6 +24,7 @@
         <div
           class="game-content-wrapper flex min-h-0 flex-1 flex-col"
           :class="{ 'game-paused-desaturate': !isTimerRunning && gameStore.settings.enableTimer }"
+          :inert="!isTimerRunning && gameStore.settings.enableTimer"
         >
         <!-- Multiplayer indicator -->
         <div v-if="multiplayerStore.isMultiplayer" class="flex items-center justify-center gap-2 bg-mana-blue/20 px-4 py-2">
@@ -78,7 +79,7 @@
           <div
             v-for="messageKey in announceMessages"
             :key="messageKey"
-            class="announce-banner flex items-center justify-center gap-2 rounded-lg px-3 py-1.5"
+            class="announce-banner flex items-center gap-2 rounded-lg px-3 py-1.5"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="shrink-0 text-arena-gold-light" :style="iconRotationStyle">
               <path d="M12 2L1 21h22L12 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
@@ -393,6 +394,8 @@ const nextTurnOffsetY = ref(0)
 const isNextTurnDragging = ref(false)
 let nextTurnDragStartX = 0
 let nextTurnDragStartY = 0
+let nextTurnGestureStartX = 0
+let nextTurnGestureStartY = 0
 const DRAG_THRESHOLD = 6
 const SNAP_BACK_INACTIVITY_MS = 5000
 const LONG_PRESS_DELAY_MS = 500
@@ -435,6 +438,8 @@ const nextTurnTransformStyle = computed(() => {
 function onNextTurnPointerDown(event: PointerEvent) {
   nextTurnDragStartX = event.clientX
   nextTurnDragStartY = event.clientY
+  nextTurnGestureStartX = event.clientX
+  nextTurnGestureStartY = event.clientY
   isNextTurnDragging.value = true
   longPress.start()
   ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
@@ -471,10 +476,10 @@ function onNextTurnPointerUp(event: PointerEvent) {
     longPress.reset()
     return
   }
-  const distance = Math.sqrt(
-    nextTurnOffsetX.value ** 2 + nextTurnOffsetY.value ** 2,
+  const gestureDistance = Math.sqrt(
+    (event.clientX - nextTurnGestureStartX) ** 2 + (event.clientY - nextTurnGestureStartY) ** 2,
   )
-  if (distance < DRAG_THRESHOLD) {
+  if (gestureDistance < DRAG_THRESHOLD) {
     // In pause mode, tap resumes the timer instead of advancing the turn
     if (gameStore.settings.enableTimer && !isTimerRunning.value) {
       toggleTimer()

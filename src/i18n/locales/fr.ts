@@ -290,7 +290,7 @@ export default {
   },
   tokens: {
     cityBlessing: 'Benediction de la cite',
-    rad: 'Rad',
+    rad: 'Radiation',
     ring: "L'Anneau",
     ringLevel: "Niveau de l'anneau {level}",
     ringAbility1: 'Votre porteur est legendaire',

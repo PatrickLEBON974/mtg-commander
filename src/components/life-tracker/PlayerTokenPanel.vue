@@ -113,7 +113,7 @@
           <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.5" opacity="0.5" />
         </svg>
         <span class="counter-label">{{ t('tokens.ring') }}</span>
-        <div class="flex items-center gap-0.5 ml-auto">
+        <div class="flex items-center gap-1.5 ml-auto">
           <button
             v-for="pipLevel in 4"
             :key="pipLevel"
@@ -420,20 +420,23 @@ function handleCastCommander(commanderIndex: number) {
   margin-left: auto;
 }
 .stepper-btn {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 8px;
-  margin: -8px;
-  box-sizing: content-box;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.7);
   font-weight: bold;
-  font-size: 11px;
+  font-size: 10px;
   -webkit-tap-highlight-color: transparent;
+}
+.stepper-btn::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
 }
 .stepper-btn:active {
   background: rgba(255, 255, 255, 0.2);
@@ -448,14 +451,17 @@ function handleCastCommander(commanderIndex: number) {
 
 /* ── Ring pips (inside counter grid) ── */
 .ring-pip {
-  width: 15px;
-  height: 15px;
-  padding: 14px;
-  margin: -14px;
-  box-sizing: content-box;
+  position: relative;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   transition: background 0.15s, box-shadow 0.15s;
   -webkit-tap-highlight-color: transparent;
+}
+.ring-pip::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
 }
 .ring-pip-off {
   background: rgba(255, 255, 255, 0.08);

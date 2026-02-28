@@ -288,7 +288,7 @@ export default {
   },
   tokens: {
     cityBlessing: "City's Blessing",
-    rad: 'Rad',
+    rad: 'Radiation',
     ring: 'The Ring',
     ringLevel: 'Ring level {level}',
     ringAbility1: 'Your Ring-bearer is legendary',
