@@ -68,6 +68,12 @@
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-glow-orange: 0 0 20px rgba(232, 96, 10, 0.3);
   --shadow-glow-gold: 0 0 20px rgba(212, 168, 67, 0.3);
+
+  /* Enhanced depth shadows — Hearthstone-inspired 3D feel */
+  --shadow-card-deep: 0 4px 16px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  --shadow-btn-beveled: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 -2px 0 rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-btn-pressed: inset 0 2px 4px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-inset-panel: inset 0 2px 6px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
 /* =============================================
@@ -217,7 +223,8 @@ ion-toolbar {
 
 ion-header ion-toolbar:last-of-type {
   --box-shadow: none;
-  border-bottom: 1px solid rgba(212, 168, 67, 0.15);
+  border-bottom: 2px solid rgba(212, 168, 67, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 ion-title {
@@ -244,9 +251,24 @@ ion-item {
   --min-height: 56px;
   --border-color: rgba(212, 168, 67, 0.08);
   --background: var(--ion-item-background);
+  --background-activated: rgba(212, 168, 67, 0.06);
+  --background-hover: rgba(212, 168, 67, 0.03);
+  --transition: background 0.15s ease;
   border-radius: 0;
   margin-bottom: 0;
   font-size: 15px;
+}
+
+/* Subtle top highlight on item inner — separated content feel */
+ion-item::part(native) {
+  border-top: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+/* Item label secondary text — better readability */
+ion-item ion-label p,
+ion-item ion-label [slot="helper"] {
+  color: var(--ion-color-medium) !important;
+  font-size: 13px;
 }
 
 ion-item ion-icon[slot="start"],
@@ -276,17 +298,19 @@ ion-list[inset="true"] {
   border-radius: 12px;
   overflow: hidden;
   margin-bottom: 16px;
+  box-shadow: var(--shadow-inset-panel);
 }
 
 ion-list-header {
   --color: var(--ion-color-tertiary);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 1.2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
   margin-top: 8px;
   margin-bottom: 4px;
   padding-left: 16px;
+  text-shadow: 0 0 12px rgba(212, 168, 67, 0.15);
 }
 
 /* =============================================
@@ -294,31 +318,54 @@ ion-list-header {
    ============================================= */
 
 ion-input {
-  --background: rgba(212, 168, 67, 0.04);
+  --background: rgba(0, 0, 0, 0.2);
   --padding-start: 16px;
   --padding-end: 16px;
   --highlight-color-focused: var(--ion-color-tertiary);
   --highlight-color-valid: var(--ion-color-success);
   --highlight-color-invalid: var(--ion-color-danger);
-  --border-radius: 8px;
+  --border-radius: 10px;
+  --border-width: 1px;
+  --border-color: rgba(255, 255, 255, 0.04);
   font-size: 16px;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+  transition: box-shadow 0.2s ease;
+}
+
+ion-input.has-focus {
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(212, 168, 67, 0.2), 0 0 12px rgba(212, 168, 67, 0.06);
 }
 
 ion-searchbar {
-  --background: rgba(255, 255, 255, 0.06);
+  --background: rgba(0, 0, 0, 0.2);
   --border-radius: 12px;
-  --box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  --box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
   --icon-color: var(--ion-color-tertiary);
   --placeholder-color: var(--ion-color-medium);
   --color: var(--ion-text-color);
   padding: 8px 12px;
   font-size: 15px;
+  transition: box-shadow 0.2s ease;
+}
+
+ion-searchbar.searchbar-has-focus {
+  --box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(212, 168, 67, 0.2), 0 0 12px rgba(212, 168, 67, 0.06);
 }
 
 ion-select {
   --placeholder-color: var(--ion-color-medium);
   font-size: 15px;
   color: var(--ion-color-tertiary);
+  font-weight: 600;
+}
+
+ion-select::part(icon) {
+  color: var(--ion-color-tertiary);
+  opacity: 0.6;
+}
+
+ion-select::part(text) {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 /* =============================================
@@ -329,19 +376,26 @@ ion-button {
   --border-radius: 8px;
   --padding-top: 10px;
   --padding-bottom: 10px;
-  --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --box-shadow: var(--shadow-btn-beveled);
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
   min-height: 48px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+ion-button:active {
+  --box-shadow: var(--shadow-btn-pressed);
+  transform: translateY(1px);
 }
 
 ion-button[fill="outline"] {
   --border-width: 1px;
   --border-color: rgba(212, 168, 67, 0.3);
   --color: var(--ion-color-tertiary);
-  --box-shadow: none;
+  --box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+  text-shadow: none;
 }
 
 ion-button[fill="outline"]:hover {
@@ -353,12 +407,14 @@ ion-button[size="large"] {
   font-size: 15px;
   min-height: 56px;
   letter-spacing: 1px;
+  --box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -2px 0 rgba(0, 0, 0, 0.25), 0 3px 10px rgba(0, 0, 0, 0.4);
 }
 
 ion-button[fill="clear"] {
   --box-shadow: none;
   text-transform: none;
   letter-spacing: 0;
+  text-shadow: none;
 }
 
 /* =============================================
@@ -368,8 +424,8 @@ ion-button[fill="clear"] {
 ion-card {
   --background: var(--ion-card-background);
   border-radius: 12px;
-  border: 1px solid rgba(212, 168, 67, 0.1);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(212, 168, 67, 0.15);
+  box-shadow: var(--shadow-card-deep), inset 0 0 0 1px rgba(212, 168, 67, 0.05);
   margin: 12px;
 }
 
@@ -436,17 +492,25 @@ ion-note {
    ============================================= */
 
 ion-toggle {
-  --track-background: #000000;
+  --track-background: rgba(0, 0, 0, 0.5);
   --track-background-checked: rgba(232, 96, 10, 0.3);
-  --handle-background: #8a5a30;
-  --handle-background-checked: var(--ion-color-primary);
+  --handle-background: linear-gradient(180deg, #9a6a3a 0%, #6b4520 100%);
+  --handle-background-checked: linear-gradient(180deg, #f08020 0%, #cc5409 100%);
   --handle-width: 22px;
   --handle-height: 22px;
   --handle-border-radius: 4px;
   --border-radius: 6px;
+  --handle-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 2px 4px rgba(0, 0, 0, 0.4), 0 1px 1px rgba(0, 0, 0, 0.2);
   height: 28px;
   width: 48px;
   padding: 3px 0;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+}
+
+/* Subtle glow when checked */
+ion-toggle.toggle-checked {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(232, 96, 10, 0.15), 0 0 8px rgba(232, 96, 10, 0.1);
 }
 
 /* =============================================
@@ -456,7 +520,13 @@ ion-toggle {
 ion-modal {
   --border-radius: 16px 16px 0 0;
   --background: var(--modal-background);
-  --box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.6);
+  --box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.7),
+                0 -1px 0 rgba(212, 168, 67, 0.2),
+                inset 0 1px 0 rgba(212, 168, 67, 0.12),
+                inset 0 0 60px rgba(212, 168, 67, 0.03);
+  --border-width: 1px;
+  --border-color: rgba(212, 168, 67, 0.08);
+  --border-style: solid;
 }
 
 ion-modal ion-content {
@@ -468,10 +538,15 @@ ion-modal ion-toolbar {
 }
 
 ion-modal::part(handle) {
-  background: rgba(212, 168, 67, 0.3);
-  width: 40px;
+  background: linear-gradient(90deg, rgba(212, 168, 67, 0.1), rgba(212, 168, 67, 0.4), rgba(212, 168, 67, 0.1));
+  width: 48px;
   height: 4px;
-  margin-top: 8px;
+  margin-top: 10px;
+  box-shadow: 0 0 8px rgba(212, 168, 67, 0.15);
+}
+
+ion-modal ion-title {
+  text-shadow: 0 0 20px rgba(212, 168, 67, 0.2);
 }
 
 ion-action-sheet {
@@ -484,8 +559,23 @@ ion-action-sheet {
   --color: var(--ion-text-color);
 }
 
+ion-action-sheet .action-sheet-group {
+  border-radius: 14px;
+  border: 1px solid rgba(212, 168, 67, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
 ion-action-sheet .action-sheet-title {
-  color: var(--ion-color-tertiary);
+  color: var(--color-arena-gold-light);
+  font-family: var(--font-beleren);
+  font-size: 16px;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 12px rgba(212, 168, 67, 0.15);
+}
+
+ion-action-sheet .action-sheet-button {
+  font-weight: 500;
+  font-size: 15px;
 }
 
 ion-alert {
@@ -496,7 +586,29 @@ ion-alert {
 ion-alert .alert-wrapper {
   background: var(--modal-background);
   border-radius: 16px;
-  border: 1px solid rgba(212, 168, 67, 0.1);
+  border: 1px solid rgba(212, 168, 67, 0.12);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(212, 168, 67, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+ion-alert .alert-title {
+  font-family: var(--font-beleren);
+  color: var(--color-arena-gold-light);
+  text-shadow: 0 0 16px rgba(212, 168, 67, 0.15);
+}
+
+ion-alert .alert-button {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 13px;
+}
+
+ion-alert .alert-input {
+  background: rgba(0, 0, 0, 0.2) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 8px !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  color: var(--ion-text-color) !important;
 }
 
 ion-picker {
@@ -614,7 +726,8 @@ ion-content::part(scroll) {
   transition: transform 100ms ease, box-shadow 100ms ease;
 }
 .btn-press:active {
-  transform: scale(0.93);
+  transform: scale(0.93) translateY(1px);
+  box-shadow: var(--shadow-btn-pressed);
 }
 
 .life-btn {
@@ -659,7 +772,7 @@ ion-content::part(scroll) {
 
 /* Arena gradient background for hero sections */
 .arena-hero-bg {
-  background: radial-gradient(ellipse at 50% 0%, rgba(212, 168, 67, 0.08) 0%, transparent 60%),
+  background: radial-gradient(ellipse at 50% 0%, rgba(212, 168, 67, 0.12) 0%, transparent 60%),
               linear-gradient(180deg, #0d1220 0%, #0a0e17 100%);
 }
 
@@ -667,6 +780,44 @@ ion-content::part(scroll) {
 .arena-heading {
   color: var(--color-arena-gold-light);
   text-shadow: 0 0 20px rgba(212, 168, 67, 0.15);
+}
+
+/* =============================================
+   ANIMATION — Tavern swing for decorative elements
+   ============================================= */
+
+@keyframes tavern-swing {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+}
+
+.swing-subtle {
+  animation: tavern-swing 4s ease-in-out infinite;
+  transform-origin: top center;
+}
+
+/* =============================================
+   TEXTURE UTILITIES — CSS-only surface grain
+   ============================================= */
+
+.surface-grain {
+  position: relative;
+}
+
+.surface-grain::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: repeating-linear-gradient(
+    92deg, transparent 0px, transparent 3px,
+    rgba(255, 255, 255, 0.008) 3px, rgba(255, 255, 255, 0.008) 4px
+  ), repeating-linear-gradient(
+    88deg, transparent 0px, transparent 7px,
+    rgba(255, 255, 255, 0.005) 7px, rgba(255, 255, 255, 0.005) 8px
+  );
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* =============================================
@@ -728,8 +879,8 @@ ion-content::part(scroll) {
 }
 
 .card-lift:active {
-  transform: translateY(-2px) scale(1.01);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), 0 0 12px rgba(212, 168, 67, 0.06);
 }
 
 /* =============================================
@@ -762,9 +913,9 @@ ion-content::part(scroll) {
 .tab-indicator {
   position: absolute;
   bottom: 0;
-  height: 2px;
-  background: var(--ion-tab-bar-color-selected, #e8600a);
+  height: 3px;
+  background: linear-gradient(90deg, rgba(232, 96, 10, 0.8), var(--ion-tab-bar-color-selected, #e8600a), rgba(232, 96, 10, 0.8));
   border-radius: 1px 1px 0 0;
   transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1), width 250ms cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 0 8px rgba(232, 96, 10, 0.4);
+  box-shadow: 0 0 12px rgba(232, 96, 10, 0.5), 0 0 4px rgba(232, 96, 10, 0.3);
 }

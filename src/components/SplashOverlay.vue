@@ -32,10 +32,10 @@
       </div>
 
       <!-- Loading bar — Arena gold gradient -->
-      <div class="mt-8 h-1.5 w-52 overflow-hidden rounded-full" style="background: rgba(212, 168, 67, 0.1)">
+      <div class="mt-8 h-1.5 w-52 overflow-hidden rounded-full" style="background: rgba(212, 168, 67, 0.1); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);">
         <div
           class="h-full rounded-full transition-all duration-500 ease-out"
-          style="background: linear-gradient(90deg, #e8600a, #d4a843)"
+          style="background: linear-gradient(90deg, #e8600a, #d4a843); box-shadow: 0 0 8px rgba(232, 96, 10, 0.4);"
           :style="{ width: `${loadProgress}%` }"
         />
       </div>
@@ -91,7 +91,7 @@ onMounted(async () => {
     transform: scale(1);
   }
   50% {
-    filter: drop-shadow(0 0 32px rgba(212, 168, 67, 0.5));
+    filter: drop-shadow(0 0 40px rgba(212, 168, 67, 0.55));
     transform: scale(1.03);
   }
 }

@@ -1,7 +1,7 @@
 <template>
   <div class="flex items-center gap-3">
     <button
-      class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-lg font-bold active:bg-white/20"
+      class="setting-stepper-btn flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold"
       :disabled="currentIndex <= 0"
       :class="currentIndex <= 0 ? 'opacity-30' : ''"
       :aria-label="t('common.decrease', { label })"
@@ -10,12 +10,12 @@
       -
     </button>
 
-    <span class="min-w-[4rem] text-center text-lg font-bold tabular-nums text-text-primary">
+    <span class="setting-stepper-value min-w-[4rem] text-center text-lg font-bold tabular-nums text-text-primary">
       {{ displayValue }}
     </span>
 
     <button
-      class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-lg font-bold active:bg-white/20"
+      class="setting-stepper-btn flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold"
       :disabled="currentIndex >= options.length - 1"
       :class="currentIndex >= options.length - 1 ? 'opacity-30' : ''"
       :aria-label="t('common.increase', { label })"
@@ -72,3 +72,28 @@ function next() {
   }
 }
 </script>
+
+<style scoped>
+.setting-stepper-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.8);
+  box-shadow: var(--shadow-btn-beveled);
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.setting-stepper-btn:active {
+  transform: scale(0.88) translateY(1px);
+  box-shadow: var(--shadow-btn-pressed);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.setting-stepper-btn:disabled {
+  pointer-events: none;
+}
+
+.setting-stepper-value {
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 -1px 0 rgba(255, 255, 255, 0.05);
+}
+</style>

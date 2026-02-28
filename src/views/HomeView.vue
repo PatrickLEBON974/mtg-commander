@@ -14,7 +14,7 @@
           src="@/assets/icons/ui/logo.svg"
           alt="MTG Commander"
           class="h-24 w-24"
-          style="filter: drop-shadow(0 0 16px rgba(212, 168, 67, 0.3))"
+          style="filter: drop-shadow(0 0 24px rgba(212, 168, 67, 0.35))"
         />
         <h1 data-animate class="arena-heading" style="font-family: var(--font-beleren); font-size: 28px; letter-spacing: 3px;">
           {{ t('home.title') }}
@@ -316,6 +316,8 @@ async function deleteProfile(profileId: string) {
   border-radius: 50%;
   flex-shrink: 0;
   margin-right: 8px;
+  box-shadow: 0 0 6px currentColor;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Split button: Resume + chevron arrow */
@@ -327,7 +329,7 @@ async function deleteProfile(profileId: string) {
 
 .split-btn-main {
   flex: 1;
-  --border-radius: 8px 0 0 8px;
+  --border-radius: 10px 0 0 10px;
 }
 
 .split-btn-arrow {
@@ -335,19 +337,24 @@ async function deleteProfile(profileId: string) {
   align-items: center;
   justify-content: center;
   width: 48px;
-  background: var(--ion-color-primary);
+  background: linear-gradient(180deg, var(--ion-color-primary) 0%, var(--ion-color-primary-shade) 100%);
   border-left: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 0 8px 8px 0;
+  border-radius: 0 10px 10px 0;
   color: white;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, transform 0.1s ease;
+  box-shadow: var(--shadow-btn-beveled);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .split-btn-arrow:active {
   background: var(--ion-color-primary-shade);
+  transform: translateY(1px);
+  box-shadow: var(--shadow-btn-pressed);
 }
 
 .split-btn-arrow svg {
-  transition: transform 0.25s ease;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
 }
 
 .split-btn-arrow--open svg {

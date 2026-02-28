@@ -328,7 +328,8 @@ onUnmounted(() => {
   background: var(--ion-tab-bar-background, #0d1220);
   height: calc(48px + var(--ion-safe-area-bottom, 0px));
   padding-bottom: var(--ion-safe-area-bottom, 0px);
-  border-top: 1px solid rgba(212, 168, 67, 0.12);
+  border-top: 2px solid rgba(212, 168, 67, 0.1);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(212, 168, 67, 0.06);
   flex-shrink: 0;
 }
 
@@ -361,7 +362,7 @@ onUnmounted(() => {
 }
 
 .custom-tab-button.tab-selected :deep(svg) {
-  filter: drop-shadow(0 0 8px rgba(232, 96, 10, 0.5));
+  filter: drop-shadow(0 0 10px rgba(232, 96, 10, 0.6)) drop-shadow(0 0 4px rgba(232, 96, 10, 0.3));
 }
 
 .tab-bar-overlay {

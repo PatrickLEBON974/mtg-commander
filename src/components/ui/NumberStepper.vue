@@ -1,7 +1,7 @@
 <template>
   <div class="flex items-center" :class="size === 'lg' ? 'gap-6' : 'gap-3'">
     <button
-      class="flex items-center justify-center rounded-full bg-white/10 font-bold active:bg-white/20"
+      class="stepper-btn flex items-center justify-center rounded-full font-bold"
       :class="[
         size === 'lg' ? 'h-14 w-14 text-2xl' : 'h-10 w-10 text-lg',
         decrementClass,
@@ -23,7 +23,7 @@
       :min="min"
       :max="max"
       :step="step"
-      class="stepper-input bg-transparent text-center font-bold tabular-nums"
+      class="stepper-input stepper-value bg-transparent text-center font-bold tabular-nums"
       :class="[
         size === 'lg' ? 'min-w-[4rem] text-5xl' : 'min-w-[2rem] text-lg',
         valueClass,
@@ -34,7 +34,7 @@
     />
 
     <button
-      class="flex items-center justify-center rounded-full bg-white/10 font-bold active:bg-white/20"
+      class="stepper-btn flex items-center justify-center rounded-full font-bold"
       :class="[
         size === 'lg' ? 'h-14 w-14 text-2xl' : 'h-10 w-10 text-lg',
         incrementClass,
@@ -151,5 +151,26 @@ function onBlur() {
 .stepper-input {
   -moz-appearance: textfield;
   appearance: textfield;
+}
+
+/* Beveled stepper buttons */
+.stepper-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.8);
+  box-shadow: var(--shadow-btn-beveled);
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.stepper-btn:active {
+  transform: scale(0.88) translateY(1px);
+  box-shadow: var(--shadow-btn-pressed);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Value display with embossed text */
+.stepper-value {
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 -1px 0 rgba(255, 255, 255, 0.05);
 }
 </style>

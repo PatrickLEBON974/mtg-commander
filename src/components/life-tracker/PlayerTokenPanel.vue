@@ -71,7 +71,7 @@
     <!-- Counter grid: 2×2 with ring pips in 4th cell -->
     <div class="counter-grid">
       <!-- Experience -->
-      <div class="counter-cell">
+      <div class="counter-cell" :class="{ 'counter-active': player.experienceCounters > 0 }">
         <IconExperience :size="10" class="text-arena-blue shrink-0" />
         <span class="counter-label">{{ t('playerDetail.experience') }}</span>
         <div class="stepper-controls" data-sound="none">
@@ -82,7 +82,7 @@
       </div>
 
       <!-- Energy -->
-      <div class="counter-cell">
+      <div class="counter-cell" :class="{ 'counter-active': player.energyCounters > 0 }">
         <IconEnergy :size="10" class="text-arena-gold shrink-0" />
         <span class="counter-label">{{ t('playerDetail.energy') }}</span>
         <div class="stepper-controls" data-sound="none">
@@ -93,7 +93,7 @@
       </div>
 
       <!-- Rad -->
-      <div class="counter-cell">
+      <div class="counter-cell" :class="{ 'counter-active': player.radCounters > 0 }">
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" class="text-green-400 shrink-0">
           <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2.5" />
           <circle cx="12" cy="12" r="3" fill="currentColor" />
@@ -107,7 +107,7 @@
       </div>
 
       <!-- Ring pips -->
-      <div class="counter-cell">
+      <div class="counter-cell" :class="{ 'counter-active': player.ringLevel > 0 }">
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" :class="player.ringLevel > 0 ? 'text-amber-400' : 'text-white/40'">
           <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2.5" />
           <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.5" opacity="0.5" />
@@ -359,6 +359,7 @@ function handleCastCommander(commanderIndex: number) {
   border-radius: 8px;
   transition: background 0.15s, box-shadow 0.15s;
   -webkit-tap-highlight-color: transparent;
+  box-shadow: var(--shadow-btn-beveled);
 }
 .token-off {
   background: rgba(255, 255, 255, 0.05);
@@ -367,27 +368,57 @@ function handleCastCommander(commanderIndex: number) {
   background: rgba(255, 255, 255, 0.1);
 }
 .token-active {
+  position: relative;
+  overflow: hidden;
   font-weight: 600;
+}
+.token-active::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: token-pulse 2s ease-in-out infinite;
 }
 .token-monarch {
   background: rgba(212, 168, 67, 0.15);
   box-shadow: inset 0 0 6px rgba(212, 168, 67, 0.2);
 }
+.token-monarch::after {
+  box-shadow: inset 0 0 12px rgba(212, 168, 67, 0.4);
+}
 .token-initiative {
   background: rgba(255, 255, 255, 0.1);
   box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.15);
+}
+.token-initiative::after {
+  box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.3);
 }
 .token-city {
   background: rgba(52, 211, 153, 0.15);
   box-shadow: inset 0 0 6px rgba(52, 211, 153, 0.2);
 }
+.token-city::after {
+  box-shadow: inset 0 0 12px rgba(52, 211, 153, 0.4);
+}
 .token-day {
   background: rgba(250, 204, 21, 0.15);
   box-shadow: inset 0 0 6px rgba(250, 204, 21, 0.2);
 }
+.token-day::after {
+  box-shadow: inset 0 0 12px rgba(250, 204, 21, 0.4);
+}
 .token-night {
   background: rgba(147, 197, 253, 0.15);
   box-shadow: inset 0 0 6px rgba(147, 197, 253, 0.2);
+}
+.token-night::after {
+  box-shadow: inset 0 0 12px rgba(147, 197, 253, 0.4);
+}
+
+@keyframes token-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
 }
 
 /* ── Counter grid: 2×2 layout ── */
@@ -404,6 +435,11 @@ function handleCastCommander(commanderIndex: number) {
   min-height: 26px;
   border-radius: 4px;
   background: rgba(0, 0, 0, 0.12);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.counter-active {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3), inset 0 0 8px rgba(255, 255, 255, 0.03);
 }
 .counter-label {
   font-size: 9px;
@@ -432,6 +468,8 @@ function handleCastCommander(commanderIndex: number) {
   font-weight: bold;
   font-size: 10px;
   -webkit-tap-highlight-color: transparent;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
 .stepper-btn::after {
   content: '';
@@ -440,13 +478,16 @@ function handleCastCommander(commanderIndex: number) {
 }
 .stepper-btn:active {
   background: rgba(255, 255, 255, 0.2);
+  transform: scale(0.85) translateY(1px);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 .stepper-val {
   min-width: 14px;
   text-align: center;
-  font-weight: 700;
-  font-size: 11px;
+  font-weight: 800;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 -1px 0 rgba(255, 255, 255, 0.05);
 }
 
 /* ── Ring pips (inside counter grid) ── */
@@ -468,9 +509,9 @@ function handleCastCommander(commanderIndex: number) {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 .ring-pip-on {
-  background: rgba(245, 158, 11, 0.6);
-  border: 1px solid rgba(245, 158, 11, 0.8);
-  box-shadow: 0 0 4px rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.7);
+  border: 1px solid rgba(245, 158, 11, 0.9);
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.5), 0 0 12px rgba(245, 158, 11, 0.2);
 }
 
 /* ── Commander rows: compact ── */
@@ -482,6 +523,8 @@ function handleCastCommander(commanderIndex: number) {
   min-height: 28px;
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.1);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 .commander-tax-btn {
   display: flex;
@@ -494,9 +537,13 @@ function handleCastCommander(commanderIndex: number) {
   font-weight: 700;
   color: #e8600a;
   -webkit-tap-highlight-color: transparent;
+  box-shadow: var(--shadow-btn-beveled);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
 .commander-tax-btn:active {
   background: rgba(232, 96, 10, 0.3);
+  box-shadow: var(--shadow-btn-pressed);
+  transform: translateY(1px);
 }
 
 /* ── Game result button ── */
@@ -509,12 +556,17 @@ function handleCastCommander(commanderIndex: number) {
   min-height: 36px;
   border-radius: 8px;
   background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.15);
   font-size: 11px;
   font-weight: 600;
   color: rgba(239, 68, 68, 0.7);
   -webkit-tap-highlight-color: transparent;
+  box-shadow: var(--shadow-btn-beveled);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
 .token-game-result:active {
   background: rgba(239, 68, 68, 0.2);
+  box-shadow: var(--shadow-btn-pressed);
+  transform: translateY(1px);
 }
 </style>

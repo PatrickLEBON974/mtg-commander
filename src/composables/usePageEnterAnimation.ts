@@ -26,14 +26,15 @@ export function usePageEnterAnimation(rootSelector = 'ion-content') {
     }
 
     // Reset before playing
-    gsap.set(targets, { opacity: 0, y: 20 })
+    gsap.set(targets, { opacity: 0, y: 20, scale: 0.97 })
 
     timeline = gsap.timeline()
     timeline.to(targets, {
       opacity: 1,
       y: 0,
-      duration: 0.35,
-      ease: 'power2.out',
+      scale: 1,
+      duration: 0.4,
+      ease: 'back.out(1.4)',
       stagger: { each: 0.08, from: 'start' },
     })
   }

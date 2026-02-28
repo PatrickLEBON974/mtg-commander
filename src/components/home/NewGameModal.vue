@@ -391,17 +391,19 @@ function handleConfirm() {
 
 <style scoped>
 .collapsible-chevron {
-  transition: transform 0.25s ease;
-  font-size: 18px;
-  color: var(--ion-color-medium);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  font-size: 16px;
+  color: var(--ion-color-tertiary);
+  opacity: 0.6;
 }
 
 .collapsible-chevron--open {
   transform: rotate(180deg);
+  opacity: 1;
 }
 
 .collapse-enter-active {
-  transition: opacity 0.25s ease-out, max-height 0.25s ease-out;
+  transition: opacity 0.3s ease-out, max-height 0.3s ease-out;
   overflow: hidden;
 }
 .collapse-leave-active {

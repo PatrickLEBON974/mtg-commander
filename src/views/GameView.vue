@@ -267,7 +267,7 @@
     <!-- Game menu -->
     <AppModal :is-open="showGameMenu" :initial-breakpoint="0.5" :breakpoints="[0, 0.5]" @close="closeGameMenu">
       <div class="px-4 pb-20 pt-5 transition-transform duration-300 ease-in-out" :style="iconRotationStyle">
-        <h3 class="mb-4 text-center text-base font-semibold text-text-primary">{{ t('game.menu') }}</h3>
+        <h3 class="mb-4 text-center text-base font-semibold text-arena-gold-light" style="font-family: var(--font-beleren); letter-spacing: 1px; text-shadow: 0 0 16px rgba(212, 168, 67, 0.15)">{{ t('game.menu') }}</h3>
         <div class="grid grid-cols-3 gap-3">
           <button class="menu-action-btn" :disabled="!gameStore.canUndo" data-sound="none" @click="menuUndo">
             <ion-icon :icon="arrowUndoOutline" />
@@ -319,6 +319,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
+import gsap from 'gsap'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
@@ -348,6 +349,7 @@ import DiceRollerSheet from '@/components/dice/DiceRollerSheet.vue'
 import SeatingPhase from '@/components/game/SeatingPhase.vue'
 import InitiativePhase from '@/components/game/InitiativePhase.vue'
 import SaveAnonymousPlayerModal from '@/components/player-registry/SaveAnonymousPlayerModal.vue'
+import { prefersReducedMotion } from '@/utils/motion'
 import { playTurnAdvance, playUndo, playEndGame } from '@/services/sounds'
 import { useBehaviorRuleEngine } from '@/rules/behaviorRuleEngine'
 import { isGameMenuOpen } from '@/composables/useGameFullscreen'
@@ -634,6 +636,14 @@ function handleAdvanceTurn() {
   gameStore.advanceTurn()
   playTurnAdvance()
   multiplayerStore.syncTurnAdvance()
+
+  // Turn advance pulse on the floating button
+  if (!prefersReducedMotion.value && nextTurnBtnRef.value) {
+    gsap.fromTo(nextTurnBtnRef.value,
+      { scale: 1.3, boxShadow: '0 0 30px rgba(232, 96, 10, 0.6)' },
+      { scale: 1, boxShadow: '0 0 0 rgba(232, 96, 10, 0)', duration: 0.5, ease: 'power2.out' },
+    )
+  }
 }
 
 async function confirmEndGame() {
@@ -762,6 +772,7 @@ function onTurnAdvanced() {
   color: rgba(255, 255, 255, 0.7);
   font-size: 16px;
   transition: transform 0.15s ease, background 0.15s ease;
+  box-shadow: var(--shadow-btn-beveled);
 }
 
 .topbar-action-btn ion-icon,
@@ -838,6 +849,7 @@ function onTurnAdvanced() {
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.15s ease;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
+  box-shadow: var(--shadow-btn-beveled), 0 0 12px rgba(255, 255, 255, 0.05);
 }
 
 .floating-next-turn-dragging {
@@ -905,20 +917,27 @@ function onTurnAdvanced() {
   gap: 0.5rem;
   padding: 1rem;
   border-radius: 0.75rem;
-  background: rgba(255, 255, 255, 0.05);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
   color: rgba(255, 255, 255, 0.8);
   font-size: 0.75rem;
-  border: none;
-  transition: background 0.15s ease;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background 0.1s ease, transform 0.1s ease, box-shadow 0.1s ease;
+  box-shadow: var(--shadow-btn-beveled);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .menu-action-btn ion-icon,
 .menu-action-btn :deep(svg) {
   font-size: 1.5rem;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
 }
 
 .menu-action-btn:active {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
+  transform: scale(0.93) translateY(1px);
+  box-shadow: var(--shadow-btn-pressed);
 }
 
 .menu-action-btn:disabled {
@@ -928,12 +947,18 @@ function onTurnAdvanced() {
 
 .menu-action-danger {
   color: var(--color-life-negative);
+  border-color: rgba(239, 68, 68, 0.1);
+}
+
+.menu-action-danger:active {
+  background: rgba(239, 68, 68, 0.12);
 }
 
 .menu-action-active {
-  background: rgba(232, 96, 10, 0.15);
+  background: rgba(232, 96, 10, 0.12);
   color: var(--color-accent);
-  border: 1px solid rgba(232, 96, 10, 0.3);
+  border-color: rgba(232, 96, 10, 0.25);
+  box-shadow: var(--shadow-btn-beveled), 0 0 8px rgba(232, 96, 10, 0.08);
 }
 
 .announce-banner {

@@ -34,7 +34,7 @@ export function useModalAnimation() {
         .fromTo('opacity', '0', '1')
         .fromTo('transform', 'scale(0.85)', 'scale(1)')
         .duration(prefersReducedMotion.value ? 1 : 400)
-        .easing('cubic-bezier(0.25, 0.46, 0.45, 0.94)')
+        .easing('cubic-bezier(0.34, 1.56, 0.64, 1)')
       rootAnimation.addAnimation(wrapperAnimation)
     }
 
@@ -45,13 +45,13 @@ export function useModalAnimation() {
         if (animateTargets && animateTargets.length > 0) {
           gsap.fromTo(
             animateTargets,
-            { opacity: 0, y: 12 },
+            { opacity: 0, y: 16 },
             {
               opacity: 1,
               y: 0,
               duration: 0.3,
-              ease: 'power2.out',
-              stagger: { each: 0.06, from: 'start' },
+              ease: 'back.out(1.7)',
+              stagger: { each: 0.08, from: 'start' },
               delay: 0.05,
             },
           )
@@ -83,7 +83,7 @@ export function useModalAnimation() {
       const wrapperAnimation = createAnimation()
         .addElement(wrapperEl)
         .fromTo('opacity', '1', '0')
-        .fromTo('transform', 'translateY(0%)', 'translateY(100%)')
+        .fromTo('transform', 'translateY(0%) scale(1)', 'translateY(100%) scale(0.95)')
         .duration(prefersReducedMotion.value ? 1 : 250)
         .easing('cubic-bezier(0.55, 0.06, 0.68, 0.19)')
       rootAnimation.addAnimation(wrapperAnimation)

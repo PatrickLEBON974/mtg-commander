@@ -187,6 +187,7 @@ function cancel() {
   background: linear-gradient(180deg, rgba(212, 168, 67, 0.05) 0%, rgba(10, 14, 23, 0.5) 100%);
   border: 1px solid rgba(212, 168, 67, 0.1);
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-btn-beveled);
 }
 .numpad-key:active {
   color: #fff;

@@ -1,176 +1,127 @@
 <template>
-  <AppModal :is-open="isOpen" :title="t('commanderDamage.title')" content-class="ion-padding" @close="$emit('close')">
-    <!-- Step indicator -->
-    <div v-if="selectedAttacker" class="flex justify-center gap-2 pb-3 pt-1">
-      <div
-        v-for="step in totalSteps"
-        :key="step"
-        class="h-1.5 rounded-full transition-all duration-300"
-        :class="step <= currentStep ? 'w-6 bg-commander-damage' : 'w-1.5 bg-white/20'"
-      />
-    </div>
-
-    <!-- Received damage summary (always visible before step 1) -->
-    <div v-if="!selectedAttacker && receivedDamageEntries.length > 0" class="mb-4 flex flex-col gap-2 px-1">
-      <p class="text-center text-xs font-semibold uppercase tracking-wider text-white/40">{{ t('commanderDamage.received') }}</p>
-      <div
-        v-for="entry in receivedDamageEntries"
-        :key="entry.commanderId"
-        class="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2"
-      >
-        <IconSwordSingle :size="14" class="shrink-0 text-commander-damage" />
-        <div class="min-w-0 flex-1">
-          <span class="text-sm font-medium text-white/90">{{ entry.attackerName }}</span>
-          <span v-if="entry.commanderName" class="text-xs text-white/50"> — {{ entry.commanderName }}</span>
-        </div>
-        <span class="shrink-0 text-sm font-bold tabular-nums text-commander-damage">{{ entry.damage }}</span>
-        <button
-          class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-life-negative/15 text-life-negative active:scale-90 active:bg-life-negative/30"
-          :aria-label="t('commanderDamage.removeDamage')"
-          @click="reduceCommanderDamage(entry.commanderId)"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-            <path d="M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+  <AppModal
+    :is-open="isOpen"
+    :show-header="false"
+    class="cmdr-dialog"
+    @close="$emit('close')"
+  >
+    <div class="cmdr-content">
+      <!-- Custom header -->
+      <div class="cmdr-header">
+        <h2 class="cmdr-title">{{ t('commanderDamage.title') }}</h2>
+        <button class="cmdr-close-btn" :aria-label="t('common.close')" @click="$emit('close')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
           </svg>
         </button>
       </div>
-    </div>
+      <p class="mb-3 text-center text-xs text-white/40">{{ targetPlayer.name }}</p>
 
-    <!-- Step 1: Choose attacker -->
-    <Transition name="step-fade" mode="out-in">
-      <div v-if="!selectedAttacker" key="step1" class="flex flex-col gap-3 px-1" data-animate>
-        <p class="text-center text-sm text-text-secondary">{{ t('commanderDamage.whoAttacks') }}</p>
-        <button
-          v-for="attackerPlayer in otherPlayers"
-          :key="attackerPlayer.id"
-          class="attacker-card flex items-center gap-4 rounded-2xl p-4 active:scale-[0.97]"
-          :style="{ '--card-mana': `var(--color-mana-${attackerPlayer.color})` }"
-          @click="selectAttacker(attackerPlayer)"
+      <!-- Attacker rows — all opponents when tapped, filtered to one when dragged -->
+      <div class="cmdr-rows">
+        <div
+          v-for="(row, rowIndex) in visibleRows"
+          :key="row.commanderId"
+          class="cmdr-row"
+          :data-animate="rowIndex"
         >
-          <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full" style="background: rgba(245, 158, 11, 0.2)">
-            <IconSwordSingle :size="22" class="text-commander-damage" />
-          </div>
-          <div class="min-w-0 flex-1 text-left">
-            <span class="block truncate text-base font-bold text-white">{{ attackerPlayer.name }}</span>
-            <span v-if="attackerPlayer.commanders.length > 0" class="block truncate text-xs text-white/50">
-              {{ attackerPlayer.commanders.map(c => c.cardName).join(' / ') }}
-            </span>
-          </div>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="shrink-0 text-white/30">
-            <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-      </div>
-
-      <!-- Step 2: Choose which commander (if attacker has multiple) -->
-      <div v-else-if="selectedAttacker.commanders.length > 1 && selectedCommanderIndex === null" key="step2" class="flex flex-col gap-3 px-1" data-animate>
-        <p class="text-center text-sm text-text-secondary">{{ t('commanderDamage.whichCommander') }}</p>
-        <button
-          v-for="(commander, commanderIndex) in selectedAttacker.commanders"
-          :key="commander.id"
-          class="attacker-card flex items-center gap-4 rounded-2xl p-4 active:scale-[0.97]"
-          :style="{ '--card-mana': `var(--color-mana-${selectedAttacker.color})` }"
-          @click="selectedCommanderIndex = commanderIndex"
-        >
-          <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full" style="background: rgba(245, 158, 11, 0.2)">
-            <IconSwordSingle :size="22" class="text-commander-damage" />
-          </div>
-          <span class="min-w-0 flex-1 truncate text-left text-base font-bold text-white">{{ commander.cardName }}</span>
-        </button>
-        <div class="flex w-full gap-3 pt-2">
-          <button
-            class="flex-1 rounded-xl bg-white/5 py-3.5 text-center text-sm font-medium text-text-secondary active:bg-white/10"
-            @click="selectedAttacker = null"
-          >
-            {{ t('common.back') }}
-          </button>
-        </div>
-      </div>
-
-      <!-- Step 3: Choose amount -->
-      <div v-else key="step3" class="flex flex-col items-center gap-5 px-1" data-animate>
-        <!-- Context header -->
-        <div class="w-full rounded-xl bg-white/5 px-4 py-3 text-center">
-          <p class="text-sm font-medium text-white/90">
-            {{ selectedAttacker.name }}
-            <span v-if="activeCommanderName" class="text-white/50"> — {{ activeCommanderName }}</span>
-          </p>
-          <p class="mt-1 text-xs text-text-secondary">
-            {{ t('commanderDamage.dealsTo', { target: targetPlayer.name }) }}
-          </p>
-          <!-- Damage progress -->
-          <div class="mt-3 flex items-center gap-3">
-            <div class="h-3 flex-1 overflow-hidden rounded-full bg-white/10">
-              <div
-                class="h-full rounded-full transition-all duration-300"
-                :class="damageProgressRatio >= 1 ? 'bg-life-negative' : 'bg-commander-damage'"
-                :style="{ width: `${Math.min(damageProgressRatio * 100, 100)}%` }"
+          <!-- Attacker identity + stepper -->
+          <div class="flex items-center gap-2.5">
+            <div
+              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+              :style="{ background: `color-mix(in srgb, var(--color-mana-${row.attackerColor}) 25%, transparent)` }"
+            >
+              <img
+                v-if="row.commanderImage"
+                :src="row.commanderImage"
+                :alt="row.commanderName ?? row.attackerName"
+                class="h-7 w-7 rounded-full object-cover"
               />
+              <IconSwordSingle v-else :size="16" class="text-commander-damage" />
             </div>
-            <span class="shrink-0 text-sm font-bold tabular-nums" :class="damageProgressRatio >= 1 ? 'text-life-negative' : 'text-commander-damage'">
-              {{ currentDamageFromAttacker + damageAmount }} / {{ gameStore.settings.commanderDamageThreshold }}
+
+            <div class="min-w-0 flex-1">
+              <span class="block truncate text-sm font-semibold text-white/90">
+                {{ row.attackerName }}
+              </span>
+              <span v-if="row.commanderName" class="block truncate text-[10px] text-white/50">
+                {{ row.commanderName }}
+              </span>
+            </div>
+
+            <!-- Inline stepper -->
+            <button
+              class="cmdr-stepper-btn"
+              :disabled="row.damage <= 0"
+              :aria-label="t('commanderDamage.removeDamage')"
+              data-sound="none"
+              @click="changeDamage(row, -1)"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                <path d="M5 12h14" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+              </svg>
+            </button>
+            <span
+              class="cmdr-damage-value tabular-nums"
+              :class="row.damage > 0 ? 'text-commander-damage' : 'text-white/30'"
+            >
+              {{ row.damage }}
+            </span>
+            <button
+              class="cmdr-stepper-btn cmdr-stepper-plus"
+              :aria-label="t('commanderDamage.deal', { amount: 1 })"
+              data-sound="none"
+              @click="changeDamage(row, 1)"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+              </svg>
+            </button>
+
+            <!-- Fraction -->
+            <span
+              class="shrink-0 text-xs font-bold tabular-nums"
+              :class="row.progressRatio >= 1 ? 'text-life-negative' : 'text-white/50'"
+            >
+              {{ row.damage }}/{{ commanderDamageThreshold }}
             </span>
           </div>
-        </div>
 
-        <!-- Damage stepper -->
-        <NumberStepper
-          v-model="damageAmount"
-          :min="0"
-          size="lg"
-          value-class="text-commander-damage"
-          decrement-class="text-life-negative"
-          increment-class="text-life-positive"
-        />
-
-        <!-- Quick amounts -->
-        <div class="flex flex-wrap justify-center gap-2">
-          <button
-            v-for="quickAmount in QUICK_COMMANDER_DAMAGE_OPTIONS"
-            :key="quickAmount"
-            class="flex h-12 w-12 items-center justify-center rounded-xl text-base font-bold tabular-nums transition-all duration-150"
-            :class="damageAmount === quickAmount
-              ? 'scale-110 bg-commander-damage/30 text-commander-damage ring-1 ring-commander-damage/40'
-              : 'bg-white/5 text-white/60 active:scale-95 active:bg-white/10'"
-            @click="damageAmount = quickAmount"
-          >
-            {{ quickAmount }}
-          </button>
-        </div>
-
-        <!-- Actions -->
-        <div class="flex w-full gap-3 pt-1">
-          <button
-            class="flex-1 rounded-xl bg-white/5 py-3.5 text-center text-sm font-medium text-text-secondary active:bg-white/10"
-            @click="resetSelection"
-          >
-            {{ t('common.back') }}
-          </button>
-          <button
-            class="flex-[2] rounded-xl py-3.5 text-center text-base font-bold text-white transition-all duration-150 active:scale-[0.97]"
-            :class="damageAmount > 0 ? 'bg-commander-damage' : 'bg-white/10 text-white/30'"
-            :disabled="damageAmount <= 0"
-            data-sound="none"
-            @click="confirmDamage"
-          >
-            {{ t('commanderDamage.deal', { amount: damageAmount }) }}
-          </button>
+          <!-- Progress bar -->
+          <div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+            <div
+              class="cmdr-progress h-full rounded-full transition-all duration-200"
+              :class="row.progressRatio >= 1 ? 'cmdr-progress-lethal' : 'cmdr-progress-normal'"
+              :style="{ width: `${Math.min(row.progressRatio * 100, 100)}%` }"
+            />
+          </div>
         </div>
       </div>
-    </Transition>
+    </div>
   </AppModal>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { PlayerState } from '@/types/game'
 import { useGameStore } from '@/stores/gameStore'
-import { QUICK_COMMANDER_DAMAGE_OPTIONS } from '@/config/gameConstants'
+import { useSettingsStore } from '@/stores/settingsStore'
 import AppModal from '@/components/ui/AppModal.vue'
-import NumberStepper from '@/components/ui/NumberStepper.vue'
 import IconSwordSingle from '@/components/icons/game/IconSwordSingle.vue'
 import { playCommanderDamage } from '@/services/sounds'
+import { tapFeedback } from '@/services/haptics'
+
+interface AttackerRow {
+  attackerPlayerId: string
+  attackerName: string
+  attackerColor: string
+  commanderId: string
+  commanderName: string | null
+  commanderImage: string | null
+  damage: number
+  progressRatio: number
+}
 
 const props = defineProps<{
   isOpen: boolean
@@ -184,30 +135,9 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const gameStore = useGameStore()
+const settingsStore = useSettingsStore()
 
-const selectedAttacker = ref<PlayerState | null>(null)
-const selectedCommanderIndex = ref<number | null>(null)
-const damageAmount = ref(1)
-
-const currentStep = computed(() => {
-  if (!selectedAttacker.value) return 1
-  if (selectedAttacker.value.commanders.length > 1 && selectedCommanderIndex.value === null) return 2
-  return selectedAttacker.value.commanders.length > 1 ? 3 : 2
-})
-
-const totalSteps = computed(() => {
-  if (!selectedAttacker.value) return 2
-  return selectedAttacker.value.commanders.length > 1 ? 3 : 2
-})
-
-// Auto-select attacker when opened via drag-drop
-watch([() => props.isOpen, () => props.initialAttackerId], ([open, attackerId]) => {
-  if (open && attackerId) {
-    const foundAttacker = otherPlayers.value.find((p) => p.id === attackerId)
-    if (foundAttacker) selectAttacker(foundAttacker)
-  }
-  if (!open) resetSelection()
-})
+const commanderDamageThreshold = computed(() => gameStore.settings.commanderDamageThreshold)
 
 const otherPlayers = computed(() =>
   gameStore.currentGame?.players.filter(
@@ -215,115 +145,175 @@ const otherPlayers = computed(() =>
   ) ?? [],
 )
 
-// Resolve commanderId → attacker display info
-interface ReceivedDamageEntry {
-  commanderId: string
-  attackerName: string
-  commanderName: string | null
-  damage: number
-}
+/**
+ * Build a flat list of attacker rows. Each commander gets its own row.
+ * Players with no commanders get a single row keyed by player ID.
+ */
+const allAttackerRows = computed<AttackerRow[]>(() => {
+  const threshold = commanderDamageThreshold.value
+  const rows: AttackerRow[] = []
 
-const receivedDamageEntries = computed<ReceivedDamageEntry[]>(() => {
-  const entries: ReceivedDamageEntry[] = []
-  const players = gameStore.currentGame?.players ?? []
-
-  for (const [sourceCommanderId, damage] of Object.entries(props.targetPlayer.commanderDamageReceived)) {
-    if (damage <= 0) continue
-
-    let attackerName = '?'
-    let commanderName: string | null = null
-
-    for (const player of players) {
-      // Check if sourceCommanderId matches a commander's id
-      const matchedCommander = player.commanders.find((c) => c.id === sourceCommanderId)
-      if (matchedCommander) {
-        attackerName = player.name
-        commanderName = matchedCommander.cardName
-        break
-      }
-      // Fallback: sourceCommanderId is the player's id (no commanders)
-      if (player.id === sourceCommanderId) {
-        attackerName = player.name
-        break
+  for (const player of otherPlayers.value) {
+    if (player.commanders.length === 0) {
+      const damage = props.targetPlayer.commanderDamageReceived[player.id] ?? 0
+      rows.push({
+        attackerPlayerId: player.id,
+        attackerName: player.name,
+        attackerColor: player.color,
+        commanderId: player.id,
+        commanderName: null,
+        commanderImage: null,
+        damage,
+        progressRatio: threshold > 0 ? damage / threshold : 0,
+      })
+    } else {
+      for (const commander of player.commanders) {
+        const damage = props.targetPlayer.commanderDamageReceived[commander.id] ?? 0
+        rows.push({
+          attackerPlayerId: player.id,
+          attackerName: player.name,
+          attackerColor: player.color,
+          commanderId: commander.id,
+          commanderName: commander.cardName,
+          commanderImage: commander.imageUri ?? null,
+          damage,
+          progressRatio: threshold > 0 ? damage / threshold : 0,
+        })
       }
     }
-
-    entries.push({ commanderId: sourceCommanderId, attackerName, commanderName, damage })
   }
 
-  return entries
+  return rows
 })
 
-function reduceCommanderDamage(sourceCommanderId: string) {
-  gameStore.dealCommanderDamage(props.targetPlayer.id, sourceCommanderId, -1)
-}
-
-const activeCommanderName = computed(() => {
-  if (!selectedAttacker.value) return null
-  const commanderIndex = selectedCommanderIndex.value ?? 0
-  return selectedAttacker.value.commanders[commanderIndex]?.cardName ?? null
-})
-
-const commanderId = computed(() => {
-  if (!selectedAttacker.value) return ''
-  const commander = selectedAttacker.value.commanders[selectedCommanderIndex.value ?? 0]
-  return commander ? commander.id : selectedAttacker.value.id
-})
-
-const currentDamageFromAttacker = computed(() =>
-  props.targetPlayer.commanderDamageReceived[commanderId.value] ?? 0,
-)
-
-const damageProgressRatio = computed(() => {
-  const threshold = gameStore.settings.commanderDamageThreshold
-  if (threshold <= 0) return 0
-  return (currentDamageFromAttacker.value + damageAmount.value) / threshold
-})
-
-function selectAttacker(player: PlayerState) {
-  selectedAttacker.value = player
-  if (player.commanders.length <= 1) {
-    selectedCommanderIndex.value = 0
+/**
+ * When opened via drag-drop (initialAttackerId set), only show
+ * the attacker player's commanders. On tap, show everyone.
+ */
+const visibleRows = computed(() => {
+  if (props.initialAttackerId) {
+    return allAttackerRows.value.filter(
+      (row) => row.attackerPlayerId === props.initialAttackerId,
+    )
   }
-}
+  return allAttackerRows.value
+})
 
-function confirmDamage() {
-  if (damageAmount.value <= 0) return
+function changeDamage(row: AttackerRow, amount: number) {
+  if (amount < 0 && row.damage <= 0) return
+  gameStore.dealCommanderDamage(props.targetPlayer.id, row.commanderId, amount)
   playCommanderDamage()
-  gameStore.dealCommanderDamage(props.targetPlayer.id, commanderId.value, damageAmount.value)
-  resetSelection()
-  emit('close')
+  if (settingsStore.hapticFeedback) tapFeedback()
 }
 
-function resetSelection() {
-  selectedAttacker.value = null
-  selectedCommanderIndex.value = null
-  damageAmount.value = 1
-}
 </script>
 
 <style scoped>
-.attacker-card {
+/* Centered dialog — bypasses ion-content (auto-height incompatible) */
+.cmdr-dialog {
+  --width: 92%;
+  --max-width: 360px;
+  --height: auto;
+  --max-height: 80vh;
+  --border-radius: 16px;
+}
+
+.cmdr-content {
+  padding: 16px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.cmdr-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.cmdr-title {
+  font-family: var(--font-beleren);
+  font-size: 18px;
+  color: var(--color-arena-gold-light);
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 16px rgba(212, 168, 67, 0.15);
+}
+
+.cmdr-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.5);
+  transition: background 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cmdr-close-btn:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.cmdr-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cmdr-row {
+  padding: 10px 12px;
+  border-radius: 12px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-left: 3px solid color-mix(in srgb, var(--card-mana) 50%, transparent);
-  box-shadow: inset 0 0 24px color-mix(in srgb, var(--card-mana) 18%, transparent);
-  transition: transform 0.15s ease, background 0.15s ease;
+  box-shadow: var(--shadow-inset-panel);
 }
 
-/* Step fade transition */
-.step-fade-enter-active,
-.step-fade-leave-active {
-  transition: opacity 150ms ease, transform 150ms ease;
+.cmdr-stepper-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+  box-shadow: var(--shadow-btn-beveled);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.step-fade-enter-from {
-  opacity: 0;
-  transform: translateX(20px);
+.cmdr-stepper-btn:active {
+  transform: scale(0.85) translateY(1px);
+  box-shadow: var(--shadow-btn-pressed);
 }
 
-.step-fade-leave-to {
-  opacity: 0;
-  transform: translateX(-20px);
+.cmdr-stepper-btn:disabled {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.cmdr-stepper-plus {
+  color: var(--color-commander-damage);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.cmdr-damage-value {
+  min-width: 24px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 800;
+  font-family: var(--font-beleren);
+}
+
+.cmdr-progress-normal {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.6), rgba(245, 158, 11, 0.9));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.cmdr-progress-lethal {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.7), rgba(239, 68, 68, 1));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 0 8px rgba(239, 68, 68, 0.4);
 }
 </style>

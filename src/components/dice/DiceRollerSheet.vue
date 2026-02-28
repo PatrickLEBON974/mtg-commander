@@ -3,6 +3,16 @@
     <Transition name="dice-popup" @enter="onEnter" @leave="onLeave">
       <div v-if="isOpen" class="dice-overlay" @click.self="handleClose">
         <div class="dice-popup" :style="popupRotationStyle" @click="clearAutoDismiss">
+          <!-- Decorative overlay -->
+          <div class="dice-decor" aria-hidden="true">
+            <CornerAccent position="top-left" />
+            <CornerAccent position="top-right" />
+            <CornerAccent position="bottom-left" />
+            <CornerAccent position="bottom-right" />
+            <div class="dice-top-accent" />
+            <div class="dice-vignette" />
+          </div>
+
           <!-- Back button -->
           <button v-if="currentView !== 'picker'" class="back-btn" @click="goBack">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -95,6 +105,7 @@ import IconDie12 from '@/components/icons/dice/IconDie12.vue'
 import IconDie20 from '@/components/icons/dice/IconDie20.vue'
 import IconCoinFlip from '@/components/icons/dice/IconCoinFlip.vue'
 import IconPeople from '@/components/icons/nav/IconPeople.vue'
+import CornerAccent from '@/components/icons/decorative/CornerAccent.vue'
 import { playDiceRoll, playVictory } from '@/services/sounds'
 
 const props = defineProps<{
@@ -400,16 +411,73 @@ watch(() => props.isOpen, (open) => {
 .dice-popup {
   position: relative;
   background: var(--ion-color-step-100, #1c2138);
-  border: 1px solid rgba(212, 168, 67, 0.15);
+  border: 1px solid rgba(212, 168, 67, 0.2);
   border-radius: 20px;
   padding: 16px;
   box-shadow:
     0 12px 40px rgba(0, 0, 0, 0.5),
-    0 0 20px rgba(232, 96, 10, 0.08);
+    0 0 20px rgba(232, 96, 10, 0.08),
+    inset 0 1px 0 rgba(212, 168, 67, 0.1);
   min-width: 240px;
   max-width: calc(100vw - 32px);
   max-height: calc(100vh - var(--ion-safe-area-top, 44px) - 100px);
   overflow-y: auto;
+}
+
+/* Surface grain texture */
+.dice-popup::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    repeating-linear-gradient(
+      92deg, transparent 0px, transparent 3px,
+      rgba(255, 255, 255, 0.005) 3px, rgba(255, 255, 255, 0.005) 4px
+    ),
+    repeating-linear-gradient(
+      178deg, transparent 0px, transparent 5px,
+      rgba(255, 255, 255, 0.003) 5px, rgba(255, 255, 255, 0.003) 6px
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Decorative overlay container */
+.dice-decor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+/* Gold accent line at top */
+.dice-top-accent {
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(212, 168, 67, 0.15) 20%,
+    rgba(212, 168, 67, 0.4) 50%,
+    rgba(212, 168, 67, 0.15) 80%,
+    transparent 100%
+  );
+  box-shadow: 0 0 12px rgba(212, 168, 67, 0.15);
+}
+
+/* Radial vignette at top */
+.dice-vignette {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 100px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(212, 168, 67, 0.06) 0%, transparent 70%);
 }
 
 /* --- Back button --- */
@@ -463,6 +531,7 @@ watch(() => props.isOpen, (open) => {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: background 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+  box-shadow: var(--shadow-btn-beveled);
 }
 
 .die-button:active {
@@ -583,7 +652,7 @@ watch(() => props.isOpen, (open) => {
   font-size: 56px;
   font-weight: 900;
   color: #fff;
-  text-shadow: 0 0 20px rgba(232, 96, 10, 0.6), 0 0 40px rgba(232, 96, 10, 0.3);
+  text-shadow: 0 0 24px rgba(232, 96, 10, 0.7), 0 0 48px rgba(232, 96, 10, 0.35), 0 2px 4px rgba(0, 0, 0, 0.4);
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }

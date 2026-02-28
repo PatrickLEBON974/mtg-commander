@@ -14,7 +14,7 @@
       :style="flipInlineStyle"
     >
       <!-- ═══════ CARD FRONT ═══════ -->
-      <div class="card-face card-front flex flex-col items-center justify-between gap-0 border p-3" :class="[playerBgClass, turnBorderClass, dangerPulseClass]">
+      <div class="card-face card-front flex flex-col items-center justify-between gap-0 border p-3" :class="[playerBgClass, turnBorderClass, dangerPulseClass, activeTurnBreathingClass]">
         <!-- Corner accents -->
         <CornerAccent position="top-left" />
         <CornerAccent position="top-right" />
@@ -417,12 +417,14 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import gsap from 'gsap'
 import type { PlayerState } from '@/types/game'
 import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { tapFeedback, lifeFeedback, heavyFeedback, warningFeedback } from '@/services/haptics'
 import { playLifeChange, playLargeLifeChange, playPoisonChange, playPlayerDeath, playMonarchCrown } from '@/services/sounds'
 import { LOW_LIFE_WARNING_THRESHOLD, LARGE_LIFE_CHANGE_THRESHOLD, LONG_PRESS_DURATION_MS, FLOAT_ANIMATION_DELAY_MS } from '@/config/gameConstants'
+import { prefersReducedMotion } from '@/utils/motion'
 import { useAnimatedNumber } from '@/composables/useAnimatedNumber'
 import { useCelebration } from '@/composables/useCelebration'
 import { useFloatingNumbers } from '@/composables/useFloatingNumbers'
@@ -678,12 +680,27 @@ const deathReason = computed(() => {
   return null
 })
 
+const activeTurnBreathingClass = computed(() => {
+  if (props.isCurrentTurn && !deathReason.value) return 'card-front-active-turn'
+  return ''
+})
+
 // --- Watchers ---
 
 watch(deathReason, (newValue, oldValue) => {
   if (newValue && !oldValue) {
     playerEliminated()
     playPlayerDeath()
+
+    // Death screen shake
+    if (!prefersReducedMotion.value && panelRef.value) {
+      gsap.fromTo(panelRef.value,
+        { x: -4 },
+        { x: 4, duration: 0.05, repeat: 5, yoyo: true, ease: 'none',
+          onComplete: () => { if (panelRef.value) gsap.set(panelRef.value, { x: 0 }) },
+        },
+      )
+    }
   }
 })
 
@@ -822,6 +839,22 @@ void hasPriority
 
 .card-front {
   z-index: 1;
+  border-color: rgba(212, 168, 67, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Surface grain texture */
+.card-front::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: repeating-linear-gradient(
+    95deg, transparent 0px, transparent 4px,
+    rgba(255, 255, 255, 0.006) 4px, rgba(255, 255, 255, 0.006) 5px
+  );
+  pointer-events: none;
+  z-index: 0;
 }
 
 .card-back {
@@ -834,10 +867,23 @@ void hasPriority
   font-family: var(--font-beleren);
 }
 
-/* Life total — Beleren + subtle text glow */
+/* Life total — Beleren + embossed multi-layer text glow */
 .life-tracker-life-total {
   font-family: var(--font-beleren);
-  text-shadow: 0 0 24px rgba(255, 255, 255, 0.06);
+  text-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.4),
+    0 -1px 0 rgba(255, 255, 255, 0.08),
+    0 0 32px rgba(255, 255, 255, 0.1),
+    0 0 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Active turn — card breathing (subtle box-shadow pulse) */
+@keyframes card-breathe {
+  0%, 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 2px 8px rgba(0, 0, 0, 0.3); }
+  50% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 3px 14px rgba(0, 0, 0, 0.35), 0 0 8px rgba(232, 96, 10, 0.06); }
+}
+.card-front-active-turn {
+  animation: card-breathe 3s ease-in-out infinite;
 }
 
 /* Active turn — rotating light along the border */
@@ -854,19 +900,21 @@ void hasPriority
   background: conic-gradient(
     from 0deg,
     transparent 0%,
-    transparent 45%,
-    rgba(232, 96, 10, 0.15) 52%,
-    rgba(232, 96, 10, 0.3) 58%,
-    rgba(255, 180, 60, 0.6) 66%,
-    rgba(255, 220, 120, 0.9) 72%,
-    rgba(255, 180, 60, 0.6) 78%,
-    rgba(232, 96, 10, 0.3) 84%,
-    rgba(232, 96, 10, 0.15) 90%,
+    transparent 38%,
+    rgba(232, 96, 10, 0.1) 44%,
+    rgba(232, 96, 10, 0.2) 50%,
+    rgba(232, 96, 10, 0.35) 56%,
+    rgba(255, 180, 60, 0.65) 62%,
+    rgba(255, 220, 120, 1) 68%,
+    rgba(255, 180, 60, 0.65) 74%,
+    rgba(232, 96, 10, 0.35) 80%,
+    rgba(232, 96, 10, 0.2) 86%,
+    rgba(232, 96, 10, 0.1) 92%,
     transparent 97%,
     transparent 100%
   );
   animation: glow-spin 3s linear infinite;
-  filter: blur(1px);
+  filter: blur(1.5px);
 }
 
 @keyframes glow-spin {
@@ -912,8 +960,9 @@ void hasPriority
 
 /* Timer zone — dark inset panel */
 .life-tracker-timer-zone {
-  background: rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* Aggressive flash — triggered by rules engine */

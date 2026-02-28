@@ -100,6 +100,7 @@ function handleResult(result: 'winner' | 'eliminated' | 'surrender' | 'draw') {
   backdrop-filter: blur(12px);
   max-height: calc(100% - 8px);
   overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .result-option {
@@ -109,11 +110,13 @@ function handleResult(result: 'winner' | 'eliminated' | 'surrender' | 'draw') {
   padding: 8px 10px;
   border-radius: 8px;
   min-height: 44px;
-  transition: background 0.15s, box-shadow 0.15s;
+  transition: background 0.15s, box-shadow 0.15s, transform 0.15s;
   -webkit-tap-highlight-color: transparent;
+  box-shadow: var(--shadow-btn-beveled);
 }
 .result-option:active {
-  transform: scale(0.98);
+  transform: scale(0.96) translateY(1px);
+  box-shadow: var(--shadow-btn-pressed);
 }
 
 .result-winner {

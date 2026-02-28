@@ -205,35 +205,118 @@
           class="w-full"
           loading="lazy"
         />
-        <ion-card-header>
-          <ion-card-title>{{ selectedCard.name }}</ion-card-title>
-          <ion-card-subtitle>
-            {{ selectedCard.type_line }}
-            <span v-if="selectedCard.mana_cost"> — {{ selectedCard.mana_cost }}</span>
-          </ion-card-subtitle>
-        </ion-card-header>
 
         <ion-card-content>
-          <p v-if="selectedCard.oracle_text" class="whitespace-pre-line" style="color: var(--ion-text-color); line-height: 1.6">
-            {{ selectedCard.oracle_text }}
-          </p>
+          <!-- Header: Name + Mana Cost -->
+          <div class="detail-header">
+            <h2 class="detail-card-name">{{ selectedCard.name }}</h2>
+            <span v-if="selectedCard.mana_cost" class="detail-mana-cost">
+              <i
+                v-for="(symbol, symbolIndex) in parseManaCostToSymbols(selectedCard.mana_cost)"
+                :key="symbolIndex"
+                class="ms ms-cost ms-shadow"
+                :class="`ms-${symbol}`"
+              />
+            </span>
+          </div>
 
-          <p v-if="selectedCard.power" class="ion-margin-top" style="color: var(--ion-color-medium)">
-            {{ t('search.powerToughness') }} : {{ selectedCard.power }}/{{ selectedCard.toughness }}
-          </p>
+          <!-- Type line -->
+          <p class="detail-type-line">{{ selectedCard.type_line }}</p>
 
-          <div class="flex flex-wrap gap-2 ion-margin-top">
-            <ion-badge
-              :color="selectedCard.legalities.commander === 'legal' ? 'success' : 'danger'"
-            >
-              {{ t('search.commanderLegality') }}: {{ selectedCard.legalities.commander }}
-            </ion-badge>
-            <ion-badge color="tertiary">
-              {{ selectedCard.set_name }}
-            </ion-badge>
-            <ion-badge color="medium">
-              {{ selectedCard.rarity }}
-            </ion-badge>
+          <!-- Oracle text with inline mana symbols -->
+          <div v-if="selectedCard.oracle_text" class="detail-oracle">
+            <template v-for="(segment, segmentIndex) in parseOracleText(selectedCard.oracle_text)" :key="segmentIndex">
+              <span v-if="segment.type === 'text'" class="whitespace-pre-line">{{ segment.value }}</span>
+              <i v-else class="ms" :class="`ms-${segment.value}`" />
+            </template>
+          </div>
+
+          <!-- Power/Toughness -->
+          <div v-if="selectedCard.power" class="detail-stat-row">
+            <span class="stat-box">{{ selectedCard.power }} / {{ selectedCard.toughness }}</span>
+          </div>
+
+          <!-- Loyalty -->
+          <div v-if="selectedCard.loyalty" class="detail-stat-row">
+            <span class="loyalty-badge">
+              <i class="ms ms-loyalty-start" :class="`ms-loyalty-${selectedCard.loyalty}`" />
+              {{ t('search.loyalty') }}: {{ selectedCard.loyalty }}
+            </span>
+          </div>
+
+          <!-- Keywords -->
+          <div v-if="selectedCard.keywords && selectedCard.keywords.length > 0" class="detail-section">
+            <div class="detail-section-header">
+              <span>{{ t('search.keywords') }}</span>
+            </div>
+            <div class="keyword-list">
+              <span v-for="keyword in selectedCard.keywords" :key="keyword" class="keyword-pill">
+                {{ keyword }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Meta info -->
+          <div class="detail-section">
+            <div class="meta-row">
+              <span class="meta-label">{{ t('search.setName') }}</span>
+              <span class="meta-value">{{ selectedCard.set_name }}</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">{{ t('search.rarity') }}</span>
+              <span class="meta-value">
+                <span class="rarity-gem" :class="`rarity--${selectedCard.rarity}`">&#9670;</span>
+                {{ capitalizeFirst(selectedCard.rarity) }}
+              </span>
+            </div>
+            <div v-if="selectedCard.artist" class="meta-row">
+              <span class="meta-label">{{ t('search.artist') }}</span>
+              <span class="meta-value">{{ selectedCard.artist }}</span>
+            </div>
+          </div>
+
+          <!-- Legalities -->
+          <div class="detail-section">
+            <div class="detail-section-header">
+              <span>{{ t('search.legalities') }}</span>
+            </div>
+
+            <!-- Commander status (always visible) -->
+            <div class="meta-row">
+              <span class="meta-label">Commander</span>
+              <span class="meta-value">
+                <span class="legality-dot" :class="`legality--${selectedCard.legalities.commander}`" />
+                {{ legalityLabel(selectedCard.legalities.commander) }}
+              </span>
+            </div>
+
+            <!-- Expandable all formats -->
+            <button class="more-toggle legality-toggle" @click="showAllLegalities = !showAllLegalities">
+              <span class="more-toggle-label">{{ t('search.showAllFormats') }}</span>
+              <svg
+                class="more-chevron"
+                :class="{ 'more-chevron--open': showAllLegalities }"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+
+            <div class="more-content" :class="{ 'more-content--open': showAllLegalities }">
+              <div class="legality-grid">
+                <template v-for="formatName in LEGALITY_FORMAT_ORDER" :key="formatName">
+                  <div v-if="selectedCard.legalities[formatName]" class="legality-cell">
+                    <span class="legality-dot" :class="`legality--${selectedCard.legalities[formatName]}`" />
+                    <span class="legality-format-name">{{ formatName }}</span>
+                  </div>
+                </template>
+              </div>
+            </div>
           </div>
         </ion-card-content>
       </ion-card>
@@ -290,11 +373,7 @@ import {
   IonLabel,
   IonIcon,
   IonCard,
-  IonCardHeader,
-  IonCardTitle,
-  IonCardSubtitle,
   IonCardContent,
-  IonBadge,
   IonChip,
   IonButton,
   IonSpinner,
@@ -309,6 +388,7 @@ import { useOfflineStore } from '@/stores/offlineStore'
 import { useCardSearch } from '@/composables/useCardSearch'
 import type { ScryfallCard } from '@/types/card'
 import IllustrationNoResults from '@/components/icons/illustrations/IllustrationNoResults.vue'
+import { parseManaCostToSymbols, parseOracleText } from '@/utils/mana'
 
 const props = withDefaults(defineProps<{
   selectionMode?: boolean
@@ -326,6 +406,29 @@ const { t } = useI18n()
 const offlineStore = useOfflineStore()
 
 const showMoreFilters = ref(false)
+const showAllLegalities = ref(false)
+
+/** Priority-sorted format names for legalities display */
+const LEGALITY_FORMAT_ORDER = [
+  'commander', 'standard', 'modern', 'legacy', 'vintage', 'pioneer',
+  'pauper', 'historic', 'explorer', 'alchemy', 'brawl', 'penny',
+  'oathbreaker', 'predh', 'oldschool', 'premodern', 'paupercommander',
+  'duel', 'gladiator', 'timeless', 'standardbrawl',
+] as const
+
+function legalityLabel(status: string): string {
+  const labelMap: Record<string, string> = {
+    legal: t('search.legalityLegal'),
+    banned: t('search.legalityBanned'),
+    not_legal: t('search.legalityNotLegal'),
+    restricted: t('search.legalityRestricted'),
+  }
+  return labelMap[status] ?? status
+}
+
+function capitalizeFirst(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1)
+}
 
 const COLOR_IDENTITY_OPTIONS = [
   { id: 'W', cssVar: 'var(--color-mana-white)' },
@@ -493,7 +596,8 @@ function onStatChange(field: string, event: Event) {
 }
 
 .filter-chip:active {
-  transform: scale(0.95);
+  transform: scale(0.93) translateY(1px);
+  box-shadow: var(--shadow-btn-pressed);
 }
 
 /* ── WUBRG color dots ── */
@@ -560,7 +664,8 @@ function onStatChange(field: string, event: Event) {
 }
 
 .type-chip:active {
-  transform: scale(0.93);
+  transform: scale(0.93) translateY(1px);
+  box-shadow: var(--shadow-btn-pressed);
 }
 
 /* ── CMC mana pips ── */
@@ -595,7 +700,8 @@ function onStatChange(field: string, event: Event) {
   color: var(--color-arena-gold-light);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 0 10px rgba(212, 168, 67, 0.3);
+    0 0 10px rgba(212, 168, 67, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.3);
   text-shadow: 0 0 6px rgba(212, 168, 67, 0.5);
 }
 
@@ -619,6 +725,7 @@ function onStatChange(field: string, event: Event) {
   -webkit-tap-highlight-color: transparent;
   transition: background 180ms ease, border-color 180ms ease, color 180ms ease;
   width: 100%;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .more-toggle:active {
@@ -741,7 +848,8 @@ function onStatChange(field: string, event: Event) {
 }
 
 .rarity-chip:active {
-  transform: scale(0.93);
+  transform: scale(0.93) translateY(1px);
+  box-shadow: var(--shadow-btn-pressed);
 }
 
 /* ── Stat inputs ── */
@@ -775,6 +883,7 @@ function onStatChange(field: string, event: Event) {
   -webkit-tap-highlight-color: transparent;
   transition: border-color 180ms ease, box-shadow 180ms ease;
   -moz-appearance: textfield;
+  box-shadow: var(--shadow-inset-panel);
 }
 
 .stat-input::-webkit-inner-spin-button,
@@ -851,5 +960,232 @@ function onStatChange(field: string, event: Event) {
 .suggestion-list {
   max-height: 50vh;
   overflow-y: auto;
+}
+
+/* =============================================
+   CARD DETAIL — redesigned layout
+   ============================================= */
+
+/* ── Header: name + mana cost ── */
+
+.detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.detail-card-name {
+  font-family: var(--font-beleren);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-arena-gold-light);
+  line-height: 1.3;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.detail-mana-cost {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
+/* ── Type line ── */
+
+.detail-type-line {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.3px;
+  margin: 0 0 10px;
+}
+
+/* ── Oracle text ── */
+
+.detail-oracle {
+  color: var(--ion-text-color);
+  line-height: 1.6;
+  font-size: 13px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.detail-oracle .ms {
+  font-size: 13px;
+  vertical-align: -1px;
+  margin: 0 1px;
+}
+
+/* ── P/T + Loyalty ── */
+
+.detail-stat-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.stat-box {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 14px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(212, 168, 67, 0.4);
+  background: rgba(212, 168, 67, 0.08);
+  font-family: var(--font-beleren);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-arena-gold-light);
+  letter-spacing: 1px;
+}
+
+.loyalty-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(156, 163, 175, 0.3);
+  background: rgba(156, 163, 175, 0.08);
+  font-size: 13px;
+  font-weight: 600;
+  color: #d1d5db;
+}
+
+/* ── Detail section + header (reuses gold divider pattern) ── */
+
+.detail-section {
+  margin-top: 12px;
+}
+
+.detail-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.detail-section-header::before,
+.detail-section-header::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(212, 168, 67, 0.2), transparent);
+}
+
+.detail-section-header span {
+  font-family: var(--font-beleren);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(212, 168, 67, 0.5);
+  white-space: nowrap;
+}
+
+/* ── Keywords ── */
+
+.keyword-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.keyword-pill {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  background: rgba(74, 144, 226, 0.1);
+  border: 1px solid rgba(74, 144, 226, 0.25);
+  color: rgba(74, 144, 226, 0.85);
+}
+
+/* ── Meta rows ── */
+
+.meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+}
+
+.meta-row + .meta-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.meta-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 500;
+}
+
+.meta-value {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  text-align: right;
+}
+
+/* ── Legality dots ── */
+
+.legality-toggle {
+  margin-top: 6px;
+  padding: 6px 12px;
+}
+
+.legality-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+  padding: 8px 0;
+}
+
+.legality-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legality-format-name {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  text-transform: capitalize;
+}
+
+.legality-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legality--legal {
+  background: #22c55e;
+  box-shadow: 0 0 4px rgba(34, 197, 94, 0.4);
+}
+
+.legality--banned {
+  background: #ef4444;
+  box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);
+}
+
+.legality--not_legal {
+  background: #6b7280;
+}
+
+.legality--restricted {
+  background: #f59e0b;
+  box-shadow: 0 0 4px rgba(245, 158, 11, 0.4);
 }
 </style>
