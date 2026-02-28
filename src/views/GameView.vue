@@ -175,145 +175,11 @@
       </div>
     </ion-content>
 
-    <!-- History modal -->
-    <GameHistoryModal
-      :is-open="showHistory"
-      @close="showHistory = false"
-    />
-
-    <!-- Layout picker modal -->
-    <AppModal :is-open="showLayoutPicker" :initial-breakpoint="0.3" :breakpoints="[0, 0.3]" @close="showLayoutPicker = false">
-      <div class="px-4 py-5">
-        <h3 class="mb-4 text-center text-base font-semibold text-text-primary">{{ t('game.layoutTitle') }}</h3>
-        <div class="flex flex-wrap justify-center gap-3">
-          <!-- Default (hidden at 5 players) -->
-          <button
-            v-if="currentPlayerCount !== 5"
-            class="flex flex-col items-center gap-2 rounded-xl px-4 py-3 card-lift"
-            :class="settingsStore.layoutMode === 'default' ? 'bg-accent/20 ring-2 ring-accent' : 'bg-surface-card'"
-            @click="selectLayoutMode('default')"
-          >
-            <svg viewBox="0 0 24 24" class="h-8 w-8" fill="currentColor" :opacity="settingsStore.layoutMode === 'default' ? 1 : 0.6">
-              <rect x="2" y="2" width="9" height="9" rx="2" />
-              <rect x="13" y="2" width="9" height="9" rx="2" />
-              <rect x="2" y="13" width="9" height="9" rx="2" />
-              <rect x="13" y="13" width="9" height="9" rx="2" />
-            </svg>
-            <span class="text-xs" :class="settingsStore.layoutMode === 'default' ? 'text-accent font-semibold' : 'text-text-secondary'">
-              {{ t('game.layoutDefault') }}
-            </span>
-          </button>
-
-          <!-- Face-to-face -->
-          <button
-            class="flex flex-col items-center gap-2 rounded-xl px-4 py-3 card-lift"
-            :class="settingsStore.layoutMode === 'faceToFace' ? 'bg-accent/20 ring-2 ring-accent' : 'bg-surface-card'"
-            @click="selectLayoutMode('faceToFace')"
-          >
-            <svg viewBox="0 0 24 24" class="h-8 w-8" fill="currentColor" :opacity="settingsStore.layoutMode === 'faceToFace' ? 1 : 0.6">
-              <rect x="2" y="2" width="9" height="9" rx="2" opacity="0.5" />
-              <rect x="13" y="2" width="9" height="9" rx="2" opacity="0.5" />
-              <rect x="2" y="13" width="9" height="9" rx="2" />
-              <rect x="13" y="13" width="9" height="9" rx="2" />
-              <line x1="0" y1="12" x2="24" y2="12" stroke="currentColor" stroke-width="1" stroke-dasharray="2 2" opacity="0.4" />
-            </svg>
-            <span class="text-xs" :class="settingsStore.layoutMode === 'faceToFace' ? 'text-accent font-semibold' : 'text-text-secondary'">
-              {{ t('game.layoutFaceToFace') }}
-            </span>
-          </button>
-
-          <!-- Face-to-face side -->
-          <button
-            class="flex flex-col items-center gap-2 rounded-xl px-4 py-3 card-lift"
-            :class="settingsStore.layoutMode === 'faceToFaceSide' ? 'bg-accent/20 ring-2 ring-accent' : 'bg-surface-card'"
-            @click="selectLayoutMode('faceToFaceSide')"
-          >
-            <svg viewBox="0 0 24 24" class="h-8 w-8" fill="currentColor" :opacity="settingsStore.layoutMode === 'faceToFaceSide' ? 1 : 0.6">
-              <rect x="2" y="2" width="9" height="9" rx="2" opacity="0.5" />
-              <rect x="2" y="13" width="9" height="9" rx="2" opacity="0.5" />
-              <rect x="13" y="2" width="9" height="9" rx="2" />
-              <rect x="13" y="13" width="9" height="9" rx="2" />
-              <line x1="12" y1="0" x2="12" y2="24" stroke="currentColor" stroke-width="1" stroke-dasharray="2 2" opacity="0.4" />
-            </svg>
-            <span class="text-xs" :class="settingsStore.layoutMode === 'faceToFaceSide' ? 'text-accent font-semibold' : 'text-text-secondary'">
-              {{ t('game.layoutFaceToFaceSide') }}
-            </span>
-          </button>
-
-          <!-- Star (only for 4 players) -->
-          <button
-            v-if="currentPlayerCount === 4"
-            class="flex flex-col items-center gap-2 rounded-xl px-4 py-3 card-lift"
-            :class="settingsStore.layoutMode === 'star' ? 'bg-accent/20 ring-2 ring-accent' : 'bg-surface-card'"
-            @click="selectLayoutMode('star')"
-          >
-            <svg viewBox="0 0 24 24" class="h-8 w-8" fill="currentColor" :opacity="settingsStore.layoutMode === 'star' ? 1 : 0.6">
-              <rect x="7" y="1" width="10" height="7" rx="2" />
-              <rect x="16" y="8.5" width="7" height="7" rx="2" />
-              <rect x="7" y="16" width="10" height="7" rx="2" />
-              <rect x="1" y="8.5" width="7" height="7" rx="2" />
-            </svg>
-            <span class="text-xs" :class="settingsStore.layoutMode === 'star' ? 'text-accent font-semibold' : 'text-text-secondary'">
-              {{ t('game.layoutStar') }}
-            </span>
-          </button>
-        </div>
-      </div>
-    </AppModal>
 
     <!-- Dice roller -->
     <DiceRollerSheet :is-open="showDiceRoller" :content-rotation="priorityPlayerRotation" @close="showDiceRoller = false" />
 
-    <!-- Game menu -->
-    <AppModal :is-open="showGameMenu" :initial-breakpoint="0.5" :breakpoints="[0, 0.5]" @close="closeGameMenu">
-      <div class="px-4 pb-20 pt-5 transition-transform duration-300 ease-in-out" :style="iconRotationStyle">
-        <h3 class="mb-4 text-center text-base font-semibold text-arena-gold-light" style="font-family: var(--font-beleren); letter-spacing: 1px; text-shadow: 0 0 16px rgba(212, 168, 67, 0.15)">{{ t('game.menu') }}</h3>
-        <div class="grid grid-cols-3 gap-3">
-          <button class="menu-action-btn" :disabled="!gameStore.canUndo" data-sound="none" @click="menuUndo">
-            <ion-icon :icon="arrowUndoOutline" />
-            <span>{{ t('game.undo') }}</span>
-          </button>
-          <button class="menu-action-btn" :disabled="!gameStore.canRedo" data-sound="none" @click="menuRedo">
-            <ion-icon :icon="arrowRedoOutline" />
-            <span>{{ t('game.redo') }}</span>
-          </button>
-          <button class="menu-action-btn" @click="menuDice">
-            <IconDie :size="22" />
-            <span>{{ t('dice.title') }}</span>
-          </button>
-          <button class="menu-action-btn" @click="menuLayout">
-            <ion-icon :icon="gridOutline" />
-            <span>{{ t('game.layoutTitle') }}</span>
-          </button>
-          <button class="menu-action-btn" @click="menuHistory">
-            <ion-icon :icon="listOutline" />
-            <span>{{ t('game.history') }}</span>
-          </button>
-          <button
-            class="menu-action-btn"
-            :class="{ 'menu-action-active': settingsStore.autoOrientIcons }"
-            @click="settingsStore.autoOrientIcons = !settingsStore.autoOrientIcons"
-          >
-            <ion-icon :icon="compassOutline" />
-            <span>{{ t('game.orientation') }}</span>
-          </button>
-          <button class="menu-action-btn menu-action-danger" @click="menuEndGame">
-            <ion-icon :icon="flagOutline" />
-            <span>{{ t('game.endGame') }}</span>
-          </button>
-        </div>
-      </div>
-    </AppModal>
 
-    <!-- Save anonymous player modal (sequential, one at a time) -->
-    <SaveAnonymousPlayerModal
-      :is-open="showSaveAnonymousModal"
-      :player-name="currentAnonymousPlayer?.name ?? ''"
-      :player-color="currentAnonymousPlayer?.color ?? 'white'"
-      :commanders="currentAnonymousPlayer?.commanders ?? []"
-      @save="handleSaveAnonymousPlayer"
-      @skip="handleSkipAnonymousPlayer"
-    />
   </ion-page>
 </template>
 
@@ -330,7 +196,7 @@ import {
   alertController,
   toastController,
 } from '@ionic/vue'
-import { arrowUndoOutline, arrowRedoOutline, listOutline, flagOutline, gridOutline, menuOutline, compassOutline } from 'ionicons/icons'
+import { menuOutline } from 'ionicons/icons'
 import { useGameStore } from '@/stores/gameStore'
 import { useMultiplayerStore } from '@/stores/multiplayerStore'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -341,14 +207,13 @@ import { useGameClock } from '@/composables/useGameClock'
 import { useLongPress } from '@/composables/useLongPress'
 import { formatMsToTimer } from '@/utils/time'
 import { usePlayerGridLayout } from '@/composables/usePlayerGridLayout'
-import GameHistoryModal from '@/components/life-tracker/GameHistoryModal.vue'
-import AppModal from '@/components/ui/AppModal.vue'
+import { presentModal } from '@/composables/useControllerModal'
+import GameMenuContent from '@/components/game/GameMenuContent.vue'
 import IllustrationEmptyGame from '@/components/icons/illustrations/IllustrationEmptyGame.vue'
 import IconDie from '@/components/icons/dice/IconDie.vue'
 import DiceRollerSheet from '@/components/dice/DiceRollerSheet.vue'
 import SeatingPhase from '@/components/game/SeatingPhase.vue'
 import InitiativePhase from '@/components/game/InitiativePhase.vue'
-import SaveAnonymousPlayerModal from '@/components/player-registry/SaveAnonymousPlayerModal.vue'
 import { prefersReducedMotion } from '@/utils/motion'
 import { playTurnAdvance, playUndo, playEndGame } from '@/services/sounds'
 import { useBehaviorRuleEngine } from '@/rules/behaviorRuleEngine'
@@ -369,6 +234,15 @@ const formattedGameTime = computed(() =>
   formatMsToTimer(gameStore.currentGame?.elapsedMs ?? 0),
 )
 
+// Auto-resume timer when entering game page with a paused game in playing phase
+if (
+  gameStore.currentGame?.gamePhase === 'playing'
+  && gameStore.settings.enableTimer
+  && !isTimerRunning.value
+) {
+  toggleTimer()
+}
+
 // Pause ripple animation — fires once when timer transitions to paused
 const showPauseRipple = ref(false)
 let pauseRippleTimeout: ReturnType<typeof setTimeout> | null = null
@@ -384,10 +258,7 @@ watch(isTimerRunning, (running, wasRunning) => {
 
 const { gridStyle, getCardRotation, getInnerCornerStyle, cardOuterClasses, cardOuterStyle, cardRotationStyle } = usePlayerGridLayout()
 
-const showHistory = ref(false)
-const showLayoutPicker = ref(false)
 const showDiceRoller = ref(false)
-const showGameMenu = ref(false)
 
 /* ── Draggable next-turn button ── */
 const nextTurnBtnRef = ref<HTMLButtonElement | null>(null)
@@ -509,29 +380,51 @@ function scheduleSnapBack() {
 
 const currentPlayerCount = computed(() => gameStore.currentGame?.players.length ?? 4)
 
-// Sync game menu modal state with shared fullscreen composable
-watch(isGameMenuOpen, (open) => {
-  if (!open && showGameMenu.value) {
-    showGameMenu.value = false
-  }
-})
-
-function openGameMenu() {
-  showGameMenu.value = true
+async function openGameMenu() {
   isGameMenuOpen.value = true
+  await presentModal({
+    component: GameMenuContent,
+    componentProps: { contentRotation: priorityPlayerRotation.value },
+    breakpoints: [0, 0.5],
+    initialBreakpoint: 0.5,
+    onDismiss: ({ data, role }) => {
+      isGameMenuOpen.value = false
+      if (role === 'action' && typeof data === 'string') {
+        const actions: Record<string, () => void> = {
+          undo: handleUndo,
+          redo: handleRedo,
+          dice: () => { showDiceRoller.value = true },
+          layout: openLayoutPicker,
+          history: openHistory,
+          endGame: confirmEndGame,
+        }
+        actions[data]?.()
+      }
+    },
+  })
 }
 
-function closeGameMenu() {
-  showGameMenu.value = false
-  isGameMenuOpen.value = false
+async function openLayoutPicker() {
+  const { default: LayoutPickerContent } = await import('@/components/game/LayoutPickerContent.vue')
+  await presentModal({
+    component: LayoutPickerContent,
+    componentProps: { currentPlayerCount: currentPlayerCount.value, currentLayout: settingsStore.layoutMode },
+    breakpoints: [0, 0.3],
+    initialBreakpoint: 0.3,
+    onDismiss: ({ data, role }) => {
+      if (role === 'confirm' && data) {
+        settingsStore.layoutMode = data as LayoutMode
+      }
+    },
+  })
 }
 
-function menuUndo() { closeGameMenu(); handleUndo() }
-function menuRedo() { closeGameMenu(); handleRedo() }
-function menuDice() { closeGameMenu(); showDiceRoller.value = true }
-function menuLayout() { closeGameMenu(); showLayoutPicker.value = true }
-function menuHistory() { closeGameMenu(); showHistory.value = true }
-function menuEndGame() { closeGameMenu(); confirmEndGame() }
+async function openHistory() {
+  const { default: GameHistoryContent } = await import('@/components/life-tracker/GameHistoryContent.vue')
+  await presentModal({
+    component: GameHistoryContent,
+  })
+}
 
 // --- Anonymous player save queue ---
 interface AnonymousPlayerCommander {
@@ -544,7 +437,6 @@ interface AnonymousPlayerEntry {
   commanders: AnonymousPlayerCommander[]
 }
 const anonymousPlayerQueue = ref<AnonymousPlayerEntry[]>([])
-const showSaveAnonymousModal = ref(false)
 const currentAnonymousPlayer = computed(() => anonymousPlayerQueue.value[0] ?? null)
 
 // --- Commander drag-drop ---
@@ -560,11 +452,6 @@ function handleCommanderDragDrop(attackerPlayerId: string, targetPlayerId: strin
 }
 
 // --- Layout mode ---
-
-function selectLayoutMode(mode: LayoutMode) {
-  settingsStore.layoutMode = mode
-  showLayoutPicker.value = false
-}
 
 // Auto-correct layout mode for player counts that don't support it
 watch(currentPlayerCount, (count) => {
@@ -685,7 +572,7 @@ async function confirmEndGame() {
                 imageUri: commander.imageUri,
               })),
             }))
-            showSaveAnonymousModal.value = true
+            openSaveAnonymousModal()
           } else {
             gameStore.resetGame()
           }
@@ -696,25 +583,27 @@ async function confirmEndGame() {
   await alert.present()
 }
 
-// Guard: AppModal fires didDismiss on programmatic close, which would
-// call handleSkipAnonymousPlayer a second time and skip a player.
-let isAdvancingQueue = false
+async function openSaveAnonymousModal() {
+  const player = currentAnonymousPlayer.value
+  if (!player) return
 
-function advanceAnonymousQueue() {
-  isAdvancingQueue = true
-  anonymousPlayerQueue.value.shift()
-  if (anonymousPlayerQueue.value.length === 0) {
-    showSaveAnonymousModal.value = false
-    gameStore.resetGame()
-    isAdvancingQueue = false
-  } else {
-    // Brief close/reopen for visual transition between players
-    showSaveAnonymousModal.value = false
-    setTimeout(() => {
-      showSaveAnonymousModal.value = true
-      isAdvancingQueue = false
-    }, 350)
-  }
+  const { default: SaveAnonymousContent } = await import('@/components/player-registry/SaveAnonymousContent.vue')
+  await presentModal({
+    component: SaveAnonymousContent,
+    componentProps: {
+      playerName: player.name,
+      playerColor: player.color,
+      commanders: player.commanders,
+    },
+    onDismiss: ({ data, role }) => {
+      if (role === 'save' && data) {
+        const { name, color } = data as { name: string; color: string }
+        handleSaveAnonymousPlayer(name, color as import('@/types/game').ManaColor)
+      } else {
+        handleSkipAnonymousPlayer()
+      }
+    },
+  })
 }
 
 async function handleSaveAnonymousPlayer(name: string, color: import('@/types/game').ManaColor) {
@@ -745,8 +634,19 @@ async function handleSaveAnonymousPlayer(name: string, color: import('@/types/ga
   advanceAnonymousQueue()
 }
 
+function advanceAnonymousQueue() {
+  anonymousPlayerQueue.value.shift()
+  if (anonymousPlayerQueue.value.length === 0) {
+    gameStore.resetGame()
+  } else {
+    // Brief delay for visual transition, then open next player's modal
+    setTimeout(() => {
+      openSaveAnonymousModal()
+    }, 350)
+  }
+}
+
 function handleSkipAnonymousPlayer() {
-  if (isAdvancingQueue) return
   advanceAnonymousQueue()
 }
 
@@ -908,57 +808,6 @@ function onTurnAdvanced() {
 
 .game-timer-flash {
   animation: game-timer-flash 0.8s ease-in-out infinite;
-}
-
-.menu-action-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 1rem;
-  border-radius: 0.75rem;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.3px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  transition: background 0.1s ease, transform 0.1s ease, box-shadow 0.1s ease;
-  box-shadow: var(--shadow-btn-beveled);
-  -webkit-tap-highlight-color: transparent;
-}
-
-.menu-action-btn ion-icon,
-.menu-action-btn :deep(svg) {
-  font-size: 1.5rem;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
-}
-
-.menu-action-btn:active {
-  background: rgba(255, 255, 255, 0.08);
-  transform: scale(0.93) translateY(1px);
-  box-shadow: var(--shadow-btn-pressed);
-}
-
-.menu-action-btn:disabled {
-  opacity: 0.3;
-  pointer-events: none;
-}
-
-.menu-action-danger {
-  color: var(--color-life-negative);
-  border-color: rgba(239, 68, 68, 0.1);
-}
-
-.menu-action-danger:active {
-  background: rgba(239, 68, 68, 0.12);
-}
-
-.menu-action-active {
-  background: rgba(232, 96, 10, 0.12);
-  color: var(--color-accent);
-  border-color: rgba(232, 96, 10, 0.25);
-  box-shadow: var(--shadow-btn-beveled), 0 0 8px rgba(232, 96, 10, 0.08);
 }
 
 .announce-banner {

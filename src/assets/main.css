@@ -549,6 +549,15 @@ ion-modal ion-title {
   text-shadow: 0 0 20px rgba(212, 168, 67, 0.2);
 }
 
+/* Commander damage — centered auto-height dialog */
+ion-modal.cmdr-dialog {
+  --width: 92%;
+  --max-width: 360px;
+  --height: auto;
+  --max-height: 80vh;
+  --border-radius: 16px;
+}
+
 ion-action-sheet {
   --background: var(--modal-background);
   --button-background: var(--modal-background);

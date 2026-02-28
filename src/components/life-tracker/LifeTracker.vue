@@ -382,7 +382,7 @@
           :player="player"
           :player-bg-class="playerBgClass"
           @close="isFlipped = false"
-          @add-commander="showCommanderPicker = true"
+          @add-commander="openCommanderPicker"
           @state-changed="emit('stateChanged')"
           @show-game-result="handleGameResultFromBack"
         />
@@ -397,20 +397,6 @@
       @cancel="cancelLifeNumpad"
     />
 
-    <!-- Commander damage modal -->
-    <CommanderDamageModal
-      :is-open="showCommanderDamage"
-      :target-player="player"
-      :initial-attacker-id="commanderDamageInitialAttackerId"
-      @close="onCommanderDamageClose"
-    />
-
-    <!-- Commander picker (for card back) -->
-    <CommanderPicker
-      :is-open="showCommanderPicker"
-      @close="showCommanderPicker = false"
-      @select="addCommander"
-    />
   </div>
 </template>
 
@@ -437,8 +423,7 @@ import { useCardSwipeGesture } from '@/composables/useCardSwipeGesture'
 import LifeNumpad from './LifeNumpad.vue'
 import PlayerTokenPanel from './PlayerTokenPanel.vue'
 import GameResultOverlay from './GameResultOverlay.vue'
-import CommanderDamageModal from './CommanderDamageModal.vue'
-import CommanderPicker from '@/components/commander-zone/CommanderPicker.vue'
+import { presentModal } from '@/composables/useControllerModal'
 import IconPoison from '@/components/icons/game/IconPoison.vue'
 import IconSwordSingle from '@/components/icons/game/IconSwordSingle.vue'
 import IconExperience from '@/components/icons/game/IconExperience.vue'
@@ -471,7 +456,6 @@ const settingsStore = useSettingsStore()
 
 const panelRef = ref<HTMLElement>()
 const showLifeNumpad = ref(false)
-const showCommanderPicker = ref(false)
 const isFlipped = ref(false)
 const showGameResult = ref(false)
 const gameResultSlideFromRight = ref(true)
@@ -601,7 +585,7 @@ const {
 const {
   showCommanderDamage, commanderDamageInitialAttackerId,
   onCommanderClick, onCommanderTouchStart, onCommanderTouchMove,
-  onCommanderTouchEnd, onCommanderTouchCancel, onCommanderDamageClose,
+  onCommanderTouchEnd, onCommanderTouchCancel,
   cleanup: cleanupCommanderDrag,
 } = useCommanderDragDrop({
   playerId: () => props.player.id,
@@ -609,6 +593,48 @@ const {
   onDragDrop: (targetPlayerId) => emit('commanderDragDrop', targetPlayerId),
   onStateChanged: () => emit('stateChanged'),
 })
+
+// --- Controller modals (escape swipe-track stacking context) ---
+
+/**
+ * Watch showCommanderDamage from useCommanderDragDrop — it gets set to true
+ * by onCommanderClick() and the attackerIdProp watcher. Present the modal
+ * and immediately reset the ref so subsequent opens work.
+ */
+watch(showCommanderDamage, (isOpen) => {
+  if (isOpen) {
+    openCommanderDamage()
+    showCommanderDamage.value = false
+  }
+})
+
+async function openCommanderDamage() {
+  const { default: CommanderDamageContent } = await import('./CommanderDamageContent.vue')
+  await presentModal({
+    component: CommanderDamageContent,
+    componentProps: {
+      targetPlayer: props.player,
+      initialAttackerId: commanderDamageInitialAttackerId.value,
+    },
+    cssClass: 'cmdr-dialog',
+    onDismiss: () => {
+      emit('stateChanged')
+    },
+  })
+}
+
+async function openCommanderPicker() {
+  const { default: CommanderPickerContent } = await import('@/components/commander-zone/CommanderPickerContent.vue')
+  await presentModal({
+    component: CommanderPickerContent,
+    onDismiss: ({ data, role }) => {
+      if (role === 'select' && data) {
+        const { cardName, imageUri } = data as { cardName: string; imageUri: string }
+        addCommander(cardName, imageUri)
+      }
+    },
+  })
+}
 
 const {
   lifeDragPendingAmount, isDragging,
@@ -792,7 +818,6 @@ const poisonLongPress = useLongPress(() => {
 
 function addCommander(cardName: string, imageUri: string) {
   gameStore.addPlayerCommander(props.player.id, cardName, imageUri)
-  showCommanderPicker.value = false
 }
 
 // --- Game result (from card back) ---

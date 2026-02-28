@@ -20,7 +20,7 @@ export function useGameFullscreen() {
   const gameStore = useGameStore()
 
   const isFullscreen = computed(() => isGameTabActive.value && gameStore.isGameActive)
-  const shouldShowTabBar = computed(() => !isFullscreen.value || isGameMenuOpen.value)
+  const shouldShowTabBar = computed(() => !isFullscreen.value)
   const shouldDisableSwipe = computed(() => isFullscreen.value)
 
   watch(isFullscreen, (fullscreen) => {
