@@ -313,6 +313,8 @@ export default {
     dayNight: 'Jour/Nuit',
     day: 'Jour',
     night: 'Nuit',
+    manageTokens: 'Gerer les tokens',
+    addToken: 'Ajouter un token',
   },
   gameResult: {
     title: 'Resultat',
@@ -330,6 +332,7 @@ export default {
     deal: 'Infliger {amount}',
     received: 'Degats recus',
     removeDamage: 'Retirer 1 degat',
+    yourself: '(vous-même)',
   },
   lifeNumpad: {
     title: 'Modifier la vie',

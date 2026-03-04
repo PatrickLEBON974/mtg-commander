@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <Transition name="dice-popup" @enter="onEnter" @leave="onLeave">
+    <Transition :css="false" @enter="onEnter" @leave="onLeave">
       <div v-if="isOpen" class="dice-overlay" @click.self="handleClose">
         <div class="dice-popup" :style="popupRotationStyle" @click="clearAutoDismiss">
           <!-- Decorative overlay -->
@@ -156,6 +156,7 @@ const winnerPlayerId = ref<string | null>(null)
 let autoDismissTimer: ReturnType<typeof setTimeout> | null = null
 let rollInterval: ReturnType<typeof setInterval> | null = null
 
+
 const gamePlayers = computed(() => gameStore.currentGame?.players ?? [])
 
 const currentDieIcon = computed(() => {
@@ -173,16 +174,26 @@ const formattedDisplayValue = computed(() => {
 })
 
 function onEnter(el: Element, done: () => void) {
-  const popup = (el as HTMLElement).querySelector('.dice-popup')
+  const htmlEl = el as HTMLElement
+  // Block clicks during enter animation to prevent ghost clicks from previous modal
+  htmlEl.style.pointerEvents = 'none'
+  const popup = htmlEl.querySelector('.dice-popup')
   const rotation = props.contentRotation ?? 0
   gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.2 })
   if (popup) {
     gsap.fromTo(
       popup,
       { scale: 0.8, opacity: 0, y: -20, rotation },
-      { scale: 1, opacity: 1, y: 0, rotation, duration: 0.3, ease: 'back.out(2)', onComplete: done },
+      {
+        scale: 1, opacity: 1, y: 0, rotation, duration: 0.3, ease: 'back.out(2)',
+        onComplete: () => {
+          htmlEl.style.pointerEvents = ''
+          done()
+        },
+      },
     )
   } else {
+    htmlEl.style.pointerEvents = ''
     done()
   }
 }
@@ -321,12 +332,7 @@ function rollPlayer() {
 
 function goBack() {
   cleanup()
-  currentView.value = 'picker'
-  selectedDieSides.value = null
-  rollResult.value = null
-  isRolling.value = false
-  highlightedPlayerId.value = null
-  winnerPlayerId.value = null
+  resetState()
 }
 
 // --- Shared ---

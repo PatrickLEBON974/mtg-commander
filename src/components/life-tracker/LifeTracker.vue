@@ -186,64 +186,87 @@
           </span>
         </button>
 
-        <!-- Zone: Status — Other counters + Actions -->
-        <div class="pointer-events-none relative z-[3] mt-auto flex flex-wrap items-center justify-center gap-1.5">
-          <!-- Experience (visible if > 0) -->
-          <span
+        <!-- Zone: Token badges (clickable → open token picker modal) -->
+        <div class="pointer-events-none relative z-[3] mt-1 flex flex-wrap items-center justify-center gap-1.5">
+          <!-- Experience -->
+          <button
             v-if="player.experienceCounters > 0"
-            class="flex min-h-[32px] items-center gap-0.5 rounded-lg bg-arena-blue/20 ring-1 ring-arena-blue/20 px-2 py-1"
+            class="pointer-events-auto flex min-h-[32px] items-center gap-0.5 rounded-lg bg-arena-blue/20 ring-1 ring-arena-blue/20 px-2 py-1 btn-press"
+            @click="openTokenPicker"
           >
             <IconExperience :size="12" class="text-arena-blue" />
             <span class="text-xs font-bold text-arena-blue">{{ player.experienceCounters }}</span>
-          </span>
+          </button>
 
-          <!-- Energy (visible if > 0) -->
-          <span
+          <!-- Energy -->
+          <button
             v-if="player.energyCounters > 0"
-            class="flex min-h-[32px] items-center gap-0.5 rounded-lg bg-arena-gold/20 ring-1 ring-arena-gold/20 px-2 py-1"
+            class="pointer-events-auto flex min-h-[32px] items-center gap-0.5 rounded-lg bg-arena-gold/20 ring-1 ring-arena-gold/20 px-2 py-1 btn-press"
+            @click="openTokenPicker"
           >
             <IconEnergy :size="12" class="text-arena-gold" />
             <span class="text-xs font-bold text-arena-gold">{{ player.energyCounters }}</span>
-          </span>
+          </button>
 
-          <!-- Monarch indicator -->
-          <span v-if="player.isMonarch" class="flex items-center gap-1 rounded-lg bg-mana-gold/40 px-2 py-0.5 shadow-glow-gold glow-breathe" style="--glow-color: rgba(212, 168, 67, 0.4)">
+          <!-- Monarch -->
+          <button
+            v-if="player.isMonarch"
+            class="pointer-events-auto flex items-center gap-1 rounded-lg bg-mana-gold/40 px-2 py-0.5 shadow-glow-gold glow-breathe btn-press"
+            style="--glow-color: rgba(212, 168, 67, 0.4)"
+            @click="openTokenPicker"
+          >
             <IconCrown :size="14" color="#f0d078" />
             <span class="text-xs font-bold text-arena-gold-light">M</span>
-          </span>
+          </button>
 
-          <!-- Initiative indicator -->
-          <span v-if="player.hasInitiative" class="flex items-center gap-1 rounded-lg bg-white/10 px-2 py-0.5">
+          <!-- Initiative -->
+          <button
+            v-if="player.hasInitiative"
+            class="pointer-events-auto flex items-center gap-1 rounded-lg bg-white/10 px-2 py-0.5 btn-press"
+            @click="openTokenPicker"
+          >
             <IconShield :size="14" />
             <span class="text-xs font-bold text-white/80">I</span>
-          </span>
+          </button>
 
-          <!-- City's Blessing indicator -->
-          <span v-if="player.cityBlessing" class="flex items-center gap-1 rounded-lg bg-emerald-500/20 ring-1 ring-emerald-500/20 px-2 py-0.5">
+          <!-- City's Blessing -->
+          <button
+            v-if="player.cityBlessing"
+            class="pointer-events-auto flex items-center gap-1 rounded-lg bg-emerald-500/20 ring-1 ring-emerald-500/20 px-2 py-0.5 btn-press"
+            @click="openTokenPicker"
+          >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" class="text-emerald-400">
               <path d="M3 21h18M5 21V7l4-4 3 3 3-3 4 4v14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
             <span class="text-xs font-bold text-emerald-400">CB</span>
-          </span>
+          </button>
 
-          <!-- Ring level indicator -->
-          <span v-if="player.ringLevel > 0" class="flex items-center gap-1 rounded-lg bg-amber-500/20 ring-1 ring-amber-500/20 px-2 py-0.5">
+          <!-- Ring level -->
+          <button
+            v-if="player.ringLevel > 0"
+            class="pointer-events-auto flex items-center gap-1 rounded-lg bg-amber-500/20 ring-1 ring-amber-500/20 px-2 py-0.5 btn-press"
+            @click="openTokenPicker"
+          >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" class="text-amber-400">
               <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2.5" />
             </svg>
             <span class="text-xs font-bold text-amber-400">R{{ player.ringLevel }}</span>
-          </span>
+          </button>
 
-          <!-- Rad counter indicator -->
-          <span v-if="player.radCounters > 0" class="flex items-center gap-1 rounded-lg bg-green-500/20 ring-1 ring-green-500/20 px-2 py-0.5">
+          <!-- Rad counter -->
+          <button
+            v-if="player.radCounters > 0"
+            class="pointer-events-auto flex items-center gap-1 rounded-lg bg-green-500/20 ring-1 ring-green-500/20 px-2 py-0.5 btn-press"
+            @click="openTokenPicker"
+          >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" class="text-green-400">
               <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2.5" />
               <circle cx="12" cy="12" r="3" fill="currentColor" />
             </svg>
             <span class="text-xs font-bold text-green-400">{{ player.radCounters }}</span>
-          </span>
+          </button>
 
-          <!-- Commander tax -->
+          <!-- Commander tax (non-clickable) -->
           <span
             v-for="(commander, commanderIndex) in player.commanders"
             :key="commander.id"
@@ -252,11 +275,10 @@
             <IconMana :size="10" />
             T{{ gameStore.getCommanderTax(player, commanderIndex) }}
           </span>
+        </div>
 
-          <!-- Separator between counters and actions -->
-          <div v-if="showAnyActionButton" class="h-4 w-px bg-white/10" />
-
-          <!-- Action buttons (merged into same row) -->
+        <!-- Zone: Actions -->
+        <div v-if="showAnyActionButton" class="pointer-events-none relative z-[3] mt-auto flex flex-wrap items-center justify-center gap-1.5">
           <ActionButton
             :show="showEndTurnButton"
             bg-class="bg-life-negative/10"
@@ -385,6 +407,7 @@
           @add-commander="openCommanderPicker"
           @state-changed="emit('stateChanged')"
           @show-game-result="handleGameResultFromBack"
+          @open-token-picker="openTokenPicker"
         />
       </div>
     </div>
@@ -618,6 +641,21 @@ async function openCommanderDamage() {
     },
     cssClass: 'cmdr-dialog',
     onDismiss: () => {
+      emit('stateChanged')
+    },
+  })
+}
+
+async function openTokenPicker() {
+  const { default: TokenPickerContent } = await import('./TokenPickerContent.vue')
+  await presentModal({
+    component: TokenPickerContent,
+    componentProps: {
+      player: props.player,
+    },
+    cssClass: 'cmdr-dialog',
+    onDismiss: () => {
+      isFlipped.value = false
       emit('stateChanged')
     },
   })

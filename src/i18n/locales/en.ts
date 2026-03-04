@@ -311,6 +311,8 @@ export default {
     dayNight: 'Day/Night',
     day: 'Day',
     night: 'Night',
+    manageTokens: 'Manage tokens',
+    addToken: 'Add token',
   },
   gameResult: {
     title: 'Game Result',
@@ -328,6 +330,7 @@ export default {
     deal: 'Deal {amount}',
     received: 'Received damage',
     removeDamage: 'Remove 1 damage',
+    yourself: '(yourself)',
   },
   lifeNumpad: {
     title: 'Set Life',

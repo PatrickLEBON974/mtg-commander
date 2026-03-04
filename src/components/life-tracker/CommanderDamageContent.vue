@@ -134,42 +134,58 @@ const otherPlayers = computed(() =>
 )
 
 /**
- * Build a flat list of attacker rows. Each commander gets its own row.
+ * Build rows for a single player. Each commander gets its own row.
  * Players with no commanders get a single row keyed by player ID.
+ */
+function buildPlayerRows(player: PlayerState, displayName: string, threshold: number): AttackerRow[] {
+  const rows: AttackerRow[] = []
+
+  if (player.commanders.length === 0) {
+    const damage = props.targetPlayer.commanderDamageReceived[player.id] ?? 0
+    rows.push({
+      attackerPlayerId: player.id,
+      attackerName: displayName,
+      attackerColor: player.color,
+      commanderId: player.id,
+      commanderName: null,
+      commanderImage: null,
+      damage,
+      progressRatio: threshold > 0 ? damage / threshold : 0,
+    })
+  } else {
+    for (const commander of player.commanders) {
+      const damage = props.targetPlayer.commanderDamageReceived[commander.id] ?? 0
+      rows.push({
+        attackerPlayerId: player.id,
+        attackerName: displayName,
+        attackerColor: player.color,
+        commanderId: commander.id,
+        commanderName: commander.cardName,
+        commanderImage: commander.imageUri ?? null,
+        damage,
+        progressRatio: threshold > 0 ? damage / threshold : 0,
+      })
+    }
+  }
+
+  return rows
+}
+
+/**
+ * Build a flat list of attacker rows: all opponents first, then the
+ * target player themselves (labeled "yourself") at the end.
  */
 const allAttackerRows = computed<AttackerRow[]>(() => {
   const threshold = commanderDamageThreshold.value
   const rows: AttackerRow[] = []
 
   for (const player of otherPlayers.value) {
-    if (player.commanders.length === 0) {
-      const damage = props.targetPlayer.commanderDamageReceived[player.id] ?? 0
-      rows.push({
-        attackerPlayerId: player.id,
-        attackerName: player.name,
-        attackerColor: player.color,
-        commanderId: player.id,
-        commanderName: null,
-        commanderImage: null,
-        damage,
-        progressRatio: threshold > 0 ? damage / threshold : 0,
-      })
-    } else {
-      for (const commander of player.commanders) {
-        const damage = props.targetPlayer.commanderDamageReceived[commander.id] ?? 0
-        rows.push({
-          attackerPlayerId: player.id,
-          attackerName: player.name,
-          attackerColor: player.color,
-          commanderId: commander.id,
-          commanderName: commander.cardName,
-          commanderImage: commander.imageUri ?? null,
-          damage,
-          progressRatio: threshold > 0 ? damage / threshold : 0,
-        })
-      }
-    }
+    rows.push(...buildPlayerRows(player, player.name, threshold))
   }
+
+  // Add the target player last — they can take damage from their own commander
+  const selfLabel = `${props.targetPlayer.name} ${t('commanderDamage.yourself')}`
+  rows.push(...buildPlayerRows(props.targetPlayer, selfLabel, threshold))
 
   return rows
 })
