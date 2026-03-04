@@ -295,6 +295,7 @@ export default {
     castInfo: 'Lance {count}x — Taxe: {tax}',
     cast: 'Cast',
     counters: 'Compteurs',
+    poison: 'Poison',
     experience: 'Experience',
     energy: 'Energie',
     monarch: 'Monarque',
@@ -315,6 +316,8 @@ export default {
     night: 'Nuit',
     manageTokens: 'Gerer les tokens',
     addToken: 'Ajouter un token',
+    designations: 'Designations',
+    special: 'Special',
   },
   gameResult: {
     title: 'Resultat',

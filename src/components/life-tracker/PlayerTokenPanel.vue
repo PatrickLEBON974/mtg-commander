@@ -16,32 +16,34 @@
       </button>
     </div>
 
-    <!-- Commanders -->
-    <div class="mt-auto space-y-0.5">
-      <div
-        v-for="(commander, commanderIndex) in player.commanders"
-        :key="commander.id"
-        class="commander-row"
-      >
-        <img
-          v-if="commander.imageUri"
-          :src="commander.imageUri"
-          :alt="commander.cardName"
-          class="h-5 w-5 rounded object-cover"
-        />
-        <p class="min-w-0 flex-1 truncate text-[9px] text-white/70">{{ commander.cardName }}</p>
-        <button
-          class="commander-tax-btn"
-          data-sound="none"
-          @click="handleCastCommander(commanderIndex)"
+    <!-- Center block — vertically centered -->
+    <div class="flex flex-1 flex-col items-center justify-center gap-1.5">
+      <!-- Commanders -->
+      <div v-if="player.commanders.length > 0" class="w-full space-y-0.5">
+        <div
+          v-for="(commander, commanderIndex) in player.commanders"
+          :key="commander.id"
+          class="commander-row"
         >
-          T{{ gameStore.getCommanderTax(player, commanderIndex) }}
-        </button>
+          <img
+            v-if="commander.imageUri"
+            :src="commander.imageUri"
+            :alt="commander.cardName"
+            class="h-5 w-5 rounded object-cover"
+          />
+          <p class="min-w-0 flex-1 truncate text-[9px] text-white/70">{{ commander.cardName }}</p>
+          <button
+            class="commander-tax-btn"
+            data-sound="none"
+            @click="handleCastCommander(commanderIndex)"
+          >
+            T{{ gameStore.getCommanderTax(player, commanderIndex) }}
+          </button>
+        </div>
       </div>
-    </div>
 
-    <!-- Action bar — icon buttons -->
-    <div class="flex items-center justify-center gap-2 mt-1">
+      <!-- Action bar — icon buttons -->
+      <div class="flex items-center justify-center gap-2">
       <!-- Manage tokens -->
       <button
         class="panel-icon-btn panel-icon-btn--gold"
@@ -79,6 +81,7 @@
           <path d="M4 22v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
         </svg>
       </button>
+    </div>
     </div>
   </div>
 </template>

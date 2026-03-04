@@ -293,6 +293,7 @@ export default {
     castInfo: 'Cast {count}x — Tax: {tax}',
     cast: 'Cast',
     counters: 'Counters',
+    poison: 'Poison',
     experience: 'Experience',
     energy: 'Energy',
     monarch: 'Monarch',
@@ -313,6 +314,8 @@ export default {
     night: 'Night',
     manageTokens: 'Manage tokens',
     addToken: 'Add token',
+    designations: 'Designations',
+    special: 'Special',
   },
   gameResult: {
     title: 'Game Result',

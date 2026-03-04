@@ -99,13 +99,13 @@
             {{ animatedLife }}
           </span>
 
-          <!-- Life drag indicator -->
+          <!-- Pending life indicator (tap accumulation or drag) -->
           <span
-            v-if="lifeDragPendingAmount !== 0"
+            v-if="displayedPendingLife !== 0"
             class="life-drag-indicator absolute left-1/2 -translate-x-1/2 font-bold drop-shadow-lg"
-            :class="lifeDragPendingAmount > 0 ? 'text-life-positive' : 'text-life-negative'"
+            :class="displayedPendingLife > 0 ? 'text-life-positive' : 'text-life-negative'"
           >
-            {{ lifeDragPendingAmount > 0 ? '+' : '' }}{{ lifeDragPendingAmount }}
+            {{ displayedPendingLife > 0 ? '+' : '' }}{{ displayedPendingLife }}
           </span>
         </div>
 
@@ -424,7 +424,7 @@ import type { PlayerState } from '@/types/game'
 import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { tapFeedback, lifeFeedback, heavyFeedback, warningFeedback } from '@/services/haptics'
-import { playLifeChange, playLargeLifeChange, playPoisonChange, playPlayerDeath, playMonarchCrown } from '@/services/sounds'
+import { playLifeChange, playLargeLifeChange, playDamageHit, playPoisonChange, playPlayerDeath, playMonarchCrown } from '@/services/sounds'
 import { LOW_LIFE_WARNING_THRESHOLD, LARGE_LIFE_CHANGE_THRESHOLD, LONG_PRESS_DURATION_MS, FLOAT_ANIMATION_DELAY_MS } from '@/config/gameConstants'
 import { prefersReducedMotion } from '@/utils/motion'
 import { useAnimatedNumber } from '@/composables/useAnimatedNumber'
@@ -437,6 +437,7 @@ import { useTurnActions } from '@/composables/useTurnActions'
 import { useLongPress } from '@/composables/useLongPress'
 import { useCardSwipeGesture } from '@/composables/useCardSwipeGesture'
 import { useCardRotationContext } from '@/composables/useCardRotationContext'
+import { useDamageShake } from '@/composables/useDamageShake'
 import LifeNumpad from './LifeNumpad.vue'
 import PlayerTokenPanel from './PlayerTokenPanel.vue'
 import GameResultOverlay from './GameResultOverlay.vue'
@@ -472,6 +473,7 @@ const settingsStore = useSettingsStore()
 const { cardRotation, cardRotationStyle: rotationStyle, innerCornerStyle } = useCardRotationContext(() => props.player.id)
 
 const panelRef = ref<HTMLElement>()
+const { triggerDamageShake } = useDamageShake({ containerRef: () => panelRef.value })
 const showLifeNumpad = ref(false)
 const isFlipped = ref(false)
 const showGameResult = ref(false)
@@ -556,7 +558,7 @@ const {
 } = useCardSwipeGesture(
   {
     onTap(side) {
-      changeLifeBy(side === 'left' ? -1 : 1)
+      accumulateTap(side === 'left' ? -1 : 1)
     },
     onLongPressStart(side) {
       startLifeRepeat(side === 'left' ? -1 : 1)
@@ -771,29 +773,71 @@ watch(() => props.player.isMonarch, (newValue, oldValue) => {
 onUnmounted(() => {
   poisonLongPress.cancel()
   stopLifeRepeat()
+  if (tapCommitTimer) { clearTimeout(tapCommitTimer); commitTap() }
   hideActionTooltip()
   cleanupCommanderDrag()
   cleanupSwipeGesture()
 })
 
+// --- Tap accumulation (batch rapid taps into a single life change) ---
+const TAP_COMMIT_DELAY_MS = 600
+const tapPendingAmount = ref(0)
+let tapCommitTimer: ReturnType<typeof setTimeout> | null = null
+
+function accumulateTap(delta: number) {
+  tapPendingAmount.value += delta
+  if (tapCommitTimer) clearTimeout(tapCommitTimer)
+  tapCommitTimer = setTimeout(commitTap, TAP_COMMIT_DELAY_MS)
+
+  // Feedback per tap (sound + haptic) but no life change yet
+  if (settingsStore.hapticFeedback) lifeFeedback()
+  playLifeChange(delta > 0)
+}
+
+function commitTap() {
+  if (tapPendingAmount.value === 0) return
+  changeLifeBy(tapPendingAmount.value, { skipFeedback: true })
+  tapPendingAmount.value = 0
+  tapCommitTimer = null
+}
+
+/** Unified pending amount shown in the indicator (tap or drag, never both at once) */
+const displayedPendingLife = computed(() =>
+  lifeDragPendingAmount.value !== 0 ? lifeDragPendingAmount.value : tapPendingAmount.value,
+)
+
 // --- Life interactions ---
 
-function changeLifeBy(amount: number) {
+function changeLifeBy(amount: number, { skipFeedback = false } = {}) {
   gameStore.changeLife(props.player.id, amount)
   flashType.value = amount > 0 ? 'positive' : 'negative'
+  if (amount < 0) {
+    triggerDamageShake(Math.abs(amount))
+    playDamageHit(Math.abs(amount))
+  }
   setTimeout(() => addFloat(amount, 'life'), FLOAT_ANIMATION_DELAY_MS)
 
-  if (settingsStore.hapticFeedback) {
-    const newLife = props.player.lifeTotal
-    if (newLife <= 0) warningFeedback()
-    else if (Math.abs(amount) >= LARGE_LIFE_CHANGE_THRESHOLD) heavyFeedback()
-    else lifeFeedback()
-  }
+  if (!skipFeedback) {
+    if (settingsStore.hapticFeedback) {
+      const newLife = props.player.lifeTotal
+      if (newLife <= 0) warningFeedback()
+      else if (Math.abs(amount) >= LARGE_LIFE_CHANGE_THRESHOLD) heavyFeedback()
+      else lifeFeedback()
+    }
 
-  if (Math.abs(amount) >= LARGE_LIFE_CHANGE_THRESHOLD) {
-    playLargeLifeChange(amount > 0)
+    if (Math.abs(amount) >= LARGE_LIFE_CHANGE_THRESHOLD) {
+      playLargeLifeChange(amount > 0)
+    } else {
+      playLifeChange(amount > 0)
+    }
   } else {
-    playLifeChange(amount > 0)
+    // Batched commit — still play large change feedback if total is big
+    if (Math.abs(amount) >= LARGE_LIFE_CHANGE_THRESHOLD) {
+      if (settingsStore.hapticFeedback) heavyFeedback()
+      playLargeLifeChange(amount > 0)
+    }
+    // Warning haptic if life is critical
+    if (settingsStore.hapticFeedback && props.player.lifeTotal <= 0) warningFeedback()
   }
   emit('stateChanged')
 }
@@ -806,14 +850,17 @@ let lifeRepeatIntervalTimer: ReturnType<typeof setInterval> | null = null
 function startLifeRepeat(amount: number) {
   stopLifeRepeat()
   lifeRepeatDelayTimer = setTimeout(() => {
-    changeLifeBy(amount)
-    lifeRepeatIntervalTimer = setInterval(() => changeLifeBy(amount), LIFE_REPEAT_INTERVAL_MS)
+    accumulateTap(amount)
+    lifeRepeatIntervalTimer = setInterval(() => accumulateTap(amount), LIFE_REPEAT_INTERVAL_MS)
   }, LIFE_REPEAT_DELAY_MS)
 }
 
 function stopLifeRepeat() {
   if (lifeRepeatDelayTimer) { clearTimeout(lifeRepeatDelayTimer); lifeRepeatDelayTimer = null }
   if (lifeRepeatIntervalTimer) { clearInterval(lifeRepeatIntervalTimer); lifeRepeatIntervalTimer = null }
+  // Commit accumulated amount immediately on finger release
+  if (tapCommitTimer) clearTimeout(tapCommitTimer)
+  commitTap()
 }
 
 function openLifeNumpad() {

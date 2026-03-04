@@ -19,6 +19,10 @@ const SOUND_FILES = {
   initiative:      '/sounds/initiative.mp3',
   commanderCast:   '/sounds/commander-cast.mp3',
   commanderDamage: '/sounds/commander-damage.mp3',
+  hitLight:        '/sounds/hit-light.mp3',
+  hitMedium:       '/sounds/hit-medium.mp3',
+  hitHeavy:        '/sounds/hit-heavy.mp3',
+  hitMassive:      '/sounds/hit-massive.mp3',
   timerWarning:    '/sounds/timer-warning.mp3',
   timerUrgent:     '/sounds/timer-urgent.mp3',
   diceRoll:        '/sounds/dice-roll.mp3',
@@ -231,6 +235,14 @@ export function playCommanderCast() {
 /** Metal clash for commander damage */
 export function playCommanderDamage() {
   playSound('commanderDamage')
+}
+
+/** Tiered damage impact sound — intensity scales with amount */
+export function playDamageHit(damageAmount: number) {
+  if (damageAmount <= 2) playSound('hitLight')
+  else if (damageAmount <= 4) playSound('hitMedium')
+  else if (damageAmount <= 9) playSound('hitHeavy')
+  else playSound('hitMassive')
 }
 
 // ---------------------------------------------------------------------------
