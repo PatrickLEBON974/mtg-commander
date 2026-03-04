@@ -6,6 +6,22 @@ const LIFE_DRAG_THRESHOLD = 10
 
 interface UseLifeDragGestureOptions {
   onLifeChange: (amount: number) => void
+  /** Card CSS rotation (0/90/180/270°) — used to interpret drag direction in card-local space */
+  cardRotation?: () => number
+}
+
+/**
+ * Transform screen-space touch delta into card-local delta,
+ * so "up" always means "gain" from the player's perspective
+ * regardless of card CSS rotation.
+ */
+function screenToLocalDelta(screenDeltaX: number, screenDeltaY: number, rotation: number): [number, number] {
+  switch (rotation) {
+    case 90:  return [screenDeltaY, -screenDeltaX]
+    case 180: return [-screenDeltaX, -screenDeltaY]
+    case 270: return [-screenDeltaY, screenDeltaX]
+    default:  return [screenDeltaX, screenDeltaY]
+  }
 }
 
 export function useLifeDragGesture(options: UseLifeDragGestureOptions) {
@@ -39,10 +55,13 @@ export function useLifeDragGesture(options: UseLifeDragGestureOptions) {
 
     if (dragActive) {
       event.preventDefault()
-      // Use dominant axis: right/up = gain, left/down = loss
-      const rawAmount = Math.abs(deltaX) > Math.abs(deltaY)
-        ? deltaX / LIFE_DRAG_PIXELS_PER_POINT
-        : -deltaY / LIFE_DRAG_PIXELS_PER_POINT
+      // Transform screen delta to card-local space (accounts for card rotation)
+      const rotation = options.cardRotation?.() ?? 0
+      const [localDeltaX, localDeltaY] = screenToLocalDelta(deltaX, deltaY, rotation)
+      // Dominant axis: card-right/card-up = gain, card-left/card-down = loss
+      const rawAmount = Math.abs(localDeltaX) > Math.abs(localDeltaY)
+        ? localDeltaX / LIFE_DRAG_PIXELS_PER_POINT
+        : -localDeltaY / LIFE_DRAG_PIXELS_PER_POINT
       pendingAmount.value = Math.round(rawAmount)
     }
   }

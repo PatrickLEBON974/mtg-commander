@@ -6,7 +6,7 @@
       isFlashing ? 'behavior-rule-flash' : '',
     ]"
     :data-commander-player="player.id"
-    :style="{ perspective: '1200px' }"
+    :style="[{ perspective: '1200px' }, rotationStyle]"
   >
     <!-- 3D flip inner -->
     <div
@@ -14,7 +14,7 @@
       :style="flipInlineStyle"
     >
       <!-- ═══════ CARD FRONT ═══════ -->
-      <div class="card-face card-front flex flex-col items-center justify-between gap-0 border p-3" :class="[playerBgClass, turnBorderClass, dangerPulseClass, activeTurnBreathingClass]">
+      <div class="card-face card-front flex flex-col items-center justify-between border" :class="[playerBgClass, turnBorderClass, dangerPulseClass, activeTurnBreathingClass]">
         <!-- Corner accents -->
         <CornerAccent position="top-left" />
         <CornerAccent position="top-right" />
@@ -68,29 +68,29 @@
         />
 
         <!-- Zone: Identity — Player Name -->
-        <div class="pointer-events-none relative z-[3] flex w-full items-center min-h-[44px]">
-          <div class="w-7 flex-shrink-0" aria-hidden="true" />
+        <div class="card-identity-zone pointer-events-none relative z-[3] flex w-full items-center">
+          <div class="card-identity-spacer flex-shrink-0" aria-hidden="true" />
           <div class="flex-1 min-w-0 text-center">
-            <span class="life-tracker-player-name text-xs font-bold uppercase tracking-[0.15em] text-arena-gold-light/80">
+            <span class="life-tracker-player-name font-bold uppercase text-arena-gold-light/80">
               {{ player.name }}
             </span>
-            <span v-if="player.commanders.length > 0" class="block truncate text-[10px] text-white/50">
+            <span v-if="player.commanders.length > 0" class="life-tracker-commander-name block truncate text-white/50">
               {{ player.commanders.map(c => c.cardName).join(' / ') }}
             </span>
           </div>
-          <div class="w-7 flex-shrink-0" aria-hidden="true" />
+          <div class="card-identity-spacer flex-shrink-0" aria-hidden="true" />
         </div>
 
         <!-- Zone: Hero — Life Total (tap zones are full-card background) -->
         <div
-          class="pointer-events-auto relative z-[3]"
+          class="card-hero-zone pointer-events-auto relative z-[3]"
           @touchstart.passive="onLifeTouchStart"
           @touchmove="onLifeTouchMove"
           @touchend.passive="onLifeTouchEnd"
           @touchcancel.passive="onLifeTouchCancel"
         >
           <span
-            class="life-tracker-life-total block select-none text-center text-6xl font-bold leading-none tabular-nums"
+            class="life-tracker-life-total block select-none text-center font-bold leading-none tabular-nums"
             :class="lifeColorClass"
             role="status"
             :aria-label="t('aria.lifePoints', { name: player.name, life: player.lifeTotal })"
@@ -102,7 +102,7 @@
           <!-- Life drag indicator -->
           <span
             v-if="lifeDragPendingAmount !== 0"
-            class="absolute -top-5 left-1/2 -translate-x-1/2 text-lg font-bold drop-shadow-lg"
+            class="life-drag-indicator absolute left-1/2 -translate-x-1/2 font-bold drop-shadow-lg"
             :class="lifeDragPendingAmount > 0 ? 'text-life-positive' : 'text-life-negative'"
           >
             {{ lifeDragPendingAmount > 0 ? '+' : '' }}{{ lifeDragPendingAmount }}
@@ -111,7 +111,7 @@
 
         <!-- Zone: Timer -->
         <div
-          class="life-tracker-timer-zone pointer-events-none relative z-[3] mt-1 flex items-center justify-center gap-3 rounded-lg px-3 py-1.5"
+          class="life-tracker-timer-zone pointer-events-none relative z-[3] flex items-center justify-center rounded-lg"
           :class="[
             hasTimerFlashEffect ? 'timer-aggressive-flash' : '',
           ]"
@@ -123,10 +123,10 @@
               <path d="M12 9v4l2.5 2.5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
               <path d="M9 2h6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
             </svg>
-            <span class="font-mono text-sm font-bold tabular-nums" :class="hasActiveTurn ? 'text-white/50' : 'text-white/30'">{{ formattedTotalPlayTime }}</span>
+            <span class="font-mono font-bold tabular-nums" :class="hasActiveTurn ? 'text-white/50' : 'text-white/30'">{{ formattedTotalPlayTime }}</span>
           </div>
 
-          <div class="h-3 w-px bg-white/10" />
+          <div class="timer-divider h-3 w-px bg-white/10" />
 
           <!-- Round time -->
           <div class="flex items-center gap-1.5">
@@ -134,41 +134,18 @@
               <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" />
               <path d="M12 7v5l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
-            <span v-if="!hasActiveTurn" class="font-mono text-sm tabular-nums text-white/50">
+            <span v-if="!hasActiveTurn" class="font-mono tabular-nums text-white/50">
               {{ formattedRoundTime }}
             </span>
-            <span v-else class="font-mono text-sm font-semibold tabular-nums" :class="roundTimeDisplayClass">
+            <span v-else class="font-mono font-semibold tabular-nums" :class="roundTimeDisplayClass">
               {{ formattedRoundTime }}
             </span>
           </div>
         </div>
 
-        <!-- Zone: Damage — Poison (centered) -->
-        <div class="pointer-events-none relative z-[3] mt-1 flex items-center justify-center">
-          <!-- Poison -->
-          <button
-            class="pointer-events-auto flex min-h-[40px] min-w-[40px] items-center justify-center gap-0.5 rounded-lg px-2 py-1 btn-press"
-            :class="[
-              player.poisonCounters > 0 ? 'bg-poison/20 ring-1 ring-poison/20' : 'bg-white/5',
-            ]"
-            :aria-label="t('aria.poison', { count: player.poisonCounters })"
-            data-sound="none"
-            @click="changePoisonBy(1)"
-            @contextmenu.prevent="changePoisonBy(-1)"
-            @touchstart.passive="poisonLongPress.start"
-            @touchend.passive="poisonLongPress.cancel"
-            @touchcancel.passive="poisonLongPress.cancel"
-          >
-            <IconPoison :size="14" class="shrink-0" :class="player.poisonCounters > 0 ? 'text-poison' : 'text-white/40'" />
-            <span class="text-xs" :class="player.poisonCounters > 0 ? 'text-poison font-bold' : 'text-white/50'">
-              {{ player.poisonCounters }}
-            </span>
-          </button>
-        </div>
-
         <!-- Commander damage — pinned to outer corner (varies with card rotation) -->
         <button
-          class="pointer-events-auto absolute z-[4] flex min-h-[36px] min-w-[36px] items-center justify-center gap-0.5 rounded-lg px-1.5 py-1 btn-press"
+          class="card-commander-btn pointer-events-auto absolute z-[4] flex items-center justify-center gap-0.5 rounded-lg btn-press"
           :style="commanderDamagePositionStyle"
           :class="[
             totalCommanderDamage > 0 ? 'bg-commander-damage/20 ring-1 ring-commander-damage/20' : 'bg-white/5',
@@ -187,7 +164,23 @@
         </button>
 
         <!-- Zone: Token badges (clickable → open token picker modal) -->
-        <div class="pointer-events-none relative z-[3] mt-1 flex flex-wrap items-center justify-center gap-1.5">
+        <div class="card-badges-zone pointer-events-none relative z-[3] flex flex-wrap items-center justify-center">
+          <!-- Poison -->
+          <button
+            v-if="player.poisonCounters > 0"
+            class="pointer-events-auto flex items-center gap-0.5 rounded-lg bg-poison/20 ring-1 ring-poison/20 px-2 py-1 btn-press"
+            :aria-label="t('aria.poison', { count: player.poisonCounters })"
+            data-sound="none"
+            @click="changePoisonBy(1)"
+            @contextmenu.prevent="changePoisonBy(-1)"
+            @touchstart.passive="poisonLongPress.start"
+            @touchend.passive="poisonLongPress.cancel"
+            @touchcancel.passive="poisonLongPress.cancel"
+          >
+            <IconPoison :size="12" class="shrink-0 text-poison" />
+            <span class="text-xs font-bold text-poison">{{ player.poisonCounters }}</span>
+          </button>
+
           <!-- Experience -->
           <button
             v-if="player.experienceCounters > 0"
@@ -278,7 +271,7 @@
         </div>
 
         <!-- Zone: Actions -->
-        <div v-if="showAnyActionButton" class="pointer-events-none relative z-[3] mt-auto flex flex-wrap items-center justify-center gap-1.5">
+        <div v-if="showAnyActionButton" class="card-actions-zone pointer-events-none relative z-[3] mt-auto flex flex-wrap items-center justify-center">
           <ActionButton
             :show="showEndTurnButton"
             bg-class="bg-life-negative/10"
@@ -443,6 +436,7 @@ import { usePlayerTimerDisplay } from '@/composables/usePlayerTimerDisplay'
 import { useTurnActions } from '@/composables/useTurnActions'
 import { useLongPress } from '@/composables/useLongPress'
 import { useCardSwipeGesture } from '@/composables/useCardSwipeGesture'
+import { useCardRotationContext } from '@/composables/useCardRotationContext'
 import LifeNumpad from './LifeNumpad.vue'
 import PlayerTokenPanel from './PlayerTokenPanel.vue'
 import GameResultOverlay from './GameResultOverlay.vue'
@@ -462,8 +456,6 @@ const props = defineProps<{
   player: PlayerState
   isCurrentTurn: boolean
   isFlashing?: boolean
-  cardRotation?: number
-  innerCornerStyle?: Record<string, string>
   commanderDamageAttackerId?: string | null
 }>()
 
@@ -476,6 +468,8 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const gameStore = useGameStore()
 const settingsStore = useSettingsStore()
+
+const { cardRotation, cardRotationStyle: rotationStyle, innerCornerStyle } = useCardRotationContext(() => props.player.id)
 
 const panelRef = ref<HTMLElement>()
 const showLifeNumpad = ref(false)
@@ -502,7 +496,7 @@ const FLIP_AXIS_MAP: Record<string, Record<string, { axis: 'rotateX' | 'rotateY'
 }
 
 const flipAxisAndSign = computed(() => {
-  const rotation = String(props.cardRotation ?? 0)
+  const rotation = String(cardRotation.value)
   const direction = flipDirection.value ?? 'down'
   return FLIP_AXIS_MAP[rotation]?.[direction] ?? { axis: 'rotateX' as const, sign: -1 }
 })
@@ -679,6 +673,7 @@ const {
   onLifeTouchStart, onLifeTouchMove, onLifeTouchEnd, onLifeTouchCancel,
 } = useLifeDragGesture({
   onLifeChange: (amount) => changeLifeBy(amount),
+  cardRotation: () => cardRotation.value,
 })
 
 // --- Action tooltip (inlined) ---
@@ -707,10 +702,8 @@ const totalCommanderDamage = computed(() =>
   Object.values(props.player.commanderDamageReceived).reduce((sum, damage) => sum + damage, 0),
 )
 
-/** Inner corner style from layout composable (grid position + rotation aware) */
-const commanderDamagePositionStyle = computed(() =>
-  props.innerCornerStyle ?? { bottom: '8px', right: '8px' },
-)
+/** Inner corner style — derived internally from card rotation context */
+const commanderDamagePositionStyle = innerCornerStyle
 
 const dangerPulseClass = computed(() => {
   if (props.player.lifeTotal <= 0) return ''
@@ -1060,5 +1053,154 @@ void hasPriority
 }
 .behavior-rule-flash {
   animation: behavior-rule-flash 1.2s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CONTAINER QUERY ADAPTIVE SIZING
+   The card becomes a CSS container so all children scale
+   fluidly with the card's actual dimensions.
+   cqmin = 1% of the smaller dimension (width or height)
+   cqw/cqh = 1% of container width/height
+   ═══════════════════════════════════════════════════════════════ */
+
+.card-flip-container {
+  container-type: size;
+  container-name: card;
+}
+
+/* ── Fluid card shell ── */
+.card-front {
+  padding: clamp(4px, 2.5cqmin, 12px);
+  gap: clamp(2px, 1cqh, 8px);
+}
+
+/* ── Identity zone (player name + commander) ── */
+.card-identity-zone {
+  min-height: clamp(20px, 9cqmin, 44px);
+}
+
+.card-identity-spacer {
+  width: clamp(12px, 5cqw, 28px);
+}
+
+.life-tracker-player-name {
+  font-size: clamp(0.55rem, 3cqmin, 0.85rem);
+  letter-spacing: clamp(0.04em, 0.4cqmin, 0.15em);
+}
+
+.life-tracker-commander-name {
+  font-size: clamp(7px, 2.2cqmin, 10px);
+}
+
+/* ── Hero zone (life total) — absorbs extra vertical space ── */
+.card-hero-zone {
+  flex: 1 1 0%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.life-tracker-life-total {
+  font-size: clamp(2rem, min(24cqw, 18cqh), 6rem);
+}
+
+.life-drag-indicator {
+  font-size: clamp(0.75rem, 4cqmin, 1.125rem);
+  top: clamp(-16px, -4cqmin, -10px);
+}
+
+/* ── Timer zone ── */
+.life-tracker-timer-zone {
+  font-size: clamp(0.75rem, 3.5cqmin, 1rem);
+  gap: clamp(4px, 1.5cqmin, 12px);
+  padding: clamp(2px, 0.7cqmin, 6px) clamp(4px, 1.5cqmin, 12px);
+}
+
+.life-tracker-timer-zone svg {
+  width: clamp(10px, 4cqmin, 16px);
+  height: clamp(10px, 4cqmin, 16px);
+}
+
+/* ── Commander damage — absolute positioned ── */
+.card-commander-btn {
+  min-height: clamp(30px, 10cqmin, 44px);
+  min-width: clamp(30px, 10cqmin, 44px);
+  padding: clamp(3px, 0.8cqmin, 6px) clamp(4px, 1.2cqmin, 8px);
+  font-size: clamp(0.6rem, 3cqmin, 0.85rem);
+}
+
+.card-commander-btn :deep(svg) {
+  width: clamp(12px, 4cqmin, 18px);
+  height: clamp(12px, 4cqmin, 18px);
+}
+
+/* ── Token badges ── */
+.card-badges-zone {
+  gap: clamp(3px, 1cqmin, 6px);
+}
+
+.card-badges-zone > button,
+.card-badges-zone > span {
+  min-height: clamp(20px, 6.5cqmin, 32px);
+  padding: clamp(1px, 0.3cqmin, 4px) clamp(4px, 1cqmin, 8px);
+  font-size: clamp(0.5rem, 2.3cqmin, 0.75rem);
+}
+
+.card-badges-zone > button :deep(svg),
+.card-badges-zone > span :deep(svg) {
+  width: clamp(8px, 2.5cqmin, 12px);
+  height: clamp(8px, 2.5cqmin, 12px);
+}
+
+/* ── Action buttons ── */
+.card-actions-zone {
+  gap: clamp(3px, 1cqmin, 6px);
+}
+
+.card-actions-zone :deep(button) {
+  min-height: clamp(28px, 9cqmin, 40px);
+  min-width: clamp(28px, 9cqmin, 40px);
+}
+
+.card-actions-zone :deep(button svg) {
+  width: clamp(12px, 3.5cqmin, 16px);
+  height: clamp(12px, 3.5cqmin, 16px);
+}
+
+/* ── Death overlay — fluid icon ── */
+.card-front > [role="alert"] :deep(svg) {
+  width: clamp(28px, 10cqmin, 48px);
+  height: clamp(28px, 10cqmin, 48px);
+}
+
+.card-front > [role="alert"] > span {
+  font-size: clamp(0.8rem, 4cqmin, 1.125rem);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   HEIGHT BREAKPOINTS — discrete layout changes
+   Timer is ALWAYS visible (user's primary element).
+   ═══════════════════════════════════════════════════════════════ */
+
+/* COMPACT: card under 200px — hide timer icons, keep numbers */
+@container card (max-height: 200px) {
+  .life-tracker-timer-zone svg {
+    display: none;
+  }
+
+  .timer-divider {
+    display: none;
+  }
+}
+
+/* MICRO: card under 160px tall — hide badges, max density */
+@container card (max-height: 160px) {
+  .card-badges-zone {
+    display: none !important;
+  }
+
+  .card-identity-zone {
+    min-height: 16px;
+  }
 }
 </style>

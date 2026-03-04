@@ -1,6 +1,6 @@
 <template>
   <div class="token-panel relative flex h-full flex-col overflow-y-auto rounded-2xl px-1.5 py-1" :class="playerBgClass">
-    <!-- Header: 24px -->
+    <!-- Header -->
     <div class="flex items-center justify-between mb-0.5 min-h-[24px]">
       <span class="font-beleren text-[9px] font-bold uppercase tracking-[0.12em] text-arena-gold-light/80 truncate">
         {{ player.name }}
@@ -16,21 +16,7 @@
       </button>
     </div>
 
-    <!-- Manage tokens button -->
-    <button
-      class="token-manage-btn"
-      @click="$emit('openTokenPicker')"
-    >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="text-arena-gold/70">
-        <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
-      </svg>
-      {{ t('tokens.manageTokens') }}
-    </button>
-
-    <!-- Separator -->
-    <div class="my-0.5 h-px bg-white/8" />
-
-    <!-- Commanders + game result (push to bottom) -->
+    <!-- Commanders -->
     <div class="mt-auto space-y-0.5">
       <div
         v-for="(commander, commanderIndex) in player.commanders"
@@ -52,25 +38,46 @@
           T{{ gameStore.getCommanderTax(player, commanderIndex) }}
         </button>
       </div>
+    </div>
 
+    <!-- Action bar — icon buttons -->
+    <div class="flex items-center justify-center gap-2 mt-1">
+      <!-- Manage tokens -->
       <button
-        v-if="player.commanders.length < 2"
-        class="flex w-full items-center justify-center rounded-lg bg-white/5 min-h-[36px] text-[11px] font-medium text-white/40 active:bg-white/10"
-        @click="$emit('addCommander')"
+        class="panel-icon-btn panel-icon-btn--gold"
+        :aria-label="t('tokens.manageTokens')"
+        @click="$emit('openTokenPicker')"
       >
-        + {{ t('playerDetail.addCommander') }}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <circle cx="7" cy="7" r="3" stroke="currentColor" stroke-width="2" />
+          <circle cx="17" cy="7" r="3" stroke="currentColor" stroke-width="2" />
+          <circle cx="7" cy="17" r="3" stroke="currentColor" stroke-width="2" />
+          <circle cx="17" cy="17" r="3" stroke="currentColor" stroke-width="2" />
+        </svg>
       </button>
 
-      <!-- Game result button -->
+      <!-- Add commander -->
       <button
-        class="token-game-result"
+        v-if="player.commanders.length < 2"
+        class="panel-icon-btn panel-icon-btn--white"
+        :aria-label="t('playerDetail.addCommander')"
+        @click="$emit('addCommander')"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+        </svg>
+      </button>
+
+      <!-- Game result -->
+      <button
+        class="panel-icon-btn panel-icon-btn--red"
+        :aria-label="t('gameResult.title')"
         @click="$emit('showGameResult')"
       >
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" class="text-life-negative/60">
-          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-          <path d="M4 22v-7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M4 22v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
         </svg>
-        {{ t('gameResult.title') }}
       </button>
     </div>
   </div>
@@ -109,28 +116,48 @@ function handleCastCommander(commanderIndex: number) {
   font-family: var(--font-beleren);
 }
 
-/* ── Manage tokens button ── */
-.token-manage-btn {
+/* ── Icon buttons (action bar) ── */
+.panel-icon-btn {
   display: flex;
-  width: 100%;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  min-height: 36px;
-  border-radius: 8px;
-  background: rgba(212, 168, 67, 0.08);
-  border: 1px solid rgba(212, 168, 67, 0.12);
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(212, 168, 67, 0.7);
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   -webkit-tap-highlight-color: transparent;
   box-shadow: var(--shadow-btn-beveled);
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
 }
-.token-manage-btn:active {
-  background: rgba(212, 168, 67, 0.15);
+.panel-icon-btn:active {
   box-shadow: var(--shadow-btn-pressed);
   transform: translateY(1px);
+}
+
+.panel-icon-btn--gold {
+  background: rgba(212, 168, 67, 0.12);
+  border: 1px solid rgba(212, 168, 67, 0.18);
+  color: rgba(212, 168, 67, 0.8);
+}
+.panel-icon-btn--gold:active {
+  background: rgba(212, 168, 67, 0.22);
+}
+
+.panel-icon-btn--white {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+}
+.panel-icon-btn--white:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.panel-icon-btn--red {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  color: rgba(239, 68, 68, 0.7);
+}
+.panel-icon-btn--red:active {
+  background: rgba(239, 68, 68, 0.2);
 }
 
 /* ── Commander rows: compact ── */
@@ -165,27 +192,4 @@ function handleCastCommander(commanderIndex: number) {
   transform: translateY(1px);
 }
 
-/* ── Game result button ── */
-.token-game-result {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 36px;
-  border-radius: 8px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.15);
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(239, 68, 68, 0.7);
-  -webkit-tap-highlight-color: transparent;
-  box-shadow: var(--shadow-btn-beveled);
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
-}
-.token-game-result:active {
-  background: rgba(239, 68, 68, 0.2);
-  box-shadow: var(--shadow-btn-pressed);
-  transform: translateY(1px);
-}
 </style>

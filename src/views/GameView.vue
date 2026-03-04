@@ -104,12 +104,9 @@
           >
             <LifeTracker
               class="h-full"
-              :style="cardRotationStyle(index)"
               :player="player"
               :is-current-turn="player.id === gameStore.currentTurnPlayer?.id"
               :is-flashing="flashingPlayerIds.includes(player.id)"
-              :card-rotation="getCardRotation(index)"
-              :inner-corner-style="getInnerCornerStyle(index)"
               :commander-damage-attacker-id="commanderDragState?.targetPlayerId === player.id ? commanderDragState.attackerPlayerId : null"
               @state-changed="onPlayerStateChanged"
               @turn-advanced="onTurnAdvanced"
@@ -259,7 +256,7 @@ watch(isTimerRunning, (running, wasRunning) => {
   }
 })
 
-const { gridStyle, getCardRotation, getDirectionAngle, getInnerCornerStyle, cardOuterClasses, cardOuterStyle, cardRotationStyle } = usePlayerGridLayout()
+const { gridStyle, getCardRotation, getDirectionAngle, cardOuterClasses, cardOuterStyle } = usePlayerGridLayout()
 
 const showDiceRoller = ref(false)
 

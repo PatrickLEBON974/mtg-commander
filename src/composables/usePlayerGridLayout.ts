@@ -72,9 +72,9 @@ const MODE_OVERRIDES: Partial<Record<LayoutMode, Partial<Record<number, Partial<
 
 // ─── Inner corner: screen corner closest to grid center, per slot ────
 // Used to position elements (e.g. commander damage icon) toward the center.
-type Corner = 'tl' | 'tr' | 'bl' | 'br'
+export type Corner = 'tl' | 'tr' | 'bl' | 'br'
 
-const SLOT_INNER_SCREEN_CORNER: Record<string, Corner[]> = {
+export const SLOT_INNER_SCREEN_CORNER: Record<string, Corner[]> = {
   '1x2':             ['br', 'tr'],
   '2x1':             ['tr', 'tl'],
   '2x2':             ['br', 'bl', 'tr', 'tl'],
@@ -85,7 +85,7 @@ const SLOT_INNER_SCREEN_CORNER: Record<string, Corner[]> = {
 }
 
 /** Convert desired screen corner to local card corner after CSS rotation */
-function screenToLocalCorner(screenCorner: Corner, rotationDeg: number): Corner {
+export function screenToLocalCorner(screenCorner: Corner, rotationDeg: number): Corner {
   const mapping: Record<number, Record<Corner, Corner>> = {
     0:   { tl: 'tl', tr: 'tr', bl: 'bl', br: 'br' },
     90:  { tl: 'bl', tr: 'tl', bl: 'br', br: 'tr' },
@@ -95,14 +95,14 @@ function screenToLocalCorner(screenCorner: Corner, rotationDeg: number): Corner 
   return mapping[rotationDeg]?.[screenCorner] ?? screenCorner
 }
 
-function cornerToStyle(corner: Corner): Record<string, string> {
+export function cornerToStyle(corner: Corner): Record<string, string> {
   return {
     ...(corner[0] === 't' ? { top: '8px' } : { bottom: '8px' }),
     ...(corner[1] === 'l' ? { left: '8px' } : { right: '8px' }),
   }
 }
 
-function resolveLayout(mode: LayoutMode, count: number): LayoutEntry {
+export function resolveLayout(mode: LayoutMode, count: number): LayoutEntry {
   const base = BASE_LAYOUTS[count] ?? BASE_LAYOUTS[4]!
   if (mode === 'default') return base
   const override = MODE_OVERRIDES[mode]?.[count]

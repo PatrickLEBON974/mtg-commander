@@ -139,7 +139,10 @@ export function useGameClock() {
       },
     ))
 
-    // Watch turn changes: reset round time for new turn player
+    // Watch turn changes: reset round time for new turn player.
+    // Align sub-second phase with total play time so both timers'
+    // displayed seconds flip at the exact same moment (< 1s offset,
+    // invisible on multi-minute turns).
     watchStopHandles.push(watch(
       () => gameStore.currentGame?.currentTurnPlayerIndex,
       (newIndex) => {
@@ -148,7 +151,8 @@ export function useGameClock() {
           if (!game.playerRoundTimeMs) game.playerRoundTimeMs = {}
           const newTurnPlayer = game.players[newIndex]
           if (newTurnPlayer) {
-            game.playerRoundTimeMs[newTurnPlayer.id] = 0
+            const totalMs = game.playerPlayTimeMs?.[newTurnPlayer.id] ?? 0
+            game.playerRoundTimeMs[newTurnPlayer.id] = totalMs % 1000
           }
         }
       },
