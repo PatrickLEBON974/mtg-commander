@@ -19,6 +19,17 @@ const GRIDS: Record<string, { areas: string; columns: string; rows: string; cloc
 
 type GridType = keyof typeof GRIDS
 
+// Normalized (0–1) center coordinates for each slot in each grid type
+const SLOT_CENTERS: Record<string, [number, number][]> = {
+  '1x2':             [[0.5, 0.25], [0.5, 0.75]],
+  '2x1':             [[0.25, 0.5], [0.75, 0.5]],
+  '2x2':             [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]],
+  '2x2_span_bottom': [[0.25, 0.25], [0.75, 0.25], [0.5, 0.75]],
+  '2x2_span_left':   [[0.25, 0.5], [0.75, 0.25], [0.75, 0.75]],
+  '2x3':             [[0.25, 0.167], [0.75, 0.167], [0.25, 0.5], [0.75, 0.5], [0.25, 0.833], [0.75, 0.833]],
+  '2x3_span_bottom': [[0.25, 0.2], [0.75, 0.2], [0.25, 0.5], [0.75, 0.5], [0.5, 0.8]],
+}
+
 // ─── Layout config ──────────────────────────────────────────────────
 
 interface LayoutEntry {
@@ -174,10 +185,25 @@ export function usePlayerGridLayout() {
     return cornerToStyle(localCorner)
   }
 
+  /** Screen angle (degrees) from one player's slot to another. 0° = right, 90° = down. */
+  function getDirectionAngle(fromPlayerIndex: number, toPlayerIndex: number): number {
+    const fromSlot = getSlot(fromPlayerIndex)
+    const toSlot = getSlot(toPlayerIndex)
+    const centers = SLOT_CENTERS[layout.value.gridType]
+    if (!centers) return 0
+    const from = centers[fromSlot]
+    const to = centers[toSlot]
+    if (!from || !to) return 0
+    const dx = to[0] - from[0]
+    const dy = to[1] - from[1]
+    return Math.round(Math.atan2(dy, dx) * (180 / Math.PI))
+  }
+
   return {
     gridStyle,
     getSlot,
     getCardRotation,
+    getDirectionAngle,
     getInnerCornerStyle,
     clockwiseSlotOrder,
     cardOuterClasses,

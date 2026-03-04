@@ -12,28 +12,31 @@
       </div>
     </div>
 
-    <div
-      class="custom-tab-bar"
-      ref="tabBarRef"
-      :class="{
-        'tab-bar-overlay': isFullscreen,
-        'tab-bar-hidden': isFullscreen && !shouldShowTabBar,
-      }"
-    >
-      <button
-        v-for="(tab, index) in TABS"
-        :key="tab.path"
-        :ref="(el) => tabButtonRefs[index] = el as HTMLElement"
-        class="custom-tab-button"
-        :class="{ 'tab-selected': currentIndex === index }"
-        @click="goToTab(index)"
+    <!-- When fullscreen, teleport tab bar to body so it escapes all stacking contexts -->
+    <Teleport to="body" :disabled="!isFullscreen">
+      <div
+        class="custom-tab-bar"
+        ref="tabBarRef"
+        :class="{
+          'tab-bar-overlay': isFullscreen,
+          'tab-bar-hidden': isFullscreen && !shouldShowTabBar,
+        }"
       >
-        <component :is="tab.iconComponent" :size="22" />
-        <ion-label>{{ t(tab.labelKey) }}</ion-label>
-      </button>
-      <!-- Sliding gold indicator -->
-      <div class="tab-indicator" :style="indicatorStyle" />
-    </div>
+        <button
+          v-for="(tab, index) in TABS"
+          :key="tab.path"
+          :ref="(el) => tabButtonRefs[index] = el as HTMLElement"
+          class="custom-tab-button"
+          :class="{ 'tab-selected': currentIndex === index }"
+          @click="goToTab(index)"
+        >
+          <component :is="tab.iconComponent" :size="22" />
+          <ion-label>{{ t(tab.labelKey) }}</ion-label>
+        </button>
+        <!-- Sliding gold indicator -->
+        <div class="tab-indicator" :style="indicatorStyle" />
+      </div>
+    </Teleport>
   </ion-page>
 </template>
 
@@ -45,6 +48,7 @@ import {
   IonPage,
   IonLabel,
   createGesture,
+  modalController,
 } from '@ionic/vue'
 import type { GestureDetail } from '@ionic/vue'
 import gsap from 'gsap'
@@ -183,8 +187,12 @@ watch(currentIndex, (newIndex, oldIndex) => {
 
 let isSyncingFromRoute = false
 
-function goToTab(index: number) {
+async function goToTab(index: number) {
   if (index === currentIndex.value) return
+  // Close game menu modal before switching tabs
+  if (isGameMenuOpen.value) {
+    await modalController.dismiss(undefined, 'tab-switch')
+  }
   isAnimating.value = true
   currentIndex.value = index
   dragOffset.value = 0
@@ -366,11 +374,11 @@ onUnmounted(() => {
 }
 
 .tab-bar-overlay {
-  position: absolute;
+  position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: 10000;
+  z-index: 30000;
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 

@@ -16,6 +16,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const cardSecondLanguage = ref<string | null>(null)
   const layoutMode = ref<LayoutMode>('default')
   const autoOrientIcons = ref(true)
+  const orientationLockedPlayerId = ref<string | null>(null)
   // ─── Behavior Rule Profiles ──────────────────────────────────────────
   const behaviorRuleProfiles = ref<BehaviorRuleProfile[]>(
     structuredClone(DEFAULT_PROFILES),
@@ -231,6 +232,7 @@ export const useSettingsStore = defineStore('settings', () => {
     cardSecondLanguage,
     layoutMode,
     autoOrientIcons,
+    orientationLockedPlayerId,
     cardLanguages,
     // Behavior rule profiles
     behaviorRuleProfiles,

@@ -121,56 +121,59 @@
 
         <!-- Floating next turn button (draggable, snaps back to center) -->
         <div class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-          <!-- Pause ripple waves (outside button so they don't get clipped) -->
-          <div
-            v-if="showPauseRipple"
-            class="pause-ripple-container"
-            :style="nextTurnTransformStyle"
-          >
-            <span class="pause-ripple-ring pause-ripple-ring-1" />
-            <span class="pause-ripple-ring pause-ripple-ring-2" />
-          </div>
-          <!-- Undo button — slides in when paused -->
-          <Transition name="pause-undo">
-            <button
-              v-if="!isTimerRunning && gameStore.settings.enableTimer && canGoToPreviousTurn"
-              class="pause-undo-btn pointer-events-auto"
-              :style="nextTurnTransformStyle"
-              :aria-label="t('game.previousTurn')"
-              @click="goToPreviousTurn()"
+          <!-- Translate wrapper — handles drag position with smooth snap-back -->
+          <div class="next-turn-group" :style="nextTurnTranslateStyle">
+            <!-- Pause ripple waves (outside button so they don't get clipped) -->
+            <div
+              v-if="showPauseRipple"
+              class="pause-ripple-container"
+              :style="nextTurnRotateStyle"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <path d="M4 10h12a4 4 0 0 1 0 8H11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                <path d="m7 7-3 3 3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              <span class="pause-ripple-ring pause-ripple-ring-1" />
+              <span class="pause-ripple-ring pause-ripple-ring-2" />
+            </div>
+            <!-- Undo button — slides in when paused -->
+            <Transition name="pause-undo">
+              <button
+                v-if="!isTimerRunning && gameStore.settings.enableTimer && canGoToPreviousTurn"
+                class="pause-undo-btn pointer-events-auto"
+                :style="nextTurnRotateStyle"
+                :aria-label="t('game.previousTurn')"
+                @click="goToPreviousTurn()"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M4 10h12a4 4 0 0 1 0 8H11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="m7 7-3 3 3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            </Transition>
+            <button
+              ref="nextTurnBtnRef"
+              class="floating-next-turn-btn pointer-events-auto"
+              :class="{
+                'floating-next-turn-dragging': isNextTurnDragging,
+                'floating-next-turn-paused': !isTimerRunning && gameStore.settings.enableTimer,
+              }"
+              :style="nextTurnRotateStyle"
+              :aria-label="t('game.nextTurn')"
+              data-sound="none"
+              @pointerdown.prevent="onNextTurnPointerDown"
+            >
+              <!-- Pause icon when game is paused -->
+              <svg v-if="!isTimerRunning && gameStore.settings.enableTimer" width="30" height="30" viewBox="0 0 24 24" fill="none" class="text-life-negative drop-shadow-sm">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" opacity="0.3" />
+                <rect x="8" y="7" width="3" height="10" rx="1" fill="currentColor" />
+                <rect x="13" y="7" width="3" height="10" rx="1" fill="currentColor" />
+              </svg>
+              <!-- Normal next-turn arrow — points toward next player -->
+              <svg v-else width="30" height="30" viewBox="0 0 24 24" fill="none" class="text-white/80 drop-shadow-sm" :style="nextTurnArrowStyle">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" opacity="0.3" />
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" />
+                <path d="M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                <path d="m12 16 4-4-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
             </button>
-          </Transition>
-          <button
-            ref="nextTurnBtnRef"
-            class="floating-next-turn-btn pointer-events-auto"
-            :class="{
-              'floating-next-turn-dragging': isNextTurnDragging,
-              'floating-next-turn-paused': !isTimerRunning && gameStore.settings.enableTimer,
-            }"
-            :style="nextTurnTransformStyle"
-            :aria-label="t('game.nextTurn')"
-            data-sound="none"
-            @pointerdown.prevent="onNextTurnPointerDown"
-          >
-            <!-- Pause icon when game is paused -->
-            <svg v-if="!isTimerRunning && gameStore.settings.enableTimer" width="30" height="30" viewBox="0 0 24 24" fill="none" class="text-life-negative drop-shadow-sm">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" opacity="0.3" />
-              <rect x="8" y="7" width="3" height="10" rx="1" fill="currentColor" />
-              <rect x="13" y="7" width="3" height="10" rx="1" fill="currentColor" />
-            </svg>
-            <!-- Normal next-turn arrow -->
-            <svg v-else width="30" height="30" viewBox="0 0 24 24" fill="none" class="text-white/80 drop-shadow-sm">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" opacity="0.3" />
-              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" />
-              <path d="M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-              <path d="m12 16 4-4-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </button>
+          </div>
         </div>
       </div>
     </ion-content>
@@ -256,7 +259,7 @@ watch(isTimerRunning, (running, wasRunning) => {
   }
 })
 
-const { gridStyle, getCardRotation, getInnerCornerStyle, cardOuterClasses, cardOuterStyle, cardRotationStyle } = usePlayerGridLayout()
+const { gridStyle, getCardRotation, getDirectionAngle, getInnerCornerStyle, cardOuterClasses, cardOuterStyle, cardRotationStyle } = usePlayerGridLayout()
 
 const showDiceRoller = ref(false)
 
@@ -281,11 +284,15 @@ const longPress = useLongPress(() => {
 }, LONG_PRESS_DELAY_MS)
 
 const priorityPlayerRotation = computed(() => {
-  if (!settingsStore.autoOrientIcons) return 0
-  const priorityPlayer = gameStore.effectivePriorityPlayer
-  if (!priorityPlayer || !gameStore.currentGame) return 0
+  if (!settingsStore.autoOrientIcons || !gameStore.currentGame) return 0
+  // If orientation is locked to a specific player, use that player
+  const lockedId = settingsStore.orientationLockedPlayerId
+  const targetPlayer = lockedId
+    ? gameStore.currentGame.players.find(p => p.id === lockedId)
+    : gameStore.effectivePriorityPlayer
+  if (!targetPlayer) return 0
   const playerIndex = gameStore.currentGame.players.findIndex(
-    p => p.id === priorityPlayer.id,
+    p => p.id === targetPlayer.id,
   )
   return playerIndex >= 0 ? getCardRotation(playerIndex) : 0
 })
@@ -296,16 +303,31 @@ const iconRotationStyle = computed(() => {
   return { transform: `rotate(${rotation}deg)` }
 })
 
-const nextTurnTransformStyle = computed(() => {
+const nextTurnTranslateStyle = computed(() => {
   const tx = nextTurnOffsetX.value
   const ty = nextTurnOffsetY.value
-  const hasOffset = tx !== 0 || ty !== 0
+  if (tx === 0 && ty === 0) return {}
+  return { transform: `translate(${tx}px, ${ty}px)` }
+})
+
+const nextTurnRotateStyle = computed(() => {
   const rot = priorityPlayerRotation.value
-  if (!hasOffset && rot === 0) return {}
-  const parts: string[] = []
-  if (hasOffset) parts.push(`translate(${tx}px, ${ty}px)`)
-  if (rot !== 0) parts.push(`rotate(${rot}deg)`)
-  return { transform: parts.join(' ') }
+  if (rot === 0) return {}
+  return { transform: `rotate(${rot}deg)` }
+})
+
+const nextTurnArrowStyle = computed(() => {
+  const game = gameStore.currentGame
+  if (!game || game.players.length < 2) return {}
+  const currentIndex = game.currentTurnPlayerIndex
+  const nextIndex = (currentIndex + 1) % game.players.length
+  const rawAngle = getDirectionAngle(currentIndex, nextIndex)
+  // Snap to nearest 90° — no diagonal arrows
+  const screenAngle = Math.round(rawAngle / 90) * 90
+  // Compensate for the button's own rotation so the arrow points correctly on screen
+  const arrowRotation = screenAngle - priorityPlayerRotation.value
+  if (arrowRotation === 0) return {}
+  return { transform: `rotate(${arrowRotation}deg)` }
 })
 
 function onNextTurnPointerDown(event: PointerEvent) {
@@ -385,8 +407,9 @@ async function openGameMenu() {
   await presentModal({
     component: GameMenuContent,
     componentProps: { contentRotation: priorityPlayerRotation.value },
-    breakpoints: [0, 0.5],
-    initialBreakpoint: 0.5,
+    cssClass: 'game-sheet',
+    breakpoints: [0, 0.55],
+    initialBreakpoint: 0.55,
     onDismiss: ({ data, role }) => {
       isGameMenuOpen.value = false
       if (role === 'action' && typeof data === 'string') {
@@ -395,6 +418,7 @@ async function openGameMenu() {
           redo: handleRedo,
           dice: () => { showDiceRoller.value = true },
           layout: openLayoutPicker,
+          orientation: openOrientationPicker,
           history: openHistory,
           endGame: confirmEndGame,
         }
@@ -416,6 +440,15 @@ async function openLayoutPicker() {
         settingsStore.layoutMode = data as LayoutMode
       }
     },
+  })
+}
+
+async function openOrientationPicker() {
+  const { default: OrientationPickerContent } = await import('@/components/game/OrientationPickerContent.vue')
+  await presentModal({
+    component: OrientationPickerContent,
+    breakpoints: [0, 0.55],
+    initialBreakpoint: 0.55,
   })
 }
 
@@ -524,11 +557,11 @@ function handleAdvanceTurn() {
   playTurnAdvance()
   multiplayerStore.syncTurnAdvance()
 
-  // Turn advance pulse on the floating button
+  // Turn advance pulse — only boxShadow glow, no scale (would overwrite SVG rotation)
   if (!prefersReducedMotion.value && nextTurnBtnRef.value) {
     gsap.fromTo(nextTurnBtnRef.value,
-      { scale: 1.3, boxShadow: '0 0 30px rgba(232, 96, 10, 0.6)' },
-      { scale: 1, boxShadow: '0 0 0 rgba(232, 96, 10, 0)', duration: 0.5, ease: 'power2.out' },
+      { boxShadow: '0 0 30px rgba(232, 96, 10, 0.6)' },
+      { boxShadow: '0 0 0 rgba(232, 96, 10, 0)', duration: 0.5, ease: 'power2.out' },
     )
   }
 }
@@ -734,6 +767,15 @@ function onTurnAdvanced() {
   opacity: 0.6;
 }
 
+/* Wrapper that handles drag translate — smooth snap-back */
+.next-turn-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .floating-next-turn-btn {
   display: flex;
   align-items: center;
@@ -746,16 +788,20 @@ function onTurnAdvanced() {
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.8);
   font-size: 30px;
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.15s ease;
+  transition: background 0.15s ease;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
   box-shadow: var(--shadow-btn-beveled), 0 0 12px rgba(255, 255, 255, 0.05);
 }
 
 .floating-next-turn-dragging {
-  transition: none;
   opacity: 0.85;
   cursor: grabbing;
+}
+
+/* Disable snap-back transition on wrapper during drag */
+.next-turn-group:has(.floating-next-turn-dragging) {
+  transition: none;
 }
 
 .floating-next-turn-paused {

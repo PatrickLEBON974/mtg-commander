@@ -97,6 +97,9 @@ export default {
     layoutFaceToFaceSide: 'Cote a cote',
     layoutStar: 'Etoile',
     orientation: 'Orientation',
+    orientationAuto: 'Automatique',
+    orientationAutoHint: 'Suit le joueur actif',
+    orientationOff: 'Desactive',
   },
   settings: {
     title: 'Reglages',

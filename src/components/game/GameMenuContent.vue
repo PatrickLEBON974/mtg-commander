@@ -1,13 +1,5 @@
 <template>
   <div class="game-menu-content" :style="rotationStyle">
-    <!-- Decorative elements (since not wrapped in AppModal) -->
-    <div class="menu-decor" aria-hidden="true">
-      <CornerAccent position="top-left" />
-      <CornerAccent position="top-right" />
-      <div class="menu-top-accent" />
-      <div class="menu-vignette" />
-    </div>
-
     <h3 class="menu-title">{{ t('game.menu') }}</h3>
     <div class="grid grid-cols-3 gap-3">
       <button class="menu-action-btn" :disabled="!gameStore.canUndo" data-sound="none" @click="action('undo')">
@@ -33,7 +25,7 @@
       <button
         class="menu-action-btn"
         :class="{ 'menu-action-active': settingsStore.autoOrientIcons }"
-        @click="settingsStore.autoOrientIcons = !settingsStore.autoOrientIcons"
+        @click="action('orientation')"
       >
         <ion-icon :icon="compassOutline" />
         <span>{{ t('game.orientation') }}</span>
@@ -54,7 +46,6 @@ import { arrowUndoOutline, arrowRedoOutline, listOutline, flagOutline, gridOutli
 import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import IconDie from '@/components/icons/dice/IconDie.vue'
-import CornerAccent from '@/components/icons/decorative/CornerAccent.vue'
 
 const props = defineProps<{
   contentRotation?: number
@@ -79,44 +70,7 @@ function action(name: string) {
 <style scoped>
 .game-menu-content {
   position: relative;
-  padding: 20px 16px 80px;
-}
-
-/* Decorative overlay container */
-.menu-decor {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 10;
-  overflow: hidden;
-  border-radius: inherit;
-}
-
-/* Gold accent line at top */
-.menu-top-accent {
-  position: absolute;
-  top: 0;
-  left: 10%;
-  right: 10%;
-  height: 2px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(212, 168, 67, 0.15) 20%,
-    rgba(212, 168, 67, 0.4) 50%,
-    rgba(212, 168, 67, 0.15) 80%,
-    transparent 100%
-  );
-  box-shadow: 0 0 12px rgba(212, 168, 67, 0.15);
-}
-
-/* Radial vignette at top */
-.menu-vignette {
-  position: absolute;
-  inset-inline: 0;
-  top: 0;
-  height: 100px;
-  background: radial-gradient(ellipse at 50% 0%, rgba(212, 168, 67, 0.06) 0%, transparent 70%);
+  padding: 20px 16px calc(80px + 48px + var(--ion-safe-area-bottom, 0px));
 }
 
 .menu-title {

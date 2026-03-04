@@ -95,6 +95,9 @@ export default {
     layoutFaceToFaceSide: 'Side by side',
     layoutStar: 'Star',
     orientation: 'Orientation',
+    orientationAuto: 'Automatic',
+    orientationAutoHint: 'Follows active player',
+    orientationOff: 'Disabled',
   },
   settings: {
     title: 'Settings',
