@@ -624,16 +624,15 @@ const flipAxisAndSign = computed(() => {
 })
 
 /**
- * Stored axis/sign — captures the axis for the current flip (forward or back).
- * Updated at flip-forward (onFlip) and at flip-back gesture start (onFlipBack)
- * so the animation always follows the actual swipe direction.
+ * Stored axis/sign from the flip that opened the card back.
+ * Flip-back MUST use the same axis — switching axis mid-flip causes a visual jump.
  */
 const storedFlipAxis = ref<'rotateX' | 'rotateY'>('rotateX')
 const storedFlipSign = ref(-1)
 
-/** During an active gesture, use the live computed axis; at rest, use stored */
-const effectiveFlipAxis = computed(() => isGestureActive.value ? flipAxisAndSign.value.axis : storedFlipAxis.value)
-const effectiveFlipSign = computed(() => isGestureActive.value ? flipAxisAndSign.value.sign : storedFlipSign.value)
+/** Forward flip: use live swipe direction. Back flip: use stored axis (no axis jump). */
+const effectiveFlipAxis = computed(() => isFlipped.value ? storedFlipAxis.value : flipAxisAndSign.value.axis)
+const effectiveFlipSign = computed(() => isFlipped.value ? storedFlipSign.value : flipAxisAndSign.value.sign)
 
 const flipInlineStyle = computed(() => {
   // During active drag: use inline transform for interactive feedback
@@ -701,9 +700,6 @@ const {
       isFlipped.value = true
     },
     onFlipBack() {
-      // Store the axis/sign of this flip-back swipe so the CSS transition uses the correct direction
-      storedFlipAxis.value = flipAxisAndSign.value.axis
-      storedFlipSign.value = flipAxisAndSign.value.sign
       isFlipped.value = false
     },
   },
