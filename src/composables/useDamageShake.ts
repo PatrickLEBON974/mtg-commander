@@ -1,3 +1,4 @@
+import { onBeforeUnmount } from 'vue'
 import gsap from 'gsap'
 import { prefersReducedMotion } from '@/utils/motion'
 
@@ -90,6 +91,17 @@ export function useDamageShake(options: DamageShakeOptions) {
 
     activeTween = timeline
   }
+
+  onBeforeUnmount(() => {
+    if (activeTween) {
+      activeTween.kill()
+      activeTween = null
+    }
+    const container = options.containerRef()
+    if (container) {
+      gsap.set(container, { x: 0, y: 0 })
+    }
+  })
 
   return { triggerDamageShake }
 }

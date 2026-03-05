@@ -65,8 +65,6 @@
   --color-commander-damage: #f59e0b;
 
   /* Shadows & glows */
-  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-glow-orange: 0 0 20px rgba(232, 96, 10, 0.3);
   --shadow-glow-gold: 0 0 20px rgba(212, 168, 67, 0.3);
 
   /* Enhanced depth shadows — Hearthstone-inspired 3D feel */
@@ -93,6 +91,8 @@
   --z-death-overlay: 20;
   --z-floating-numbers: 30;
   --z-drag-indicator: 100;
+  --z-tab-bar: 200;
+  --z-overlay: 300;
   --z-splash: 9999;
 
   /* Primary: Mythic Orange — main CTA, active elements */
@@ -749,13 +749,6 @@ ion-content::part(scroll) {
   box-shadow: var(--shadow-btn-pressed);
 }
 
-.life-btn {
-  transition: transform 120ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-.life-btn:active {
-  transform: scale(0.82);
-}
-
 /* =============================================
    GAME UI — Life flash effects
    ============================================= */
@@ -790,6 +783,7 @@ ion-content::part(scroll) {
 .death-overlay-enter-from,
 .death-overlay-leave-to {
   opacity: 0;
+  -webkit-backdrop-filter: blur(0px);
   backdrop-filter: blur(0px);
 }
 
@@ -803,44 +797,6 @@ ion-content::part(scroll) {
 .arena-heading {
   color: var(--color-arena-gold-light);
   text-shadow: 0 0 20px rgba(212, 168, 67, 0.15);
-}
-
-/* =============================================
-   ANIMATION — Tavern swing for decorative elements
-   ============================================= */
-
-@keyframes tavern-swing {
-  0%, 100% { transform: rotate(-2deg); }
-  50% { transform: rotate(2deg); }
-}
-
-.swing-subtle {
-  animation: tavern-swing 4s ease-in-out infinite;
-  transform-origin: top center;
-}
-
-/* =============================================
-   TEXTURE UTILITIES — CSS-only surface grain
-   ============================================= */
-
-.surface-grain {
-  position: relative;
-}
-
-.surface-grain::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: repeating-linear-gradient(
-    92deg, transparent 0px, transparent 3px,
-    rgba(255, 255, 255, 0.008) 3px, rgba(255, 255, 255, 0.008) 4px
-  ), repeating-linear-gradient(
-    88deg, transparent 0px, transparent 7px,
-    rgba(255, 255, 255, 0.005) 7px, rgba(255, 255, 255, 0.005) 8px
-  );
-  pointer-events: none;
-  z-index: 0;
 }
 
 /* =============================================

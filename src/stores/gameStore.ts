@@ -204,14 +204,6 @@ export const useGameStore = defineStore('game', () => {
     currentGame.value.customPositionMap = map
   }
 
-  function rotatePositions(direction: 1 | -1 = 1) {
-    if (!currentGame.value) return
-    const count = currentGame.value.players.length
-    const map = currentGame.value.customPositionMap
-      ?? Array.from({ length: count }, (_, i) => i)
-    currentGame.value.customPositionMap = map.map(slot => (slot + direction + count) % count)
-  }
-
   function reorderPlayersForTurnOrder(orderedPlayerIds: string[]) {
     if (!currentGame.value) return
     const game = currentGame.value
@@ -726,7 +718,6 @@ export const useGameStore = defineStore('game', () => {
     setGamePhase,
     setCustomPositionMap,
     swapPlayerPositions,
-    rotatePositions,
     reorderPlayersForTurnOrder,
     updatePlayerName,
     addPlayerCommander,

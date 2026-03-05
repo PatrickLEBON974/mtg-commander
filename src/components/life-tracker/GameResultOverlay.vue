@@ -97,6 +97,7 @@ function handleResult(result: 'winner' | 'eliminated' | 'surrender' | 'draw') {
 .result-panel {
   background: rgba(10, 14, 23, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   max-height: calc(100% - 8px);
   overflow-y: auto;

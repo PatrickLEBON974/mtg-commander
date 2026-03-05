@@ -137,6 +137,94 @@ function isRoomExpired(roomData: RoomData): boolean {
   return Date.now() - roomData.createdAt > ROOM_TTL_MS
 }
 
+// --- Input validation helpers ---
+
+/**
+ * Validates a room code to prevent path traversal attacks in Firebase paths.
+ * Room codes must be alphanumeric (uppercase letters + digits), matching the
+ * format produced by generateRoomCode().
+ */
+function validateRoomCode(code: string): boolean {
+  return /^[A-Z0-9]{1,20}$/.test(code)
+}
+
+/**
+ * Validates a player ID to ensure it matches the expected UUID format.
+ * Prevents injection of unexpected keys from remote Firebase data.
+ */
+function isValidPlayerId(id: string): boolean {
+  return /^[a-zA-Z0-9_-]{1,50}$/.test(id)
+}
+
+/**
+ * Validates an image URI to ensure it uses HTTPS protocol only.
+ * Prevents javascript: or data: URI injection from malicious remote data.
+ */
+function isValidImageUri(uri: string): boolean {
+  try {
+    const parsedUrl = new URL(uri)
+    return parsedUrl.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Asserts that a room code is valid, throwing an error if not.
+ * Call before using any room code to construct Firebase database paths.
+ */
+function assertValidRoomCode(code: string): void {
+  if (!validateRoomCode(code)) {
+    throw new Error('Invalid room code format')
+  }
+}
+
+/**
+ * Sanitizes a SyncedPlayerState received from Firebase, validating
+ * commanderDamageReceived keys and commander image URIs.
+ */
+function sanitizeSyncedPlayerState(playerState: SyncedPlayerState): SyncedPlayerState {
+  // Validate commanderDamageReceived keys: only keep entries with valid player IDs and numeric values
+  const sanitizedCommanderDamage: Record<string, number> = {}
+  if (playerState.commanderDamageReceived) {
+    for (const [sourceId, damageValue] of Object.entries(playerState.commanderDamageReceived)) {
+      if (!isValidPlayerId(sourceId) || typeof damageValue !== 'number' || !Number.isFinite(damageValue)) {
+        continue
+      }
+      sanitizedCommanderDamage[sourceId] = damageValue
+    }
+  }
+
+  // Validate commander image URIs: strip invalid URIs to prevent XSS
+  const sanitizedCommanders = (playerState.commanders ?? []).map((commander) => ({
+    ...commander,
+    imageUri: commander.imageUri && isValidImageUri(commander.imageUri) ? commander.imageUri : undefined,
+  }))
+
+  return {
+    ...playerState,
+    commanderDamageReceived: sanitizedCommanderDamage,
+    commanders: sanitizedCommanders,
+  }
+}
+
+/**
+ * Sanitizes an entire SyncedGameState received from Firebase.
+ */
+export function sanitizeGameState(gameState: SyncedGameState): SyncedGameState {
+  const sanitizedPlayers: Record<string, SyncedPlayerState> = {}
+  if (gameState.players) {
+    for (const [playerId, playerState] of Object.entries(gameState.players)) {
+      if (!isValidPlayerId(playerId)) continue
+      sanitizedPlayers[playerId] = sanitizeSyncedPlayerState(playerState)
+    }
+  }
+  return {
+    ...gameState,
+    players: sanitizedPlayers,
+  }
+}
+
 export async function createRoom(
   deviceId: string,
   playerNames: string[],
@@ -201,6 +289,7 @@ export async function joinRoom(
   deviceId: string,
   playerNames: string[],
 ): Promise<{ roomData: RoomData; playerIds: string[] }> {
+  assertValidRoomCode(code)
   const db = await getDb()
   const roomRef = dbRef(db, `rooms/${code}`)
 
@@ -259,15 +348,26 @@ export async function joinRoom(
 }
 
 export async function listenToRoom(code: string, callback: (data: RoomData | null) => void): Promise<Unsubscribe> {
+  assertValidRoomCode(code)
   const db = await getDb()
   const roomRef = dbRef(db, `rooms/${code}`)
 
   return onValue(roomRef, (snapshot) => {
-    callback(snapshot.exists() ? (snapshot.val() as RoomData) : null)
+    if (!snapshot.exists()) {
+      callback(null)
+      return
+    }
+    const rawData = snapshot.val() as RoomData
+    // Sanitize game state received from Firebase to validate player IDs and image URIs
+    if (rawData.gameState) {
+      rawData.gameState = sanitizeGameState(rawData.gameState)
+    }
+    callback(rawData)
   })
 }
 
 export async function updateGameState(code: string, gameState: SyncedGameState): Promise<void> {
+  assertValidRoomCode(code)
   const db = await getDb()
   await set(dbRef(db, `rooms/${code}/gameState`), gameState)
 }
@@ -277,6 +377,10 @@ export async function updatePlayerState(
   playerId: string,
   playerState: SyncedPlayerState,
 ): Promise<void> {
+  assertValidRoomCode(code)
+  if (!isValidPlayerId(playerId)) {
+    throw new Error('Invalid player ID format')
+  }
   const db = await getDb()
   await set(dbRef(db, `rooms/${code}/gameState/players/${playerId}`), playerState)
 }
@@ -285,33 +389,51 @@ export async function updatePartialGameState(
   code: string,
   updates: Partial<Omit<SyncedGameState, 'players'>>,
 ): Promise<void> {
+  assertValidRoomCode(code)
   const db = await getDb()
   await update(dbRef(db, `rooms/${code}/gameState`), updates)
 }
 
 export async function leaveRoom(code: string, playerIds: string[]): Promise<void> {
+  assertValidRoomCode(code)
   const db = await getDb()
   const updates: Record<string, null> = {}
   for (const playerId of playerIds) {
+    if (!isValidPlayerId(playerId)) continue
     updates[`rooms/${code}/players/${playerId}`] = null
   }
   await update(dbRef(db), updates)
 }
 
 export async function deleteRoom(code: string): Promise<void> {
+  assertValidRoomCode(code)
   const db = await getDb()
   await remove(dbRef(db, `rooms/${code}`))
 }
 
 export async function cleanupExpiredRooms(): Promise<void> {
   const db = await getDb()
+
+  // Only authenticated users may clean up rooms
+  if (!auth?.currentUser) return
+
   const roomsRef = dbRef(db, 'rooms')
   const snapshot = await get(roomsRef)
   if (!snapshot.exists()) return
 
   const rooms = snapshot.val() as Record<string, RoomData>
+  const currentTimestamp = Date.now()
+
   const expiredCodes = Object.entries(rooms)
-    .filter(([, room]) => isRoomExpired(room))
+    .filter(([code, room]) => {
+      // Validate the room code format to avoid constructing invalid paths
+      if (!validateRoomCode(code)) return false
+      // Validate createdAt is a finite number in the past (not a future or bogus timestamp)
+      if (typeof room.createdAt !== 'number' || !Number.isFinite(room.createdAt)) return false
+      if (room.createdAt > currentTimestamp) return false
+      // Only delete rooms that are genuinely expired
+      return currentTimestamp - room.createdAt > ROOM_TTL_MS
+    })
     .map(([code]) => code)
 
   if (expiredCodes.length === 0) return

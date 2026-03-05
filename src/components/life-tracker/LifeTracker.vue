@@ -943,6 +943,7 @@ onUnmounted(() => {
   poisonLongPress.cancel()
   stopLifeRepeat()
   if (tapCommitTimer) { clearTimeout(tapCommitTimer); commitTap() }
+  if (gameResultTimeout) { clearTimeout(gameResultTimeout); gameResultTimeout = null }
   hideActionTooltip()
   closeCounterStepper()
   cleanupCommanderDrag()
@@ -1109,11 +1110,18 @@ function addCommander(cardName: string, imageUri: string) {
 
 // --- Game result (from card back) ---
 
+let gameResultTimeout: ReturnType<typeof setTimeout> | null = null
+
 function handleGameResultFromBack() {
   isFlipped.value = false
   gameResultSlideFromRight.value = true
+  // Clear any pending timeout from a previous rapid invocation
+  if (gameResultTimeout) clearTimeout(gameResultTimeout)
   // Small delay so the flip-back animation plays before the overlay appears
-  setTimeout(() => { showGameResult.value = true }, 300)
+  gameResultTimeout = setTimeout(() => {
+    showGameResult.value = true
+    gameResultTimeout = null
+  }, 300)
 }
 
 // --- Misc actions ---

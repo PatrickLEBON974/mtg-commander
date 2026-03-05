@@ -103,7 +103,7 @@ function select(layout: string) {
   text-align: center;
   font-size: 1rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--color-text-primary);
 }
 
 .layout-option {
@@ -123,7 +123,7 @@ function select(layout: string) {
 
 .layout-label {
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
 }
 
 .layout-label--active {

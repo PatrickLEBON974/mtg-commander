@@ -5,6 +5,21 @@ import { prefersReducedMotion } from '@/utils/motion'
 const MAX_ACTIVE_FLOATS = 5
 const activeFloats: HTMLElement[] = []
 
+/** Read a CSS custom property once and cache the result */
+function getCSSColor(variableName: string, fallback: string): string {
+  try {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(variableName).trim()
+    return value || fallback
+  } catch {
+    return fallback
+  }
+}
+
+const LIFE_POSITIVE_COLOR = getCSSColor('--color-life-positive', '#22c55e')
+const LIFE_NEGATIVE_COLOR = getCSSColor('--color-life-negative', '#ef4444')
+const POISON_COLOR = getCSSColor('--color-poison', '#a855f7')
+const COMMANDER_DAMAGE_COLOR = getCSSColor('--color-commander-damage', '#f59e0b')
+
 interface FloatingNumberOptions {
   /** Container element to position the float relative to */
   containerRef: () => HTMLElement | null | undefined
@@ -32,9 +47,9 @@ export function useFloatingNumbers(options: FloatingNumberOptions) {
     }
 
     const colorMap = {
-      life: value > 0 ? '#22c55e' : '#ef4444',
-      poison: '#a855f7',
-      commander: '#f59e0b',
+      life: value > 0 ? LIFE_POSITIVE_COLOR : LIFE_NEGATIVE_COLOR,
+      poison: POISON_COLOR,
+      commander: COMMANDER_DAMAGE_COLOR,
     }
 
     const prefix = value > 0 ? '+' : ''

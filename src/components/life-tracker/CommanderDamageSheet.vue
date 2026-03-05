@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition :css="false" @enter="onEnter" @leave="onLeave">
-      <div v-if="isOpen" class="cmdr-overlay" @click.self="handleClose">
+      <div v-if="isOpen" class="sheet-overlay" @click.self="handleClose">
         <GameFrame
           ref="frameComp"
           :title="t('commanderDamage.title')"
@@ -96,12 +96,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import gsap from 'gsap'
 import type { PlayerState } from '@/types/game'
 import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { useSheetAnimation } from '@/composables/useSheetAnimation'
 import GameFrame from '@/components/GameFrame.vue'
 import IconSwordSingle from '@/components/icons/game/IconSwordSingle.vue'
 import { playCommanderDamage } from '@/services/sounds'
@@ -135,67 +135,15 @@ const settingsStore = useSettingsStore()
 
 const frameComp = ref<InstanceType<typeof GameFrame>>()
 
-const isSideways = computed(() => {
-  const rotation = props.contentRotation ?? 0
-  return rotation === 90 || rotation === 270
+const { popupRotationStyle, onEnter, onLeave } = useSheetAnimation({
+  rotation: () => props.contentRotation ?? 0,
+  getFrameElement: () => frameComp.value?.el,
+  sidewaysConstraints: { maxWidth: 'calc(100vh - 80px)', maxHeight: 'calc(100vw - 32px)' },
 })
-
-const popupRotationStyle = computed(() => {
-  const rotation = props.contentRotation ?? 0
-  const style: Record<string, string> = {}
-  if (rotation !== 0) style.transform = `rotate(${rotation}deg)`
-  if (isSideways.value) {
-    // Swap width/height constraints — CSS width becomes visual height when rotated 90°
-    style.maxWidth = 'calc(100vh - 80px)'
-    style.maxHeight = 'calc(100vw - 32px)'
-  }
-  return style
-})
-
-// --- GSAP enter/leave animations ---
-
-function onEnter(el: Element, done: () => void) {
-  const htmlEl = el as HTMLElement
-  htmlEl.style.pointerEvents = 'none'
-  const popup = frameComp.value?.el
-  const rotation = props.contentRotation ?? 0
-  gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.2 })
-  if (popup) {
-    gsap.fromTo(
-      popup,
-      { scale: 0.85, opacity: 0, rotation },
-      {
-        scale: 1, opacity: 1, rotation, duration: 0.3, ease: 'back.out(1.7)',
-        onComplete: () => {
-          htmlEl.style.pointerEvents = ''
-          done()
-        },
-      },
-    )
-  } else {
-    htmlEl.style.pointerEvents = ''
-    done()
-  }
-}
-
-function onLeave(el: Element, done: () => void) {
-  const popup = frameComp.value?.el
-  const rotation = props.contentRotation ?? 0
-  if (popup) {
-    gsap.to(popup, { scale: 0.8, opacity: 0, rotation, duration: 0.2, ease: 'power3.in' })
-  }
-  gsap.to(el, { opacity: 0, duration: 0.2, onComplete: done })
-}
 
 function handleClose() {
   emit('close')
 }
-
-watch(() => props.isOpen, (open) => {
-  if (open) {
-    // Reset state on open if needed
-  }
-})
 
 // --- Commander damage logic ---
 
@@ -273,10 +221,10 @@ function changeDamage(row: AttackerRow, amount: number) {
 </script>
 
 <style scoped>
-.cmdr-overlay {
+.sheet-overlay {
   position: fixed;
   inset: 0;
-  z-index: 99999;
+  z-index: var(--z-overlay);
   display: flex;
   align-items: center;
   justify-content: center;

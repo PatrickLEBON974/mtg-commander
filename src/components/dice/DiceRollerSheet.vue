@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition :css="false" @enter="onEnter" @leave="onLeave">
-      <div v-if="isOpen" class="dice-overlay" @click.self="handleClose">
+      <div v-if="isOpen" class="sheet-overlay" @click.self="handleClose">
         <GameFrame
           ref="frameComp"
           class="dice-frame"
@@ -93,6 +93,7 @@ import { ref, computed, watch, nextTick, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
 import gsap from 'gsap'
 import { useGameStore } from '@/stores/gameStore'
+import { useSheetAnimation } from '@/composables/useSheetAnimation'
 import IconDie4 from '@/components/icons/dice/IconDie4.vue'
 import IconDie6 from '@/components/icons/dice/IconDie6.vue'
 import IconDie8 from '@/components/icons/dice/IconDie8.vue'
@@ -117,15 +118,12 @@ const gameStore = useGameStore()
 
 const frameComp = ref<InstanceType<typeof GameFrame>>()
 
-const popupRotationStyle = computed(() => {
-  const rotation = props.contentRotation ?? 0
-  const style: Record<string, string> = {}
-  if (rotation !== 0) style.transform = `rotate(${rotation}deg)`
-  if (rotation === 90 || rotation === 270) {
-    style.maxWidth = 'calc(100vh - 100px)'
-    style.maxHeight = 'calc(100vw - 32px)'
-  }
-  return style
+const { popupRotationStyle, onEnter, onLeave } = useSheetAnimation({
+  rotation: () => props.contentRotation ?? 0,
+  getFrameElement: () => frameComp.value?.el,
+  sidewaysConstraints: { maxWidth: 'calc(100vh - 100px)', maxHeight: 'calc(100vw - 32px)' },
+  verticalOffset: -20,
+  leaveEase: 'power2.in',
 })
 
 type ViewState = 'picker' | 'playerPicker' | 'dieResult'
@@ -174,39 +172,6 @@ const formattedDisplayValue = computed(() => {
   }
   return displayValue.value
 })
-
-function onEnter(el: Element, done: () => void) {
-  const htmlEl = el as HTMLElement
-  htmlEl.style.pointerEvents = 'none'
-  const popup = frameComp.value?.el
-  const rotation = props.contentRotation ?? 0
-  gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.2 })
-  if (popup) {
-    gsap.fromTo(
-      popup,
-      { scale: 0.85, opacity: 0, y: -20, rotation },
-      {
-        scale: 1, opacity: 1, y: 0, rotation, duration: 0.3, ease: 'back.out(1.7)',
-        onComplete: () => {
-          htmlEl.style.pointerEvents = ''
-          done()
-        },
-      },
-    )
-  } else {
-    htmlEl.style.pointerEvents = ''
-    done()
-  }
-}
-
-function onLeave(el: Element, done: () => void) {
-  const popup = frameComp.value?.el
-  const rotation = props.contentRotation ?? 0
-  if (popup) {
-    gsap.to(popup, { scale: 0.8, opacity: 0, y: -10, rotation, duration: 0.2, ease: 'power2.in' })
-  }
-  gsap.to(el, { opacity: 0, duration: 0.2, onComplete: done })
-}
 
 function cryptoRandom(max: number): number {
   const array = new Uint32Array(1)
@@ -402,10 +367,10 @@ watch(() => props.isOpen, (open) => {
 </script>
 
 <style scoped>
-.dice-overlay {
+.sheet-overlay {
   position: fixed;
   inset: 0;
-  z-index: 99999;
+  z-index: var(--z-overlay);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -469,7 +434,7 @@ watch(() => props.isOpen, (open) => {
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  color: var(--text-primary, #fff);
+  color: var(--color-text-primary, #fff);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: background 150ms ease, transform 150ms ease, box-shadow 150ms ease;
@@ -508,7 +473,7 @@ watch(() => props.isOpen, (open) => {
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
   border: 2px solid transparent;
-  color: var(--text-primary, #fff);
+  color: var(--color-text-primary, #fff);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: all 120ms ease;

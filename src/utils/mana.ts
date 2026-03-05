@@ -41,7 +41,7 @@ export function parseManaCostToSymbols(manaCost: string): string[] {
   return symbols
 }
 
-export interface OracleTextSegment {
+interface OracleTextSegment {
   type: 'text' | 'symbol'
   value: string
 }

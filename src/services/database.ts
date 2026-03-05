@@ -12,6 +12,14 @@ let ftsAvailable = false
 
 const JEEP_SQLITE_INIT_TIMEOUT_MS = 5000
 
+/**
+ * Escapes SQL LIKE wildcard characters (%, _, \) in user input to prevent
+ * unintended pattern matching. Use with ESCAPE '\\' in the LIKE clause.
+ */
+function escapeLikePattern(input: string): string {
+  return input.replace(/[%_\\]/g, '\\$&')
+}
+
 const CREATE_CARDS_TABLE = `
   CREATE TABLE IF NOT EXISTS cards (
     id TEXT PRIMARY KEY,
@@ -191,9 +199,10 @@ export async function searchCardsLocal(
   }
 
   // LIKE fallback when FTS5 is not available (web/sql.js)
-  const likePattern = `%${query}%`
+  const escapedQuery = escapeLikePattern(query)
+  const likePattern = `%${escapedQuery}%`
   const likeBaseQuery = `SELECT * FROM cards c
-     WHERE (c.name LIKE ? OR c.printed_name LIKE ? OR c.type_line LIKE ? OR c.oracle_text LIKE ?) `
+     WHERE (c.name LIKE ? ESCAPE '\\' OR c.printed_name LIKE ? ESCAPE '\\' OR c.type_line LIKE ? ESCAPE '\\' OR c.oracle_text LIKE ? ESCAPE '\\') `
   const likeFullQuery = commanderOnly
     ? likeBaseQuery + `AND c.commander_legal = 1 ORDER BY c.name LIMIT ?;`
     : likeBaseQuery + `ORDER BY c.name LIMIT ?;`
@@ -230,18 +239,18 @@ export async function autocompleteLocal(
     conditions.push('c.is_commander = 1')
   }
   if (filters.colorIdentity && filters.colorIdentity.length > 0) {
-    const colorClauses = filters.colorIdentity.map(() => 'c.color_identity LIKE ?')
+    const colorClauses = filters.colorIdentity.map(() => "c.color_identity LIKE ? ESCAPE '\\'")
     conditions.push(`(${colorClauses.join(' OR ')})`)
     for (const color of filters.colorIdentity) {
-      filterParams.push(`%"${color}"%`)
+      filterParams.push(`%"${escapeLikePattern(color)}"%`)
     }
   }
 
   if (filters.cardTypes && filters.cardTypes.length > 0) {
-    const typeClauses = filters.cardTypes.map(() => 'c.type_line LIKE ?')
+    const typeClauses = filters.cardTypes.map(() => "c.type_line LIKE ? ESCAPE '\\'")
     conditions.push(`(${typeClauses.join(' OR ')})`)
     for (const cardType of filters.cardTypes) {
-      filterParams.push(`%${cardType}%`)
+      filterParams.push(`%${escapeLikePattern(cardType)}%`)
     }
   }
 
@@ -301,10 +310,11 @@ export async function autocompleteLocal(
   }
 
   // LIKE fallback
-  const likePattern = `%${query}%`
+  const escapedQuery = escapeLikePattern(query)
+  const likePattern = `%${escapedQuery}%`
   const result = await db.query(
     `SELECT DISTINCT COALESCE(c.printed_name, c.name) as display_name FROM cards c
-     WHERE (c.name LIKE ? OR c.printed_name LIKE ?)
+     WHERE (c.name LIKE ? ESCAPE '\\' OR c.printed_name LIKE ? ESCAPE '\\')
      AND ${filterWhere}
      ORDER BY display_name
      LIMIT ?;`,

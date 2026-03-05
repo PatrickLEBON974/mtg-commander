@@ -202,8 +202,8 @@ defineExpose({ el: frameRef })
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  min-width: 44px;
+  min-height: 44px;
   border: none;
   background: rgba(255, 255, 255, 0.06);
   border-radius: 8px;

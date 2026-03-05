@@ -111,7 +111,7 @@ function selectOff() {
   text-align: center;
   font-size: 1rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--color-text-primary);
 }
 
 .orientation-option {
@@ -150,7 +150,7 @@ function selectOff() {
 
 .orientation-label {
   font-size: 0.85rem;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
 }
 
 .orientation-label--active {

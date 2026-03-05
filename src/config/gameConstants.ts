@@ -7,7 +7,6 @@
 export const COMMANDER_TAX_PER_CAST = 2
 export const LOW_LIFE_WARNING_THRESHOLD = 10
 export const LARGE_LIFE_CHANGE_THRESHOLD = 5
-export const MAX_COMMANDERS_PER_PLAYER = 2
 export const ROOM_CODE_LENGTH = 6
 export const PLAYER_NAME_MAX_LENGTH = 30
 
@@ -24,13 +23,9 @@ export const MAX_STORED_GAME_RECORDS = 200
 export const MAX_RECENT_GAMES = 10
 export const SCRYFALL_CACHE_MAX_ENTRIES = 50
 export const LOCAL_SEARCH_LIMIT = 50
-export const MAX_LOCAL_PLAYERS_PER_DEVICE = 3
 export const MAX_PLAYER_PROFILES = 20
 export const MAX_DECKS_PER_PLAYER = 20
 export const MAX_ROOM_CODE_ATTEMPTS = 5
-
-// ─── Quick increment options ────────────────────────────────────────
-export const QUICK_COMMANDER_DAMAGE_OPTIONS = [1, 2, 3, 5, 10]
 
 // ─── Shared stepper options (HomeView + SettingsView) ───────────────
 export const PLAYER_COUNT_OPTIONS = [2, 3, 4, 5, 6].map((v) => ({ value: v, label: String(v) }))

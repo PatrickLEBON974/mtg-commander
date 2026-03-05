@@ -52,6 +52,7 @@ const { t } = useI18n()
   font-weight: 600;
   color: white;
   background: rgba(0, 0, 0, 0.85);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   pointer-events: none;
   z-index: 30;

@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition :css="false" @enter="onEnter" @leave="onLeave">
-      <div v-if="isOpen" class="token-overlay" @click.self="handleClose">
+      <div v-if="isOpen" class="sheet-overlay" @click.self="handleClose">
         <GameFrame
           ref="frameComp"
           :title="player.name"
@@ -136,9 +136,9 @@
 <script setup lang="ts">
 import { computed, watch, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import gsap from 'gsap'
 import type { PlayerState } from '@/types/game'
 import { useGameStore } from '@/stores/gameStore'
+import { useSheetAnimation } from '@/composables/useSheetAnimation'
 import { useLongPress } from '@/composables/useLongPress'
 import { playInitiative, playMonarchCrown } from '@/services/sounds'
 import GameFrame from '@/components/GameFrame.vue'
@@ -163,51 +163,11 @@ const gameStore = useGameStore()
 
 const frameComp = ref<InstanceType<typeof GameFrame>>()
 
-const popupRotationStyle = computed(() => {
-  const rotation = props.contentRotation ?? 0
-  const style: Record<string, string> = {}
-  if (rotation !== 0) style.transform = `rotate(${rotation}deg)`
-  if (rotation === 90 || rotation === 270) {
-    style.maxWidth = 'calc(100vh - 32px)'
-    style.maxHeight = 'calc(100vw - 32px)'
-  }
-  return style
+const { popupRotationStyle, onEnter, onLeave } = useSheetAnimation({
+  rotation: () => props.contentRotation ?? 0,
+  getFrameElement: () => frameComp.value?.el,
+  sidewaysConstraints: { maxWidth: 'calc(100vh - 32px)', maxHeight: 'calc(100vw - 32px)' },
 })
-
-// --- GSAP enter/leave animations ---
-
-function onEnter(el: Element, done: () => void) {
-  const htmlEl = el as HTMLElement
-  htmlEl.style.pointerEvents = 'none'
-  const popup = frameComp.value?.el
-  const rotation = props.contentRotation ?? 0
-  gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.2 })
-  if (popup) {
-    gsap.fromTo(
-      popup,
-      { scale: 0.85, opacity: 0, rotation },
-      {
-        scale: 1, opacity: 1, rotation, duration: 0.3, ease: 'back.out(1.7)',
-        onComplete: () => {
-          htmlEl.style.pointerEvents = ''
-          done()
-        },
-      },
-    )
-  } else {
-    htmlEl.style.pointerEvents = ''
-    done()
-  }
-}
-
-function onLeave(el: Element, done: () => void) {
-  const popup = frameComp.value?.el
-  const rotation = props.contentRotation ?? 0
-  if (popup) {
-    gsap.to(popup, { scale: 0.8, opacity: 0, rotation, duration: 0.2, ease: 'power3.in' })
-  }
-  gsap.to(el, { opacity: 0, duration: 0.2, onComplete: done })
-}
 
 function handleClose() {
   emit('close')
@@ -229,6 +189,8 @@ const dayNightLabel = computed(() => {
   return t('tokens.dayNight')
 })
 
+// Direct mutation is acceptable here — no store action exists to clear day/night
+// (toggleDayNight cycles day->night->day but cannot reset to null)
 const dayNightLongPress = useLongPress(() => {
   if (gameStore.currentGame) gameStore.currentGame.dayNightState = null
 }, 600)
@@ -284,10 +246,10 @@ function handleToggleRing() {
 </script>
 
 <style scoped>
-.token-overlay {
+.sheet-overlay {
   position: fixed;
   inset: 0;
-  z-index: 99999;
+  z-index: var(--z-overlay);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -694,8 +694,8 @@ function onTurnAdvanced() {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -725,6 +725,7 @@ function onTurnAdvanced() {
   height: 40px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.12);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.15);
   color: rgba(255, 255, 255, 0.8);
@@ -781,6 +782,7 @@ function onTurnAdvanced() {
   height: 66px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.4);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.8);
@@ -849,6 +851,10 @@ function onTurnAdvanced() {
   background: rgba(0, 0, 0, 0.6);
 }
 
+@keyframes game-timer-flash {
+  0%, 100% { background-color: rgba(239, 68, 68, 0.05); }
+  50% { background-color: rgba(239, 68, 68, 0.25); }
+}
 .game-timer-flash {
   animation: game-timer-flash 0.8s ease-in-out infinite;
 }
@@ -856,6 +862,7 @@ function onTurnAdvanced() {
 .announce-banner {
   background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.08));
   border: 1px solid rgba(239, 68, 68, 0.2);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
 

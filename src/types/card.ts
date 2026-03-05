@@ -43,12 +43,6 @@ export interface CardFace {
   image_uris?: CardImageUris
 }
 
-export interface CardSearchResult {
-  total_cards: number
-  has_more: boolean
-  data: ScryfallCard[]
-}
-
 export interface CardSearchFilters {
   commanderOnly: boolean
   colorIdentity: string[]

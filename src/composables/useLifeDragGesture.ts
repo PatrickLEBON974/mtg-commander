@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, onBeforeUnmount } from 'vue'
 import { isDragLocked } from '@/composables/useDragLock'
 
 const LIFE_DRAG_PIXELS_PER_POINT = 25
@@ -85,6 +85,12 @@ export function useLifeDragGesture(options: UseLifeDragGestureOptions) {
   function isDragging() {
     return dragActive
   }
+
+  onBeforeUnmount(() => {
+    isDragLocked.value = false
+    dragActive = false
+    pendingAmount.value = 0
+  })
 
   return {
     lifeDragPendingAmount: pendingAmount,

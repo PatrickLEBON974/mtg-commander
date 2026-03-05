@@ -432,12 +432,12 @@ function updateDropTarget(x: number, y: number) {
 .seating-name {
   font-size: 1.125rem;
   font-weight: 700;
-  color: var(--text-primary, #fff);
+  color: var(--color-text-primary, #fff);
 }
 
 .seating-commander {
   font-size: 0.6875rem;
-  color: var(--text-secondary, rgba(255, 255, 255, 0.5));
+  color: var(--color-text-secondary, rgba(255, 255, 255, 0.5));
   max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -506,13 +506,14 @@ function updateDropTarget(x: number, y: number) {
 <style>
 .seating-drag-indicator {
   position: fixed;
-  z-index: 999999;
+  z-index: var(--z-overlay);
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 14px;
   border-radius: 10px;
   background: rgba(0, 0, 0, 0.8);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(232, 96, 10, 0.4);
   pointer-events: none;

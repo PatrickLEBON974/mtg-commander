@@ -257,17 +257,3 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   activeBehaviorRuleIds: [],
   selectedBehaviorProfileId: 'default',
 }
-
-/** Empty counter defaults for new PlayerState creation */
-export const EMPTY_PLAYER_COUNTERS = {
-  commanders: [] as Commander[],
-  commanderDamageReceived: {} as Record<string, number>,
-  poisonCounters: 0,
-  experienceCounters: 0,
-  energyCounters: 0,
-  isMonarch: false,
-  hasInitiative: false,
-  cityBlessing: false,
-  ringLevel: 0,
-  radCounters: 0,
-} as const

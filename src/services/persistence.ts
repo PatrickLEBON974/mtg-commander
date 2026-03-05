@@ -9,7 +9,7 @@ const SCRYFALL_CACHE_KEY = 'mtg_commander_scryfall_cache'
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
 /** Safe JSON parse from localStorage with fallback */
-export function readLocalStorageJson<T>(key: string, fallback: T): T {
+function readLocalStorageJson<T>(key: string, fallback: T): T {
   const stored = localStorage.getItem(key)
   if (!stored) return fallback
   try {

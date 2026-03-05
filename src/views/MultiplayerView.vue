@@ -286,12 +286,14 @@ async function joinExisting() {
 function startMultiplayerGame() {
   const players = multiplayerStore.createMultiplayerGame()
 
+  // Direct ref assignment — settings is an exposed writable ref with no dedicated setter action
   gameStore.settings = {
     ...settingsStore.gameSettings,
     playerCount: players.length,
   }
 
-  // Use the store's method, then replace players with the multiplayer ones
+  // startNewGame creates default players; replace them with multiplayer-coordinated ones.
+  // Direct mutation is acceptable — no store action exists for bulk player replacement.
   gameStore.startNewGame()
   if (gameStore.currentGame) {
     gameStore.currentGame.players = players

@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, onBeforeUnmount } from 'vue'
 import gsap from 'gsap'
 import { isDragLocked } from '@/composables/useDragLock'
 import { tapFeedback, heavyFeedback } from '@/services/haptics'
@@ -196,6 +196,11 @@ export function useBadgeDrag(options: UseBadgeDragOptions) {
     dragOffset.value = { x: 0, y: 0 }
     isDragLocked.value = false
   }
+
+  onBeforeUnmount(() => {
+    removeWindowListeners()
+    cleanup()
+  })
 
   return {
     onBadgeTouchStart,
