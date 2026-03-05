@@ -47,6 +47,61 @@
             :label="t('home.turnDuration')"
           />
         </ion-item>
+
+        <!-- Hourglass tokens -->
+        <ion-item :lines="settingsStore.gameSettings.hourglassEnabled ? 'inset' : 'none'">
+          <ion-icon :icon="hourglassOutline" slot="start" color="warning" />
+          <ion-label>{{ t('rules.hourglassEnabled') }}</ion-label>
+          <ion-toggle slot="end" v-model="settingsStore.gameSettings.hourglassEnabled" />
+        </ion-item>
+
+        <template v-if="settingsStore.gameSettings.hourglassEnabled">
+          <ion-item lines="inset">
+            <ion-label>{{ t('rules.hourglassMode') }}</ion-label>
+            <ion-select v-model="settingsStore.gameSettings.hourglassMode" interface="action-sheet">
+              <ion-select-option value="fixed">{{ t('rules.hourglassModeFixed') }}</ion-select-option>
+              <ion-select-option value="time_bank">{{ t('rules.hourglassModeTimeBank') }}</ion-select-option>
+            </ion-select>
+          </ion-item>
+
+          <ion-item lines="inset">
+            <ion-label>{{ t('rules.hourglassGracePeriod') }}</ion-label>
+            <SettingStepper
+              slot="end"
+              v-model="settingsStore.gameSettings.hourglassGracePeriodSeconds"
+              :options="HOURGLASS_GRACE_OPTIONS"
+              :label="t('rules.hourglassGracePeriod')"
+            />
+          </ion-item>
+
+          <ion-item lines="inset">
+            <ion-label>{{ t('rules.hourglassLossThreshold') }}</ion-label>
+            <SettingStepper
+              slot="end"
+              v-model="settingsStore.gameSettings.hourglassLossThreshold"
+              :options="HOURGLASS_THRESHOLD_OPTIONS"
+              :label="t('rules.hourglassLossThreshold')"
+            />
+          </ion-item>
+
+          <!-- Time bank cap (only shown in time_bank mode) -->
+          <template v-if="settingsStore.gameSettings.hourglassMode === 'time_bank'">
+            <ion-item :lines="settingsStore.gameSettings.hourglassTimeBankCapEnabled ? 'inset' : 'none'">
+              <ion-label>{{ t('rules.hourglassTimeBankCapEnabled') }}</ion-label>
+              <ion-toggle slot="end" v-model="settingsStore.gameSettings.hourglassTimeBankCapEnabled" />
+            </ion-item>
+
+            <ion-item v-if="settingsStore.gameSettings.hourglassTimeBankCapEnabled" lines="none">
+              <ion-label>{{ t('rules.hourglassTimeBankCap') }}</ion-label>
+              <SettingStepper
+                slot="end"
+                v-model="settingsStore.gameSettings.hourglassTimeBankCapSeconds"
+                :options="HOURGLASS_CAP_OPTIONS"
+                :label="t('rules.hourglassTimeBankCap')"
+              />
+            </ion-item>
+          </template>
+        </template>
       </template>
 
       <ion-item lines="inset">
@@ -256,6 +311,27 @@ const turnTimerOptions = Array.from({ length: 59 }, (_, i) => {
   const remainingSeconds = seconds % 60
   return { value: seconds, label: `${minutes}:${String(remainingSeconds).padStart(2, '0')}` }
 })
+
+const HOURGLASS_GRACE_OPTIONS = [
+  { value: 120, label: '2 min' },
+  { value: 180, label: '3 min' },
+  { value: 300, label: '5 min' },
+  { value: 420, label: '7 min' },
+  { value: 600, label: '10 min' },
+]
+const HOURGLASS_THRESHOLD_OPTIONS = [
+  { value: 5, label: '5' },
+  { value: 7, label: '7' },
+  { value: 10, label: '10' },
+  { value: 15, label: '15' },
+  { value: 20, label: '20' },
+]
+const HOURGLASS_CAP_OPTIONS = [
+  { value: 600, label: '10 min' },
+  { value: 900, label: '15 min' },
+  { value: 1200, label: '20 min' },
+  { value: 1800, label: '30 min' },
+]
 
 // ─── Player configs ───────────────────────────────────────────────────
 let nextConfigId = 0

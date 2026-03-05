@@ -200,6 +200,23 @@
               <span class="text-green-400">{{ player.radCounters }}</span>
             </button>
 
+            <!-- Hourglass tokens -->
+            <button
+              v-if="settingsStore.gameSettings.hourglassEnabled && player.hourglassTokens > 0"
+              class="card-badge pointer-events-auto ring-1 btn-press"
+              :class="player.hourglassTokens >= settingsStore.gameSettings.hourglassLossThreshold
+                ? 'bg-red-500/20 ring-red-500/20'
+                : 'bg-amber-500/20 ring-amber-500/20'"
+              :style="badgeStyle('hourglass')"
+              @click="openCounterStepper('hourglass')"
+              @touchstart.stop="(e: TouchEvent) => onBadgeTouchStart(e, 'hourglass')"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" class="shrink-0" :class="player.hourglassTokens >= settingsStore.gameSettings.hourglassLossThreshold ? 'text-red-400' : 'text-amber-400'">
+                <path d="M6 2h12v6l-4 4 4 4v6H6v-6l4-4-4-4V2z" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <span :class="player.hourglassTokens >= settingsStore.gameSettings.hourglassLossThreshold ? 'text-red-400' : 'text-amber-400'">{{ player.hourglassTokens }}</span>
+            </button>
+
             <!-- Commander tax -->
             <span
               v-for="(commander, commanderIndex) in player.commanders"
@@ -846,6 +863,7 @@ const visibleBadgeKeys = computed(() => {
   if (props.player.cityBlessing) keys.push('cityBlessing')
   if (props.player.ringLevel > 0) keys.push('ring')
   if (props.player.radCounters > 0) keys.push('rad')
+  if (settingsStore.gameSettings.hourglassEnabled && props.player.hourglassTokens > 0) keys.push('hourglass')
   props.player.commanders.forEach((_, commanderIndex) => keys.push(`commander-${commanderIndex}`))
   return keys
 })
@@ -1066,6 +1084,7 @@ const counterStepperValue = computed(() => {
     case 'energy': return props.player.energyCounters
     case 'ring': return props.player.ringLevel
     case 'rad': return props.player.radCounters
+    case 'hourglass': return props.player.hourglassTokens
     default: return 0
   }
 })
@@ -1091,6 +1110,9 @@ function stepCounter(amount: number) {
       break
     case 'rad':
       gameStore.changeRadCounters(props.player.id, amount)
+      break
+    case 'hourglass':
+      gameStore.changeHourglassTokens(props.player.id, amount)
       break
   }
 

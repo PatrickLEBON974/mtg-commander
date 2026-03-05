@@ -271,6 +271,7 @@ const CATEGORY_OPTIONS = computed(() => [
   { value: 'game_time', label: t('rules.categoryGameTime') },
   { value: 'death', label: t('rules.categoryDeath') },
   { value: 'penalty', label: t('rules.categoryPenalty') },
+  { value: 'hourglass', label: t('rules.categoryHourglass') },
 ])
 
 const TRIGGER_TYPE_OPTIONS = computed(() => [
@@ -283,6 +284,7 @@ const TRIGGER_TYPE_OPTIONS = computed(() => [
   { value: 'turn_timer_overtime', label: t('rules.triggers.turnTimerOvertime') },
   { value: 'game_time_exceeded', label: t('rules.triggers.gameTimeExceeded') },
   { value: 'player_death', label: t('rules.triggers.playerDeath') },
+  { value: 'hourglass_above', label: t('rules.triggers.hourglassAbove') },
 ])
 
 const EFFECT_TYPE_OPTIONS = computed(() => [
@@ -441,6 +443,8 @@ function buildTrigger(): BehaviorRuleTrigger {
       return { type: 'game_time_exceeded', thresholdSeconds: threshold }
     case 'player_death':
       return { type: 'player_death' }
+    case 'hourglass_above':
+      return { type: 'hourglass_above', threshold }
     default:
       return { type: 'life_below', threshold }
   }
