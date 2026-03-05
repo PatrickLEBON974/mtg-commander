@@ -12,6 +12,7 @@ import { DEFAULT_GAME_SETTINGS } from '@/types/game'
 import { COMMANDER_TAX_PER_CAST, GAME_STATE_SAVE_DEBOUNCE_MS, PLAYER_COLORS, MAX_HISTORY_LENGTH, LIFE_CHANGE_BATCH_MS } from '@/config/gameConstants'
 import { saveGameState, loadGameState } from '@/services/persistence'
 import { useStatsStore } from '@/stores/statsStore'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { applyActionReverse as applyReverse, applyActionForward as applyForward } from '@/utils/gameActionHandlers'
 
 function generateId(): string {
@@ -579,6 +580,28 @@ export const useGameStore = defineStore('game', () => {
 
     // Store previous state BEFORE advancing
     const previousTurnIndex = currentGame.value.currentTurnPlayerIndex
+
+    // Update time bank for the current player before advancing
+    const settingsStore = useSettingsStore()
+    const hourglassSettings = settingsStore.gameSettings
+    if (hourglassSettings.hourglassEnabled && hourglassSettings.hourglassMode === 'time_bank' && currentGame.value) {
+      const currentPlayer = currentGame.value.players[currentGame.value.currentTurnPlayerIndex]
+      if (currentPlayer) {
+        const roundTimeMs = currentGame.value.playerRoundTimeMs?.[currentPlayer.id] ?? 0
+        const gracePeriodMs = hourglassSettings.hourglassGracePeriodSeconds * 1000
+        const currentBank = currentGame.value.hourglassTimeBankRemainingMs[currentPlayer.id] ?? gracePeriodMs
+
+        // Subtract used time, add next turn's credit
+        let newBank = Math.max(0, currentBank - roundTimeMs) + gracePeriodMs
+
+        // Apply cap if enabled
+        if (hourglassSettings.hourglassTimeBankCapEnabled) {
+          newBank = Math.min(newBank, hourglassSettings.hourglassTimeBankCapSeconds * 1000)
+        }
+
+        currentGame.value.hourglassTimeBankRemainingMs[currentPlayer.id] = newBank
+      }
+    }
 
     let nextIndex = (currentGame.value.currentTurnPlayerIndex + 1) % playerCount
     let turnIncremented = nextIndex === 0

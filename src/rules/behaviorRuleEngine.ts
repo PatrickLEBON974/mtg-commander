@@ -277,6 +277,13 @@ export function useBehaviorRuleEngine() {
         repeatedIntervals.set(intervalKey, intervalId)
       }
     }
+
+    // Hourglass lethal: eliminate affected players
+    if (rule.id === 'hourglass-lethal') {
+      for (const playerId of effectivePlayerIds) {
+        gameStore.declareGameResult(playerId, 'eliminated')
+      }
+    }
   }
 
   // ─── Rule deactivation (falling edge) ───────────────────────────
