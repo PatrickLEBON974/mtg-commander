@@ -725,7 +725,6 @@ const {
 } = useTurnActions({
   playerId: () => props.player.id,
   onStateChanged: () => emit('stateChanged'),
-  onTurnAdvanced: () => emit('turnAdvanced'),
 })
 
 const {
@@ -1471,8 +1470,8 @@ function revertDeath() {
 }
 
 .card-actions-zone :deep(button svg) {
-  width: clamp(12px, 3.5cqmin, 16px);
-  height: clamp(12px, 3.5cqmin, 16px);
+  width: clamp(20px, 8cqmin, 32px);
+  height: clamp(20px, 8cqmin, 32px);
 }
 
 /* ── Death overlay — fluid icon ── */

@@ -33,7 +33,7 @@ export function useCommanderDragDrop(options: UseCommanderDragDropOptions) {
   const activeGhosts: HTMLElement[] = []
 
   // Watch external prop to open modal with pre-selected target
-  watch(targetIdProp, (targetId) => {
+  const stopTargetWatcher = watch(targetIdProp, (targetId) => {
     if (targetId) {
       commanderDamageInitialTargetId.value = targetId
       showCommanderDamage.value = true
@@ -311,6 +311,7 @@ export function useCommanderDragDrop(options: UseCommanderDragDropOptions) {
   }
 
   function cleanup() {
+    stopTargetWatcher()
     clearDropHighlights()
     removeCommanderDragIndicator()
     isDragLocked.value = false

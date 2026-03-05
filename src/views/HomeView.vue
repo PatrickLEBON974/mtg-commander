@@ -201,7 +201,6 @@ import {
   addOutline,
 } from 'ionicons/icons'
 import { useGameStore } from '@/stores/gameStore'
-import { useSettingsStore } from '@/stores/settingsStore'
 import { usePageEnterAnimation } from '@/composables/usePageEnterAnimation'
 import { playGameStart } from '@/services/sounds'
 import AppModal from '@/components/ui/AppModal.vue'
@@ -217,7 +216,6 @@ import type { PlayerConfigExtended } from '@/components/player-registry/PlayerSe
 const { t } = useI18n()
 const router = useRouter()
 const gameStore = useGameStore()
-const settingsStore = useSettingsStore()
 const registryStore = usePlayerRegistryStore()
 
 const showNewGameOption = ref(false)

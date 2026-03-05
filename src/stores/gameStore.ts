@@ -607,20 +607,20 @@ export const useGameStore = defineStore('game', () => {
 
     // Update time bank for the current player before advancing
     const settingsStore = useSettingsStore()
-    const hourglassSettings = settingsStore.gameSettings
-    if (hourglassSettings.hourglassEnabled && hourglassSettings.hourglassMode === 'time_bank' && currentGame.value) {
+    const gameSettings = settingsStore.gameSettings
+    if (gameSettings.hourglassEnabled && gameSettings.hourglassMode === 'time_bank' && currentGame.value) {
       const currentPlayer = currentGame.value.players[currentGame.value.currentTurnPlayerIndex]
       if (currentPlayer) {
         const roundTimeMs = currentGame.value.playerRoundTimeMs?.[currentPlayer.id] ?? 0
-        const gracePeriodMs = hourglassSettings.hourglassGracePeriodSeconds * 1000
+        const gracePeriodMs = gameSettings.hourglassGracePeriodSeconds * 1000
         const currentBank = currentGame.value.hourglassTimeBankRemainingMs[currentPlayer.id] ?? gracePeriodMs
 
         // Subtract used time, add next turn's credit
         let newBank = Math.max(0, currentBank - roundTimeMs) + gracePeriodMs
 
         // Apply cap if enabled
-        if (hourglassSettings.hourglassTimeBankCapEnabled) {
-          newBank = Math.min(newBank, hourglassSettings.hourglassTimeBankCapSeconds * 1000)
+        if (gameSettings.hourglassTimeBankCapEnabled) {
+          newBank = Math.min(newBank, gameSettings.hourglassTimeBankCapSeconds * 1000)
         }
 
         currentGame.value.hourglassTimeBankRemainingMs[currentPlayer.id] = newBank

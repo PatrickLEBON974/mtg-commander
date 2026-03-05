@@ -164,6 +164,17 @@ export function useGameClock() {
       },
     ))
 
+    // Reset accumulator when a new game starts
+    watchStopHandles.push(watch(
+      () => gameStore.currentGame?.id,
+      (newId, oldId) => {
+        if (newId && newId !== oldId) {
+          accumulatedBeforePause.value = gameStore.currentGame?.elapsedMs ?? 0
+          lastResumedAt.value = performance.now()
+        }
+      },
+    ))
+
     // Watch turn changes: reset round time for new turn player.
     // Align sub-second phase with total play time so both timers'
     // displayed seconds flip at the exact same moment (< 1s offset,

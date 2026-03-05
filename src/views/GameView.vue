@@ -226,7 +226,7 @@ const multiplayerStore = useMultiplayerStore()
 const settingsStore = useSettingsStore()
 const registryStore = usePlayerRegistryStore()
 // Initialize behavior rules engine (watches game state, fires effects)
-const { flashingPlayerIds, flashTimerZone, announceMessages, isOvertimeDisplayActive } = useBehaviorRuleEngine()
+const { flashingPlayerIds, flashTimerZone, announceMessages } = useBehaviorRuleEngine()
 
 // Game clock (singleton — starts the RAF tick loop)
 const { isRunning: isTimerRunning, toggleTimer } = useGameClock()
@@ -511,7 +511,9 @@ function goToPreviousTurn() {
   }
   game.currentTurnPlayerIndex = previousIndex
   playUndo()
-  toggleTimer()
+  if (!isTimerRunning.value) {
+    toggleTimer()
+  }
 }
 
 // --- Game actions ---

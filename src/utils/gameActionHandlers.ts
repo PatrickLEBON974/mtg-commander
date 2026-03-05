@@ -225,7 +225,7 @@ export function applyActionForward(
       player.radCounters = Math.max(0, player.radCounters + action.value)
       break
     case 'hourglass_change':
-      player.hourglassTokens = Math.max(0, (action.previousValue ?? player.hourglassTokens) + action.value)
+      player.hourglassTokens = Math.max(0, player.hourglassTokens + action.value)
       break
     case 'day_night_change': {
       gameState.dayNightState = action.value === 1 ? 'day' : 'night'

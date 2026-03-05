@@ -33,6 +33,8 @@ import { IonList, IonItem, IonLabel, IonIcon } from '@ionic/vue'
 import {
   heartOutline, shieldOutline, skullOutline, flashOutline,
   batteryChargingOutline, playForwardOutline, ribbonOutline,
+  hourglassOutline, homeOutline, ellipseOutline, nuclearOutline,
+  sunnyOutline, trophyOutline,
 } from 'ionicons/icons'
 import { useGameStore } from '@/stores/gameStore'
 import { formatRelativeTime } from '@/utils/time'
@@ -58,6 +60,12 @@ function actionIcon(type: GameActionType): string {
     energy_change: batteryChargingOutline,
     monarch_change: ribbonOutline,
     initiative_change: flashOutline,
+    city_blessing_change: homeOutline,
+    ring_level_change: ellipseOutline,
+    rad_change: nuclearOutline,
+    hourglass_change: hourglassOutline,
+    day_night_change: sunnyOutline,
+    game_result: trophyOutline,
     turn_advance: playForwardOutline,
     behavior_rule_life: heartOutline,
     behavior_rule_counter: skullOutline,
@@ -75,6 +83,12 @@ function actionColor(type: GameActionType): string {
     energy_change: 'primary',
     monarch_change: 'warning',
     initiative_change: 'primary',
+    city_blessing_change: 'tertiary',
+    ring_level_change: 'tertiary',
+    rad_change: 'danger',
+    hourglass_change: 'primary',
+    day_night_change: 'warning',
+    game_result: 'success',
     turn_advance: 'medium',
     behavior_rule_life: 'danger',
     behavior_rule_counter: 'danger',

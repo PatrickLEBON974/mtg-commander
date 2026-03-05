@@ -41,7 +41,7 @@ import { useGameClock } from '@/composables/useGameClock'
 import { tapFeedback } from '@/services/haptics'
 import { formatMsToTimer } from '@/utils/time'
 
-const props = defineProps<{ isFlashing?: boolean; isOvertime?: boolean }>()
+defineProps<{ isFlashing?: boolean; isOvertime?: boolean }>()
 
 const { t } = useI18n()
 const gameStore = useGameStore()

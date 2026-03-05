@@ -2,22 +2,19 @@ import { computed } from 'vue'
 import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { tapFeedback } from '@/services/haptics'
-import { playTurnAdvance } from '@/services/sounds'
 
 interface UseTurnActionsOptions {
   playerId: () => string
   onStateChanged: () => void
-  onTurnAdvanced: () => void
 }
 
 export function useTurnActions(options: UseTurnActionsOptions) {
-  const { playerId, onStateChanged, onTurnAdvanced } = options
+  const { playerId, onStateChanged } = options
   const gameStore = useGameStore()
   const settingsStore = useSettingsStore()
 
   // Priority system
   const isActivePlayer = computed(() => playerId() === gameStore.currentTurnPlayer?.id)
-  const isNextPlayer = computed(() => playerId() === gameStore.nextTurnPlayer?.id)
   const isPriorityTaken = computed(() =>
     gameStore.currentGame?.priorityPlayerId != null,
   )
@@ -35,8 +32,6 @@ export function useTurnActions(options: UseTurnActionsOptions) {
   })
 
   // Button visibility
-  const showEndTurnButton = computed(() => isActivePlayer.value)
-  const showStartTurnButton = computed(() => isNextPlayer.value && !isActivePlayer.value && !isPriorityTaken.value)
   const showRespondButton = computed(() =>
     !isActivePlayer.value && !hasPriority.value,
   )
@@ -50,14 +45,6 @@ export function useTurnActions(options: UseTurnActionsOptions) {
     showRespondButton.value || showReleasePriorityButton.value ||
     showReclaimTurnButton.value,
   )
-
-  function handleAdvanceTurn() {
-    gameStore.advanceTurn()
-    playTurnAdvance()
-    if (settingsStore.hapticFeedback) tapFeedback()
-    onTurnAdvanced()
-    onStateChanged()
-  }
 
   function handleRespond() {
     gameStore.takePriority(playerId())
@@ -77,13 +64,10 @@ export function useTurnActions(options: UseTurnActionsOptions) {
     hasPriority,
     showMarchingBorder,
     turnBorderClass,
-    showEndTurnButton,
-    showStartTurnButton,
     showRespondButton,
     showReleasePriorityButton,
     showReclaimTurnButton,
     showAnyActionButton,
-    handleAdvanceTurn,
     handleRespond,
     handleReleasePriority,
   }
