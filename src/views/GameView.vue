@@ -23,8 +23,8 @@
         <!-- Game content wrapper — desaturates when paused -->
         <div
           class="game-content-wrapper flex min-h-0 flex-1 flex-col"
-          :class="{ 'game-paused-desaturate': !isTimerRunning && gameStore.settings.enableTimer }"
-          :inert="!isTimerRunning && gameStore.settings.enableTimer"
+          :class="{ 'game-paused-desaturate': !isTimerRunning && settingsStore.gameSettings.enableTimer }"
+          :inert="!isTimerRunning && settingsStore.gameSettings.enableTimer"
         >
         <!-- Multiplayer indicator -->
         <div v-if="multiplayerStore.isMultiplayer" class="flex items-center justify-center gap-2 bg-mana-blue/20 px-4 py-2">
@@ -49,7 +49,7 @@
 
           <!-- Inline game timer -->
           <span
-            v-if="gameStore.settings.enableTimer"
+            v-if="settingsStore.gameSettings.enableTimer"
             class="font-mono text-xs tabular-nums"
             :class="isTimerRunning ? 'text-text-secondary' : 'text-life-negative animate-pulse'"
           >
@@ -132,7 +132,7 @@
             <!-- Undo button — slides in when paused -->
             <Transition name="pause-undo">
               <button
-                v-if="!isTimerRunning && gameStore.settings.enableTimer && canGoToPreviousTurn"
+                v-if="!isTimerRunning && settingsStore.gameSettings.enableTimer && canGoToPreviousTurn"
                 class="pause-undo-btn pointer-events-auto"
                 :style="nextTurnRotateStyle"
                 :aria-label="t('game.previousTurn')"
@@ -149,7 +149,7 @@
               class="floating-next-turn-btn pointer-events-auto"
               :class="{
                 'floating-next-turn-dragging': isNextTurnDragging,
-                'floating-next-turn-paused': !isTimerRunning && gameStore.settings.enableTimer,
+                'floating-next-turn-paused': !isTimerRunning && settingsStore.gameSettings.enableTimer,
               }"
               :style="nextTurnRotateStyle"
               :aria-label="t('game.nextTurn')"
@@ -157,7 +157,7 @@
               @pointerdown.prevent="onNextTurnPointerDown"
             >
               <!-- Pause icon when game is paused -->
-              <svg v-if="!isTimerRunning && gameStore.settings.enableTimer" width="30" height="30" viewBox="0 0 24 24" fill="none" class="text-life-negative drop-shadow-sm">
+              <svg v-if="!isTimerRunning && settingsStore.gameSettings.enableTimer" width="30" height="30" viewBox="0 0 24 24" fill="none" class="text-life-negative drop-shadow-sm">
                 <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" opacity="0.3" />
                 <rect x="8" y="7" width="3" height="10" rx="1" fill="currentColor" />
                 <rect x="13" y="7" width="3" height="10" rx="1" fill="currentColor" />
@@ -237,7 +237,7 @@ const formattedGameTime = computed(() =>
 // Auto-resume timer when entering game page with a paused game in playing phase
 if (
   gameStore.currentGame?.gamePhase === 'playing'
-  && gameStore.settings.enableTimer
+  && settingsStore.gameSettings.enableTimer
   && !isTimerRunning.value
 ) {
   toggleTimer()
@@ -275,7 +275,7 @@ const LONG_PRESS_DELAY_MS = 500
 let snapBackTimer: ReturnType<typeof setTimeout> | null = null
 
 const longPress = useLongPress(() => {
-  if (gameStore.settings.enableTimer) {
+  if (settingsStore.gameSettings.enableTimer) {
     toggleTimer()
   }
 }, LONG_PRESS_DELAY_MS)
@@ -373,7 +373,7 @@ function onNextTurnPointerUp(event: PointerEvent) {
   )
   if (gestureDistance < DRAG_THRESHOLD) {
     // In pause mode, tap resumes the timer instead of advancing the turn
-    if (gameStore.settings.enableTimer && !isTimerRunning.value) {
+    if (settingsStore.gameSettings.enableTimer && !isTimerRunning.value) {
       toggleTimer()
     } else {
       handleAdvanceTurn()

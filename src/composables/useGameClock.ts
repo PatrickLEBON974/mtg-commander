@@ -200,14 +200,8 @@ export function useGameClock() {
   })
 
   function toggleTimer() {
-    const now = performance.now()
-    if (isRunning.value) {
-      accumulatedBeforePause.value += (now - lastResumedAt.value)
-    } else {
-      lastResumedAt.value = now
-      lastTickTimestamp = now
-    }
-    isRunning.value = !isRunning.value
+    if (!gameStore.currentGame) return
+    gameStore.currentGame.isRunning = !gameStore.currentGame.isRunning
   }
 
   /** Call when starting a brand new game to reset all clock state */

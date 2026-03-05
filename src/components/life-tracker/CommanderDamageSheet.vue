@@ -147,7 +147,7 @@ function handleClose() {
 
 // --- Commander damage logic ---
 
-const commanderDamageThreshold = computed(() => gameStore.settings.commanderDamageThreshold)
+const commanderDamageThreshold = computed(() => settingsStore.gameSettings.commanderDamageThreshold)
 
 const targetPlayers = computed(() =>
   gameStore.currentGame?.players.filter(

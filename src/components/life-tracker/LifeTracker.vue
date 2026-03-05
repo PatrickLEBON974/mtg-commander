@@ -53,22 +53,22 @@
         />
 
         <!-- Full-card tap zones: left = -1, right = +1 (with swipe gesture detection)
-             touchmove is intentionally non-passive: onSwipeTouchMove conditionally calls
-             preventDefault() when a flip gesture is detected to prevent page scroll -->
+             touchstart and touchmove are intentionally non-passive: onSwipeTouchMove
+             calls preventDefault() when a flip gesture is detected to prevent page scroll -->
         <div
           class="life-tap-zone absolute inset-y-0 left-0 z-[2] w-1/2"
           data-sound="none"
-          @touchstart.passive="(e) => onSwipeTouchStart(e, 'left')"
+          @touchstart="(e: TouchEvent) => onSwipeTouchStart(e, 'left')"
           @touchmove="onSwipeTouchMove"
           @touchend="onSwipeTouchEnd"
           @touchcancel.passive="onSwipeTouchCancel"
         />
-        <!-- touchmove is intentionally non-passive: onSwipeTouchMove conditionally calls
-             preventDefault() when a flip gesture is detected to prevent page scroll -->
+        <!-- touchstart and touchmove are intentionally non-passive: onSwipeTouchMove
+             calls preventDefault() when a flip gesture is detected to prevent page scroll -->
         <div
           class="life-tap-zone absolute inset-y-0 right-0 z-[2] w-1/2"
           data-sound="none"
-          @touchstart.passive="(e) => onSwipeTouchStart(e, 'right')"
+          @touchstart="(e: TouchEvent) => onSwipeTouchStart(e, 'right')"
           @touchmove="onSwipeTouchMove"
           @touchend="onSwipeTouchEnd"
           @touchcancel.passive="onSwipeTouchCancel"
@@ -237,7 +237,7 @@
             role="status"
             :aria-label="t('aria.lifePoints', { name: player.name, life: player.lifeTotal })"
             @click="openLifeNumpad"
-            @touchstart.passive="onLifeTouchStart"
+            @touchstart="onLifeTouchStart"
             @touchmove="onLifeTouchMove"
             @touchend.passive="onLifeTouchEnd"
             @touchcancel.passive="onLifeTouchCancel"
@@ -298,7 +298,7 @@
           ]"
           :aria-label="t('aria.commanderDamage', { damage: totalCommanderDamage })"
           @click="onCommanderClick"
-          @touchstart.passive="onCommanderTouchStart"
+          @touchstart="onCommanderTouchStart"
           @touchmove="onCommanderTouchMove"
           @touchend.passive="onCommanderTouchEnd"
           @touchcancel.passive="onCommanderTouchCancel"
@@ -470,7 +470,7 @@
         <div
           class="life-tap-zone absolute inset-y-0 left-0 z-[1] w-1/2"
           data-sound="none"
-          @touchstart.passive="(e: TouchEvent) => onSwipeTouchStart(e, 'left')"
+          @touchstart="(e: TouchEvent) => onSwipeTouchStart(e, 'left')"
           @touchmove="onSwipeTouchMove"
           @touchend="onSwipeTouchEnd"
           @touchcancel.passive="onSwipeTouchCancel"
@@ -478,7 +478,7 @@
         <div
           class="life-tap-zone absolute inset-y-0 right-0 z-[1] w-1/2"
           data-sound="none"
-          @touchstart.passive="(e: TouchEvent) => onSwipeTouchStart(e, 'right')"
+          @touchstart="(e: TouchEvent) => onSwipeTouchStart(e, 'right')"
           @touchmove="onSwipeTouchMove"
           @touchend="onSwipeTouchEnd"
           @touchcancel.passive="onSwipeTouchCancel"
@@ -493,7 +493,7 @@
           @state-changed="emit('stateChanged')"
           @show-game-result="handleGameResultFromBack"
           @open-token-picker="openTokenPicker"
-          @touchstart.passive="(e: TouchEvent) => onSwipeTouchStart(e, 'left')"
+          @touchstart="(e: TouchEvent) => onSwipeTouchStart(e, 'left')"
           @touchmove="onSwipeTouchMove"
           @touchend="onSwipeTouchEnd"
           @touchcancel.passive="onSwipeTouchCancel"
@@ -718,7 +718,7 @@ const {
 })
 
 const {
-  isActivePlayer, isPriorityTaken, hasPriority,
+  isActivePlayer, isPriorityTaken,
   showMarchingBorder, turnBorderClass,
   showRespondButton, showReleasePriorityButton, showReclaimTurnButton, showAnyActionButton,
   handleRespond, handleReleasePriority,
@@ -1172,8 +1172,6 @@ function revertDeath() {
   emit('stateChanged')
 }
 
-// Suppress unused variable warning — hasPriority used indirectly via template conditions
-void hasPriority
 </script>
 
 <style scoped>
@@ -1478,12 +1476,14 @@ void hasPriority
 }
 
 /* ── Death overlay — fluid icon ── */
-.card-front > [role="alert"] :deep(svg) {
+.card-front > [role="alert"] :deep(svg),
+.card-front > [role="alertdialog"] :deep(svg) {
   width: clamp(28px, 10cqmin, 48px);
   height: clamp(28px, 10cqmin, 48px);
 }
 
-.card-front > [role="alert"] > span {
+.card-front > [role="alert"] > span,
+.card-front > [role="alertdialog"] > span {
   font-size: clamp(0.8rem, 4cqmin, 1.125rem);
 }
 

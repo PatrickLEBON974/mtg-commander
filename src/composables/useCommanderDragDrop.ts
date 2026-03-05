@@ -20,6 +20,7 @@ interface UseCommanderDragDropOptions {
 
 export function useCommanderDragDrop(options: UseCommanderDragDropOptions) {
   const { playerId, targetIdProp, onDragDrop, onStateChanged } = options
+  const settingsStore = useSettingsStore()
 
   const showCommanderDamage = ref(false)
   const commanderDamageInitialTargetId = ref<string | null>(null)
@@ -66,7 +67,6 @@ export function useCommanderDragDrop(options: UseCommanderDragDropOptions) {
       commanderDragActive = true
       isDragLocked.value = true
       createCommanderDragIndicator()
-      const settingsStore = useSettingsStore()
       if (settingsStore.hapticFeedback) tapFeedback()
     }
 
@@ -106,7 +106,6 @@ export function useCommanderDragDrop(options: UseCommanderDragDropOptions) {
             }
           }
 
-          const settingsStore = useSettingsStore()
           if (settingsStore.hapticFeedback) heavyFeedback()
         }
       }

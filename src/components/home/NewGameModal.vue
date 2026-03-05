@@ -249,7 +249,6 @@ import {
   IonItem,
   IonLabel,
   IonToggle,
-  IonListHeader,
   IonReorderGroup,
   IonButton,
   IonIcon,

@@ -104,6 +104,13 @@ export function applyActionReverse(
     case 'rad_change':
       player.radCounters = Math.max(0, player.radCounters - action.value)
       break
+    case 'hourglass_change':
+      if (action.previousValue !== undefined) {
+        player.hourglassTokens = action.previousValue
+      } else {
+        player.hourglassTokens = Math.max(0, player.hourglassTokens - action.value)
+      }
+      break
     case 'day_night_change': {
       const previousDayNightValue = action.previousValue
       if (previousDayNightValue === -1) {
@@ -216,6 +223,9 @@ export function applyActionForward(
       break
     case 'rad_change':
       player.radCounters = Math.max(0, player.radCounters + action.value)
+      break
+    case 'hourglass_change':
+      player.hourglassTokens = Math.max(0, (action.previousValue ?? player.hourglassTokens) + action.value)
       break
     case 'day_night_change': {
       gameState.dayNightState = action.value === 1 ? 'day' : 'night'

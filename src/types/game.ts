@@ -72,6 +72,7 @@ export type GameActionType =
   | 'city_blessing_change'
   | 'ring_level_change'
   | 'rad_change'
+  | 'hourglass_change'
   | 'day_night_change'
   | 'game_result'
   | 'turn_advance'

@@ -233,7 +233,6 @@ usePageEnterAnimation()
 function confirmNewGame(confirmedPlayerConfigs: PlayerConfigExtended[]) {
   showNewGameModal.value = false
   showNewGameOption.value = false
-  gameStore.settings = { ...settingsStore.gameSettings }
   gameStore.startNewGame()
   playGameStart()
   // Apply player names, colors, and commanders from modal config

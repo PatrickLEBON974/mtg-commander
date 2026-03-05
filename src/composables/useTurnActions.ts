@@ -47,7 +47,6 @@ export function useTurnActions(options: UseTurnActionsOptions) {
     isActivePlayer.value && isPriorityTaken.value,
   )
   const showAnyActionButton = computed(() =>
-    showEndTurnButton.value || showStartTurnButton.value ||
     showRespondButton.value || showReleasePriorityButton.value ||
     showReclaimTurnButton.value,
   )

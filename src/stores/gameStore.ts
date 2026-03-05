@@ -8,7 +8,6 @@ import type {
   GameActionType,
   GameSettings,
 } from '@/types/game'
-import { DEFAULT_GAME_SETTINGS } from '@/types/game'
 import { COMMANDER_TAX_PER_CAST, GAME_STATE_SAVE_DEBOUNCE_MS, PLAYER_COLORS, MAX_HISTORY_LENGTH, LIFE_CHANGE_BATCH_MS } from '@/config/gameConstants'
 import { saveGameState, loadGameState } from '@/services/persistence'
 import { useStatsStore } from '@/stores/statsStore'
@@ -55,7 +54,6 @@ function loadProfileMapping(): Record<string, { playerProfileId: string; deckId?
 
 export const useGameStore = defineStore('game', () => {
   const currentGame = ref<GameState | null>(null)
-  const settings = ref<GameSettings>({ ...DEFAULT_GAME_SETTINGS })
   const redoStack = ref<GameAction[]>([])
   const playerProfileMapping = ref<Record<string, { playerProfileId: string; deckId?: string }>>(loadProfileMapping())
 
@@ -74,6 +72,12 @@ export const useGameStore = defineStore('game', () => {
     }
     if (savedGame.hourglassTimeBankRemainingMs === undefined) {
       savedGame.hourglassTimeBankRemainingMs = {}
+    }
+    if (savedGame.playerRoundTimeMs === undefined) {
+      savedGame.playerRoundTimeMs = {}
+    }
+    if (savedGame.playerPlayTimeMs === undefined) {
+      savedGame.playerPlayTimeMs = {}
     }
     // Backfill new player fields for legacy saves
     for (const player of savedGame.players) {
@@ -144,10 +148,11 @@ export const useGameStore = defineStore('game', () => {
   })
 
   function checkPlayerDead(player: PlayerState): boolean {
+    const gameSettings = useSettingsStore().gameSettings
     if (player.lifeTotal <= 0) return true
-    if (settings.value.poisonThreshold > 0 && player.poisonCounters >= settings.value.poisonThreshold) return true
+    if (gameSettings.poisonThreshold > 0 && player.poisonCounters >= gameSettings.poisonThreshold) return true
     for (const damage of Object.values(player.commanderDamageReceived)) {
-      if (damage >= settings.value.commanderDamageThreshold) return true
+      if (damage >= gameSettings.commanderDamageThreshold) return true
     }
     return false
   }
@@ -164,8 +169,9 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function startNewGame() {
-    const players = Array.from({ length: settings.value.playerCount }, (_, index) =>
-      createPlayer(index, settings.value),
+    const gameSettings = useSettingsStore().gameSettings
+    const players = Array.from({ length: gameSettings.playerCount }, (_, index) =>
+      createPlayer(index, gameSettings),
     )
 
     currentGame.value = {
@@ -381,8 +387,9 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function isPlayerDeadByCommanderDamage(player: PlayerState): string | null {
+    const commanderDamageThreshold = useSettingsStore().gameSettings.commanderDamageThreshold
     for (const [commanderId, damage] of Object.entries(player.commanderDamageReceived)) {
-      if (damage >= settings.value.commanderDamageThreshold) {
+      if (damage >= commanderDamageThreshold) {
         return commanderId
       }
     }
@@ -390,8 +397,9 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function isPlayerDeadByPoison(player: PlayerState): boolean {
-    if (settings.value.poisonThreshold <= 0) return false
-    return player.poisonCounters >= settings.value.poisonThreshold
+    const poisonThreshold = useSettingsStore().gameSettings.poisonThreshold
+    if (poisonThreshold <= 0) return false
+    return player.poisonCounters >= poisonThreshold
   }
 
   function toggleExclusiveStatus(
@@ -481,7 +489,23 @@ export const useGameStore = defineStore('game', () => {
     if (!currentGame.value) return
     const player = findPlayerById(playerId)
     if (!player) return
+    const previousHourglassValue = player.hourglassTokens
     player.hourglassTokens = Math.max(0, player.hourglassTokens + amount)
+    addAction(
+      'hourglass_change',
+      playerId,
+      amount,
+      'game.counterChange',
+      {
+        name: player.name,
+        sign: amount > 0 ? '+' : '',
+        amount: Math.abs(amount),
+        counter: 'hourglass',
+      },
+      undefined,
+      undefined,
+      previousHourglassValue,
+    )
   }
 
   function setBadgePosition(playerId: string, badgeKey: string, left: number, top: number) {
@@ -649,9 +673,10 @@ export const useGameStore = defineStore('game', () => {
   function undoLastAction() {
     if (!currentGame.value || currentGame.value.history.length === 0) return
     const lastAction = currentGame.value.history.pop()!
+    const gameSettings = useSettingsStore().gameSettings
     applyReverse(currentGame.value.players, lastAction, {
-      commanderDamageThreshold: settings.value.commanderDamageThreshold,
-      poisonThreshold: settings.value.poisonThreshold,
+      commanderDamageThreshold: gameSettings.commanderDamageThreshold,
+      poisonThreshold: gameSettings.poisonThreshold,
     }, currentGame.value)
     redoStack.value.push(lastAction)
   }
@@ -670,9 +695,10 @@ export const useGameStore = defineStore('game', () => {
   function redoLastAction() {
     if (!currentGame.value || redoStack.value.length === 0) return
     const action = redoStack.value.pop()!
+    const gameSettings = useSettingsStore().gameSettings
     applyForward(currentGame.value.players, action, {
-      commanderDamageThreshold: settings.value.commanderDamageThreshold,
-      poisonThreshold: settings.value.poisonThreshold,
+      commanderDamageThreshold: gameSettings.commanderDamageThreshold,
+      poisonThreshold: gameSettings.poisonThreshold,
     }, currentGame.value)
     currentGame.value.history.push(action)
   }
@@ -736,12 +762,14 @@ export const useGameStore = defineStore('game', () => {
   }
 
   onScopeDispose(() => {
-    if (saveDebounceTimer !== null) clearTimeout(saveDebounceTimer)
+    if (saveDebounceTimer !== null) {
+      clearTimeout(saveDebounceTimer)
+      if (currentGame.value) saveGameState(currentGame.value)
+    }
   })
 
   return {
     currentGame,
-    settings,
     redoStack,
     isGameActive,
     currentTurnPlayer,

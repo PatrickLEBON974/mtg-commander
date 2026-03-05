@@ -42,7 +42,7 @@ function evaluatePlayerTrigger(
     }
 
     case 'hourglass_above':
-      return player.hourglassTokens >= trigger.threshold
+      return player.hourglassTokens >= settings.hourglassLossThreshold
 
     case 'player_death': {
       const isLifeDead = player.lifeTotal <= 0
