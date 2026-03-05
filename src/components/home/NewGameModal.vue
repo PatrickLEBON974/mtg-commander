@@ -410,23 +410,12 @@ async function promptSaveAsProfile() {
 }
 
 const RULE_ID_TO_I18N_KEY: Record<string, string> = {
-  'low-life-warning': 'lowLifeWarning',
   'critical-life': 'criticalLife',
-  'last-breath': 'lastBreath',
   'poison-warning': 'poisonWarning',
-  'poison-lethal-imminent': 'poisonLethalImminent',
   'commander-damage-warning': 'commanderDamageWarning',
-  'commander-damage-lethal': 'commanderDamageLethal',
   'turn-timer-warning': 'turnTimerWarning',
-  'turn-timer-urgent': 'turnTimerUrgent',
-  'turn-timer-expired-display': 'turnTimerExpiredDisplay',
-  'turn-timer-expired-reminder': 'turnTimerExpiredReminder',
-  'long-game': 'longGame',
-  'very-long-game': 'veryLongGame',
   'player-elimination': 'playerElimination',
-  'penalty-turn-expired': 'penaltyTurnExpired',
-  'penalty-turn-very-long': 'penaltyTurnVeryLong',
-  'penalty-endless-game': 'penaltyEndlessGame',
+  'hourglass-lethal': 'hourglassLethal',
 }
 
 function getRuleName(rule: BehaviorRule): string {

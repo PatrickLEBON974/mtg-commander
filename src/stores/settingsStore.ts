@@ -23,9 +23,12 @@ export const useSettingsStore = defineStore('settings', () => {
   )
 
   // Load persisted profiles on init
+  // Always use fresh DEFAULT_PROFILES for preset profiles (handles rule overhaul migrations).
+  // Only restore user-created (non-preset) profiles from persistence.
   const savedProfiles = loadBehaviorProfiles() as BehaviorRuleProfile[] | null
   if (savedProfiles && Array.isArray(savedProfiles) && savedProfiles.length > 0) {
-    behaviorRuleProfiles.value = savedProfiles
+    const userCreatedProfiles = savedProfiles.filter((profile) => !profile.isPreset)
+    behaviorRuleProfiles.value = [...structuredClone(DEFAULT_PROFILES), ...userCreatedProfiles]
   }
 
   // Load persisted game settings on init

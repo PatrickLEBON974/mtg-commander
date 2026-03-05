@@ -202,7 +202,7 @@
 
             <!-- Hourglass tokens -->
             <button
-              v-if="settingsStore.gameSettings.hourglassEnabled && player.hourglassTokens > 0"
+              v-if="settingsStore.gameSettings.hourglassEnabled"
               class="card-badge pointer-events-auto ring-1 btn-press"
               :class="player.hourglassTokens >= settingsStore.gameSettings.hourglassLossThreshold
                 ? 'bg-red-500/20 ring-red-500/20'
@@ -310,26 +310,7 @@
         </button>
 
         <!-- Zone: Actions -->
-        <div v-if="showAnyActionButton" class="card-actions-zone pointer-events-none relative z-[3] mt-auto flex flex-wrap items-center justify-center">
-          <ActionButton
-            :show="showEndTurnButton"
-            bg-class="bg-life-negative/10"
-            tooltip-key="game.endTurn"
-            tooltip-id="endTurn"
-            :active-tooltip="activeTooltip"
-            sound="none"
-            @click="handleAdvanceTurn"
-            @tooltip-show="showActionTooltip"
-            @tooltip-hide="hideActionTooltip"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="text-life-negative drop-shadow-sm transition-transform duration-150 group-active:scale-90">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" opacity="0.3" />
-              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" />
-              <path d="M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-              <path d="m12 16 4-4-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </ActionButton>
-
+        <div v-if="showAnyActionButton" class="card-actions-zone pointer-events-none absolute bottom-2 right-2 z-[3] flex items-center gap-1">
           <ActionButton
             :show="showReclaimTurnButton"
             bg-class="bg-arena-orange/15"
@@ -340,27 +321,10 @@
             @tooltip-show="showActionTooltip"
             @tooltip-hide="hideActionTooltip"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="text-arena-orange drop-shadow-sm transition-transform duration-150 group-active:scale-90">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" class="text-arena-orange drop-shadow-sm transition-transform duration-150 group-active:scale-90">
               <path d="M4 12a8 8 0 0 1 14-5.3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
               <path d="M15 3l3 3.7-4 .3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
               <circle cx="12" cy="12" r="3" fill="currentColor" opacity="0.3" />
-            </svg>
-          </ActionButton>
-
-          <ActionButton
-            :show="showStartTurnButton"
-            bg-class="bg-life-positive/15"
-            tooltip-key="game.startTurn"
-            tooltip-id="startTurn"
-            :active-tooltip="activeTooltip"
-            sound="none"
-            @click="handleAdvanceTurn"
-            @tooltip-show="showActionTooltip"
-            @tooltip-hide="hideActionTooltip"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="text-life-positive drop-shadow-sm transition-transform duration-150 group-active:scale-90">
-              <path d="M6 4l14 8-14 8V4z" fill="currentColor" opacity="0.3" />
-              <path d="M6 4l14 8-14 8V4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
             </svg>
           </ActionButton>
 
@@ -374,7 +338,7 @@
             @tooltip-show="showActionTooltip"
             @tooltip-hide="hideActionTooltip"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="text-arena-blue drop-shadow-sm transition-transform duration-150 group-active:scale-90">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" class="text-arena-blue drop-shadow-sm transition-transform duration-150 group-active:scale-90">
               <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" fill="currentColor" opacity="0.25" />
               <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
             </svg>
@@ -390,7 +354,7 @@
             @tooltip-show="showActionTooltip"
             @tooltip-hide="hideActionTooltip"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="text-arena-gold-light drop-shadow-sm transition-transform duration-150 group-active:scale-90">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" class="text-arena-gold-light drop-shadow-sm transition-transform duration-150 group-active:scale-90">
               <path d="M12 5v7" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
               <path d="M12 12l5 5M12 12l-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
               <path d="M5 19h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.5" />
@@ -529,6 +493,10 @@
           @state-changed="emit('stateChanged')"
           @show-game-result="handleGameResultFromBack"
           @open-token-picker="openTokenPicker"
+          @touchstart.passive="(e: TouchEvent) => onSwipeTouchStart(e, 'left')"
+          @touchmove="onSwipeTouchMove"
+          @touchend="onSwipeTouchEnd"
+          @touchcancel.passive="onSwipeTouchCancel"
         />
       </div>
     </div>
@@ -752,9 +720,8 @@ const {
 const {
   isActivePlayer, isPriorityTaken, hasPriority,
   showMarchingBorder, turnBorderClass,
-  showEndTurnButton, showStartTurnButton, showRespondButton,
-  showReleasePriorityButton, showReclaimTurnButton, showAnyActionButton,
-  handleAdvanceTurn, handleRespond, handleReleasePriority,
+  showRespondButton, showReleasePriorityButton, showReclaimTurnButton, showAnyActionButton,
+  handleRespond, handleReleasePriority,
 } = useTurnActions({
   playerId: () => props.player.id,
   onStateChanged: () => emit('stateChanged'),
@@ -825,7 +792,7 @@ const {
 })
 
 // --- Action tooltip (inlined) ---
-type ActionTooltipKey = 'endTurn' | 'startTurn' | 'respond' | 'releasePriority' | 'reclaimPriority'
+type ActionTooltipKey = 'reclaimPriority' | 'respond' | 'releasePriority'
 const activeTooltip = ref<ActionTooltipKey | null>(null)
 let tooltipTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -890,7 +857,7 @@ const visibleBadgeKeys = computed(() => {
   if (props.player.cityBlessing) keys.push('cityBlessing')
   if (props.player.ringLevel > 0) keys.push('ring')
   if (props.player.radCounters > 0) keys.push('rad')
-  if (settingsStore.gameSettings.hourglassEnabled && props.player.hourglassTokens > 0) keys.push('hourglass')
+  if (settingsStore.gameSettings.hourglassEnabled) keys.push('hourglass')
   props.player.commanders.forEach((_, commanderIndex) => keys.push(`commander-${commanderIndex}`))
   return keys
 })
@@ -1448,14 +1415,14 @@ void hasPriority
 
 /* ── Timer zone ── */
 .life-tracker-timer-zone {
-  font-size: clamp(0.75rem, 3.5cqmin, 1rem);
-  gap: clamp(4px, 1.5cqmin, 12px);
-  padding: clamp(2px, 0.7cqmin, 6px) clamp(4px, 1.5cqmin, 12px);
+  font-size: clamp(1.5rem, 7cqmin, 2rem);
+  gap: clamp(8px, 3cqmin, 24px);
+  padding: clamp(4px, 1.4cqmin, 12px) clamp(8px, 3cqmin, 24px);
 }
 
 .life-tracker-timer-zone svg {
-  width: clamp(10px, 4cqmin, 16px);
-  height: clamp(10px, 4cqmin, 16px);
+  width: clamp(20px, 8cqmin, 32px);
+  height: clamp(20px, 8cqmin, 32px);
 }
 
 /* ── Commander damage — absolute positioned ── */
