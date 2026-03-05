@@ -5,7 +5,7 @@
         <GameFrame
           ref="frameComp"
           :title="t('commanderDamage.title')"
-          :subtitle="targetPlayer.name"
+          :subtitle="sourcePlayer.name"
           show-close
           class="cmdr-frame"
           :style="popupRotationStyle"
@@ -15,18 +15,18 @@
           <div class="cmdr-rows">
             <div
               v-for="row in visibleRows"
-              :key="row.commanderId"
+              :key="`${row.targetPlayerId}-${row.commanderId}`"
               class="cmdr-row"
             >
               <div class="flex items-center gap-2.5">
                 <div
                   class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-                  :style="{ background: `color-mix(in srgb, var(--color-mana-${row.attackerColor}) 25%, transparent)` }"
+                  :style="{ background: `color-mix(in srgb, var(--color-mana-${row.targetPlayerColor}) 25%, transparent)` }"
                 >
                   <img
                     v-if="row.commanderImage"
                     :src="row.commanderImage"
-                    :alt="row.commanderName ?? row.attackerName"
+                    :alt="row.commanderName ?? row.targetPlayerName"
                     class="h-7 w-7 rounded-full object-cover"
                   />
                   <IconSwordSingle v-else :size="16" class="text-commander-damage" />
@@ -34,7 +34,7 @@
 
                 <div class="min-w-0 flex-1">
                   <span class="block truncate text-sm font-semibold text-white/90">
-                    {{ row.attackerName }}
+                    {{ row.targetPlayerName }}
                   </span>
                   <span v-if="row.commanderName" class="block truncate text-[10px] text-white/50">
                     {{ row.commanderName }}
@@ -107,10 +107,10 @@ import IconSwordSingle from '@/components/icons/game/IconSwordSingle.vue'
 import { playCommanderDamage } from '@/services/sounds'
 import { tapFeedback } from '@/services/haptics'
 
-interface AttackerRow {
-  attackerPlayerId: string
-  attackerName: string
-  attackerColor: string
+interface DamageRow {
+  targetPlayerId: string
+  targetPlayerName: string
+  targetPlayerColor: string
   commanderId: string
   commanderName: string | null
   commanderImage: string | null
@@ -120,8 +120,8 @@ interface AttackerRow {
 
 const props = defineProps<{
   isOpen: boolean
-  targetPlayer: PlayerState
-  initialAttackerId?: string | null
+  sourcePlayer: PlayerState
+  initialTargetId?: string | null
   contentRotation?: number
 }>()
 
@@ -149,72 +149,67 @@ function handleClose() {
 
 const commanderDamageThreshold = computed(() => gameStore.settings.commanderDamageThreshold)
 
-const otherPlayers = computed(() =>
+const targetPlayers = computed(() =>
   gameStore.currentGame?.players.filter(
-    (playerState) => playerState.id !== props.targetPlayer.id,
+    (playerState) => playerState.id !== props.sourcePlayer.id,
   ) ?? [],
 )
 
-function buildPlayerRows(player: PlayerState, displayName: string, threshold: number): AttackerRow[] {
-  const rows: AttackerRow[] = []
+/** Source player's commander IDs (or player ID as fallback if no commanders registered) */
+const sourceCommanderEntries = computed(() => {
+  const source = props.sourcePlayer
+  if (source.commanders.length === 0) {
+    return [{ id: source.id, cardName: null as string | null, imageUri: undefined as string | undefined }]
+  }
+  return source.commanders
+})
 
-  if (player.commanders.length === 0) {
-    const damage = props.targetPlayer.commanderDamageReceived[player.id] ?? 0
+function buildTargetRows(targetPlayer: PlayerState, displayName: string, threshold: number): DamageRow[] {
+  const rows: DamageRow[] = []
+
+  for (const commander of sourceCommanderEntries.value) {
+    const damage = targetPlayer.commanderDamageReceived[commander.id] ?? 0
     rows.push({
-      attackerPlayerId: player.id,
-      attackerName: displayName,
-      attackerColor: player.color,
-      commanderId: player.id,
-      commanderName: null,
-      commanderImage: null,
+      targetPlayerId: targetPlayer.id,
+      targetPlayerName: displayName,
+      targetPlayerColor: targetPlayer.color,
+      commanderId: commander.id,
+      commanderName: sourceCommanderEntries.value.length > 1 ? commander.cardName : null,
+      commanderImage: sourceCommanderEntries.value.length > 1 ? (commander.imageUri ?? null) : null,
       damage,
       progressRatio: threshold > 0 ? damage / threshold : 0,
     })
-  } else {
-    for (const commander of player.commanders) {
-      const damage = props.targetPlayer.commanderDamageReceived[commander.id] ?? 0
-      rows.push({
-        attackerPlayerId: player.id,
-        attackerName: displayName,
-        attackerColor: player.color,
-        commanderId: commander.id,
-        commanderName: commander.cardName,
-        commanderImage: commander.imageUri ?? null,
-        damage,
-        progressRatio: threshold > 0 ? damage / threshold : 0,
-      })
-    }
   }
 
   return rows
 }
 
-const allAttackerRows = computed<AttackerRow[]>(() => {
+const allDamageRows = computed<DamageRow[]>(() => {
   const threshold = commanderDamageThreshold.value
-  const rows: AttackerRow[] = []
+  const rows: DamageRow[] = []
 
-  for (const player of otherPlayers.value) {
-    rows.push(...buildPlayerRows(player, player.name, threshold))
+  for (const player of targetPlayers.value) {
+    rows.push(...buildTargetRows(player, player.name, threshold))
   }
 
-  const selfLabel = `${props.targetPlayer.name} ${t('commanderDamage.yourself')}`
-  rows.push(...buildPlayerRows(props.targetPlayer, selfLabel, threshold))
+  const selfLabel = `${props.sourcePlayer.name} ${t('commanderDamage.yourself')}`
+  rows.push(...buildTargetRows(props.sourcePlayer, selfLabel, threshold))
 
   return rows
 })
 
 const visibleRows = computed(() => {
-  if (props.initialAttackerId) {
-    return allAttackerRows.value.filter(
-      (row) => row.attackerPlayerId === props.initialAttackerId,
+  if (props.initialTargetId) {
+    return allDamageRows.value.filter(
+      (row) => row.targetPlayerId === props.initialTargetId,
     )
   }
-  return allAttackerRows.value
+  return allDamageRows.value
 })
 
-function changeDamage(row: AttackerRow, amount: number) {
+function changeDamage(row: DamageRow, amount: number) {
   if (amount < 0 && row.damage <= 0) return
-  gameStore.dealCommanderDamage(props.targetPlayer.id, row.commanderId, amount)
+  gameStore.dealCommanderDamage(row.targetPlayerId, row.commanderId, amount)
   playCommanderDamage()
   if (settingsStore.hapticFeedback) tapFeedback()
 }

@@ -552,8 +552,8 @@
     <!-- Floating commander damage sheet -->
     <CommanderDamageSheet
       :is-open="showCommanderDamage"
-      :target-player="player"
-      :initial-attacker-id="commanderDamageInitialAttackerId"
+      :source-player="player"
+      :initial-target-id="commanderDamageInitialTargetId"
       :content-rotation="cardRotation"
       @close="onCommanderDamageClose"
     />
@@ -606,7 +606,7 @@ const props = defineProps<{
   player: PlayerState
   isCurrentTurn: boolean
   isFlashing?: boolean
-  commanderDamageAttackerId?: string | null
+  commanderDamageTargetId?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -762,14 +762,14 @@ const {
 })
 
 const {
-  showCommanderDamage, commanderDamageInitialAttackerId,
+  showCommanderDamage, commanderDamageInitialTargetId,
   onCommanderClick, onCommanderTouchStart, onCommanderTouchMove,
   onCommanderTouchEnd, onCommanderTouchCancel,
   onCommanderDamageClose,
   cleanup: cleanupCommanderDrag,
 } = useCommanderDragDrop({
   playerId: () => props.player.id,
-  attackerIdProp: () => props.commanderDamageAttackerId,
+  targetIdProp: () => props.commanderDamageTargetId,
   onDragDrop: (targetPlayerId) => emit('commanderDragDrop', targetPlayerId),
   onStateChanged: () => emit('stateChanged'),
 })

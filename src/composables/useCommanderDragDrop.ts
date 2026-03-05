@@ -13,16 +13,16 @@ const INDICATOR_HALF = INDICATOR_SIZE / 2
 
 interface UseCommanderDragDropOptions {
   playerId: () => string
-  attackerIdProp: () => string | null | undefined
+  targetIdProp: () => string | null | undefined
   onDragDrop: (targetPlayerId: string) => void
   onStateChanged: () => void
 }
 
 export function useCommanderDragDrop(options: UseCommanderDragDropOptions) {
-  const { playerId, attackerIdProp, onDragDrop, onStateChanged } = options
+  const { playerId, targetIdProp, onDragDrop, onStateChanged } = options
 
   const showCommanderDamage = ref(false)
-  const commanderDamageInitialAttackerId = ref<string | null>(null)
+  const commanderDamageInitialTargetId = ref<string | null>(null)
 
   let commanderDragActive = false
   let commanderDragStartX = 0
@@ -31,17 +31,17 @@ export function useCommanderDragDrop(options: UseCommanderDragDropOptions) {
   let ghostFrameCounter = 0
   const activeGhosts: HTMLElement[] = []
 
-  // Watch external prop to open modal with pre-selected attacker
-  watch(attackerIdProp, (attackerId) => {
-    if (attackerId) {
-      commanderDamageInitialAttackerId.value = attackerId
+  // Watch external prop to open modal with pre-selected target
+  watch(targetIdProp, (targetId) => {
+    if (targetId) {
+      commanderDamageInitialTargetId.value = targetId
       showCommanderDamage.value = true
     }
   })
 
   function onCommanderClick() {
     if (!commanderDragActive) {
-      commanderDamageInitialAttackerId.value = null
+      commanderDamageInitialTargetId.value = null
       showCommanderDamage.value = true
     }
   }
@@ -128,9 +128,9 @@ export function useCommanderDragDrop(options: UseCommanderDragDropOptions) {
 
   function onCommanderDamageClose() {
     showCommanderDamage.value = false
-    // Don't clear initialAttackerId here — visibleRows would flash all players
+    // Don't clear initialTargetId here — visibleRows would flash all players
     // during the close animation. It gets set correctly on next open:
-    // onCommanderClick sets it to null, attackerIdProp watcher sets it to the attacker.
+    // onCommanderClick sets it to null, targetIdProp watcher sets it to the target.
     onStateChanged()
   }
 
@@ -319,7 +319,7 @@ export function useCommanderDragDrop(options: UseCommanderDragDropOptions) {
 
   return {
     showCommanderDamage,
-    commanderDamageInitialAttackerId,
+    commanderDamageInitialTargetId,
     onCommanderClick,
     onCommanderTouchStart,
     onCommanderTouchMove,

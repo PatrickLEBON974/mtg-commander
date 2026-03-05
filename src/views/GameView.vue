@@ -107,7 +107,7 @@
               :player="player"
               :is-current-turn="player.id === gameStore.currentTurnPlayer?.id"
               :is-flashing="flashingPlayerIds.includes(player.id)"
-              :commander-damage-attacker-id="commanderDragState?.targetPlayerId === player.id ? commanderDragState.attackerPlayerId : null"
+              :commander-damage-target-id="commanderDragState?.attackerPlayerId === player.id ? commanderDragState.targetPlayerId : null"
               @state-changed="onPlayerStateChanged"
               @turn-advanced="onTurnAdvanced"
               @commander-drag-drop="(targetId: string) => handleCommanderDragDrop(player.id, targetId)"
