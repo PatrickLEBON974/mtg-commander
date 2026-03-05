@@ -1,11 +1,5 @@
 <template>
   <div class="layout-picker-content">
-    <div class="layout-decor" aria-hidden="true">
-      <CornerAccent position="top-left" />
-      <CornerAccent position="top-right" />
-      <div class="layout-top-accent" />
-    </div>
-
     <h3 class="layout-title">{{ t('game.layoutTitle') }}</h3>
     <div class="flex flex-wrap justify-center gap-3">
       <!-- Default (hidden at 5 players) -->
@@ -85,8 +79,6 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import CornerAccent from '@/components/icons/decorative/CornerAccent.vue'
-
 const props = defineProps<{
   currentPlayerCount: number
   currentLayout: string
@@ -104,25 +96,6 @@ function select(layout: string) {
 .layout-picker-content {
   position: relative;
   padding: 20px 16px;
-}
-
-.layout-decor {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 10;
-  overflow: hidden;
-  border-radius: inherit;
-}
-
-.layout-top-accent {
-  position: absolute;
-  top: 0;
-  left: 10%;
-  right: 10%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent 0%, rgba(212, 168, 67, 0.15) 20%, rgba(212, 168, 67, 0.4) 50%, rgba(212, 168, 67, 0.15) 80%, transparent 100%);
-  box-shadow: 0 0 12px rgba(212, 168, 67, 0.15);
 }
 
 .layout-title {

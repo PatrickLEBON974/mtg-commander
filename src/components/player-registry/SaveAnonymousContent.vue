@@ -1,11 +1,5 @@
 <template>
   <div class="save-content ion-padding">
-    <div class="save-decor" aria-hidden="true">
-      <CornerAccent position="top-left" />
-      <CornerAccent position="top-right" />
-      <div class="save-top-accent" />
-    </div>
-
     <!-- Header -->
     <div class="save-header">
       <h2 class="save-title">{{ t('players.saveAnonymous') }}</h2>
@@ -117,8 +111,6 @@ import { IonList, IonItem, IonInput, IonLabel, IonButton } from '@ionic/vue'
 import { usePlayerRegistryStore } from '@/stores/playerRegistryStore'
 import { PLAYER_COLORS, PLAYER_NAME_MAX_LENGTH } from '@/config/gameConstants'
 import type { ManaColor } from '@/types/game'
-import CornerAccent from '@/components/icons/decorative/CornerAccent.vue'
-
 interface AnonymousCommander {
   cardName: string
   imageUri?: string
@@ -168,25 +160,6 @@ function handleSave() {
 <style scoped>
 .save-content {
   position: relative;
-}
-
-.save-decor {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 10;
-  overflow: hidden;
-  border-radius: inherit;
-}
-
-.save-top-accent {
-  position: absolute;
-  top: 0;
-  left: 10%;
-  right: 10%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent 0%, rgba(212, 168, 67, 0.15) 20%, rgba(212, 168, 67, 0.4) 50%, rgba(212, 168, 67, 0.15) 80%, transparent 100%);
-  box-shadow: 0 0 12px rgba(212, 168, 67, 0.15);
 }
 
 .save-header {

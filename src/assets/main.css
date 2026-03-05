@@ -772,6 +772,10 @@ ion-content::part(scroll) {
 .flash-positive { animation: flash-green 350ms ease-out; }
 .flash-negative { animation: flash-red 350ms ease-out; }
 
+/* Sustained hold flash — stays visible during long press repeat */
+.hold-flash-positive { background-color: rgba(34, 197, 94, 0.15); }
+.hold-flash-negative { background-color: rgba(239, 68, 68, 0.15); }
+
 
 /* =============================================
    GAME UI — Death overlay transition

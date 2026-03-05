@@ -478,6 +478,14 @@ export const useGameStore = defineStore('game', () => {
     })
   }
 
+  function setBadgePosition(playerId: string, badgeKey: string, left: number, top: number) {
+    if (!currentGame.value) return
+    const player = findPlayerById(playerId)
+    if (!player) return
+    if (!player.badgePositions) player.badgePositions = {}
+    player.badgePositions[badgeKey] = { left, top }
+  }
+
   function toggleDayNight() {
     if (!currentGame.value) return
     const currentState = currentGame.value.dayNightState
@@ -735,6 +743,7 @@ export const useGameStore = defineStore('game', () => {
     isPlayerDeadByCommanderDamage,
     isPlayerDeadByPoison,
     isPlayerDead,
+    setBadgePosition,
     toggleMonarch,
     toggleInitiative,
     toggleCityBlessing,

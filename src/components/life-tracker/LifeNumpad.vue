@@ -6,29 +6,18 @@
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
         @click.self="cancel"
       >
-        <div class="numpad-panel relative w-[300px] overflow-hidden rounded-2xl border border-arena-gold/20 shadow-2xl" style="background: linear-gradient(180deg, #1a1f35 0%, #111827 100%);">
-          <!-- Subtle gold inner glow at top -->
-          <div class="pointer-events-none absolute inset-x-0 top-0 h-24 rounded-t-2xl" style="background: radial-gradient(ellipse at 50% -20%, rgba(212, 168, 67, 0.08) 0%, transparent 70%);" />
-
-          <!-- Corner accents -->
-          <CornerAccent position="top-left" />
-          <CornerAccent position="top-right" />
-          <CornerAccent position="bottom-left" />
-          <CornerAccent position="bottom-right" />
-
+        <GameFrame
+          :title="t('lifeNumpad.title')"
+          class="numpad-panel w-[300px]"
+        >
           <!-- Header with logo -->
-          <div class="relative flex flex-col items-center gap-1 px-4 pt-5 pb-2">
+          <div class="flex flex-col items-center gap-1 pb-2">
             <img
               :src="logoUrl"
               alt="MTG Commander"
               class="h-8 w-8 opacity-80 drop-shadow-lg"
             />
-            <span class="numpad-title text-xs font-bold uppercase tracking-[0.2em] text-arena-gold-light/90">
-              {{ t('lifeNumpad.title') }}
-            </span>
           </div>
-
-          <DividerOrnament width="80%" />
 
           <!-- Display -->
           <div class="numpad-display mx-4 mb-3 rounded-xl px-4 py-4 text-center">
@@ -96,7 +85,7 @@
               </svg>
             </button>
           </div>
-        </div>
+        </GameFrame>
       </div>
     </Transition>
   </Teleport>
@@ -105,8 +94,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import CornerAccent from '@/components/icons/decorative/CornerAccent.vue'
-import DividerOrnament from '@/components/icons/decorative/DividerOrnament.vue'
+import GameFrame from '@/components/GameFrame.vue'
 import logoUrl from '@/assets/icons/ui/logo.svg'
 
 const { t } = useI18n()
@@ -164,11 +152,6 @@ function cancel() {
 </script>
 
 <style scoped>
-.numpad-title {
-  font-family: var(--font-beleren);
-  text-shadow: 0 0 12px rgba(212, 168, 67, 0.25);
-}
-
 /* Display area — dark inset with gold border */
 .numpad-display {
   background: rgba(10, 14, 23, 0.7);

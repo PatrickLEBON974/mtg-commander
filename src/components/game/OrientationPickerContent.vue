@@ -1,11 +1,5 @@
 <template>
   <div class="orientation-picker-content">
-    <div class="orientation-decor" aria-hidden="true">
-      <CornerAccent position="top-left" />
-      <CornerAccent position="top-right" />
-      <div class="orientation-top-accent" />
-    </div>
-
     <h3 class="orientation-title">{{ t('game.orientation') }}</h3>
 
     <div class="flex flex-col gap-2">
@@ -67,7 +61,6 @@ import { IonIcon } from '@ionic/vue'
 import { syncOutline, closeCircleOutline } from 'ionicons/icons'
 import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'
-import CornerAccent from '@/components/icons/decorative/CornerAccent.vue'
 import type { PlayerState } from '@/types/game'
 
 const props = defineProps<{
@@ -111,25 +104,6 @@ function selectOff() {
 .orientation-picker-content {
   position: relative;
   padding: 20px 16px;
-}
-
-.orientation-decor {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 10;
-  overflow: hidden;
-  border-radius: inherit;
-}
-
-.orientation-top-accent {
-  position: absolute;
-  top: 0;
-  left: 10%;
-  right: 10%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent 0%, rgba(212, 168, 67, 0.15) 20%, rgba(212, 168, 67, 0.4) 50%, rgba(212, 168, 67, 0.15) 80%, transparent 100%);
-  box-shadow: 0 0 12px rgba(212, 168, 67, 0.15);
 }
 
 .orientation-title {

@@ -20,6 +20,7 @@ export interface PlayerState {
   cityBlessing: boolean
   ringLevel: number // 0-4 (0 = no ring, 1-4 = The Ring tempts you levels)
   radCounters: number
+  badgePositions?: Record<string, { left: number; top: number }>
 }
 
 export type GamePhase = 'seating' | 'initiative' | 'playing'

@@ -37,12 +37,19 @@
           <div class="life-tracker-glow-spinner absolute inset-[-75%]" />
         </div>
 
-        <!-- Life flash overlay -->
+        <!-- Life flash overlay (one-shot animation on commit/tap) -->
         <div
           v-if="flashType"
           class="pointer-events-none absolute inset-0 z-10"
           :class="flashType === 'positive' ? 'flash-positive' : 'flash-negative'"
           @animationend="flashType = null"
+        />
+
+        <!-- Sustained flash overlay (stays visible during long press repeat) -->
+        <div
+          v-if="holdFlashType"
+          class="pointer-events-none absolute inset-0 z-10"
+          :class="holdFlashType === 'positive' ? 'hold-flash-positive' : 'hold-flash-negative'"
         />
 
         <!-- Full-card tap zones: left = -1, right = +1 (with swipe gesture detection)
@@ -81,20 +88,142 @@
           <div class="card-identity-spacer flex-shrink-0" aria-hidden="true" />
         </div>
 
-        <!-- Zone: Hero — Life Total (tap zones are full-card background) -->
+        <!-- Zone: Hero — Life Total + surrounding badges
+             pointer-events-none so touches pass through to tap-zones (z-[2]) for swipe.
+             Only the life total and individual badges capture touches. -->
         <div
-          class="card-hero-zone pointer-events-auto relative z-[3]"
-          @touchstart.passive="onLifeTouchStart"
-          @touchmove="onLifeTouchMove"
-          @touchend.passive="onLifeTouchEnd"
-          @touchcancel.passive="onLifeTouchCancel"
+          ref="heroZoneRef"
+          class="card-hero-zone pointer-events-none relative z-[3] self-stretch"
         >
+          <!-- Token badges orbiting the life total (radial layout) -->
+          <div class="card-badges-zone pointer-events-none absolute inset-0 z-[1]">
+            <!-- Poison -->
+            <button
+              v-if="player.poisonCounters > 0"
+              class="card-badge pointer-events-auto bg-poison/20 ring-1 ring-poison/20 btn-press"
+              :style="badgeStyle('poison')"
+              :aria-label="t('aria.poison', { count: player.poisonCounters })"
+              data-sound="none"
+              @click="openCounterStepper('poison')"
+              @touchstart.stop="(e: TouchEvent) => onBadgeTouchStart(e, 'poison')"
+              @contextmenu.prevent="changePoisonBy(-1)"
+            >
+              <IconPoison :size="12" class="shrink-0 text-poison" />
+              <span class="text-poison">{{ player.poisonCounters }}</span>
+            </button>
+
+            <!-- Experience -->
+            <button
+              v-if="player.experienceCounters > 0"
+              class="card-badge pointer-events-auto bg-arena-blue/20 ring-1 ring-arena-blue/20 btn-press"
+              :style="badgeStyle('experience')"
+              @click="openCounterStepper('experience')"
+              @touchstart.stop="(e: TouchEvent) => onBadgeTouchStart(e, 'experience')"
+            >
+              <IconExperience :size="12" class="text-arena-blue" />
+              <span class="text-arena-blue">{{ player.experienceCounters }}</span>
+            </button>
+
+            <!-- Energy -->
+            <button
+              v-if="player.energyCounters > 0"
+              class="card-badge pointer-events-auto bg-arena-gold/20 ring-1 ring-arena-gold/20 btn-press"
+              :style="badgeStyle('energy')"
+              @click="openCounterStepper('energy')"
+              @touchstart.stop="(e: TouchEvent) => onBadgeTouchStart(e, 'energy')"
+            >
+              <IconEnergy :size="12" class="text-arena-gold" />
+              <span class="text-arena-gold">{{ player.energyCounters }}</span>
+            </button>
+
+            <!-- Monarch — draggable to another player to transfer -->
+            <button
+              v-if="player.isMonarch"
+              class="card-badge pointer-events-auto bg-mana-gold/40 shadow-glow-gold glow-breathe btn-press"
+              :style="{ ...badgeStyle('monarch'), '--glow-color': 'rgba(212, 168, 67, 0.4)' }"
+              @click="openTokenPicker"
+              @touchstart.stop="(e: TouchEvent) => onBadgeTouchStart(e, 'monarch')"
+            >
+              <IconCrown :size="14" color="#f0d078" />
+            </button>
+
+            <!-- Initiative -->
+            <button
+              v-if="player.hasInitiative"
+              class="card-badge pointer-events-auto bg-white/10 btn-press"
+              :style="badgeStyle('initiative')"
+              @click="openTokenPicker"
+              @touchstart.stop="(e: TouchEvent) => onBadgeTouchStart(e, 'initiative')"
+            >
+              <IconShield :size="14" />
+            </button>
+
+            <!-- City's Blessing -->
+            <button
+              v-if="player.cityBlessing"
+              class="card-badge pointer-events-auto bg-emerald-500/20 ring-1 ring-emerald-500/20 btn-press"
+              :style="badgeStyle('cityBlessing')"
+              @click="openTokenPicker"
+              @touchstart.stop="(e: TouchEvent) => onBadgeTouchStart(e, 'cityBlessing')"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" class="text-emerald-400">
+                <path d="M3 21h18M5 21V7l4-4 3 3 3-3 4 4v14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+
+            <!-- Ring level -->
+            <button
+              v-if="player.ringLevel > 0"
+              class="card-badge pointer-events-auto bg-amber-500/20 ring-1 ring-amber-500/20 btn-press"
+              :style="badgeStyle('ring')"
+              @click="openCounterStepper('ring')"
+              @touchstart.stop="(e: TouchEvent) => onBadgeTouchStart(e, 'ring')"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" class="text-amber-400">
+                <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2.5" />
+              </svg>
+              <span class="text-amber-400">R{{ player.ringLevel }}</span>
+            </button>
+
+            <!-- Rad counter -->
+            <button
+              v-if="player.radCounters > 0"
+              class="card-badge pointer-events-auto bg-green-500/20 ring-1 ring-green-500/20 btn-press"
+              :style="badgeStyle('rad')"
+              @click="openCounterStepper('rad')"
+              @touchstart.stop="(e: TouchEvent) => onBadgeTouchStart(e, 'rad')"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" class="text-green-400">
+                <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2.5" />
+                <circle cx="12" cy="12" r="3" fill="currentColor" />
+              </svg>
+              <span class="text-green-400">{{ player.radCounters }}</span>
+            </button>
+
+            <!-- Commander tax -->
+            <span
+              v-for="(commander, commanderIndex) in player.commanders"
+              :key="commander.id"
+              class="card-badge bg-white/5 text-white/50"
+              :style="badgeStyle(`commander-${commanderIndex}`)"
+              @touchstart.stop="(e: TouchEvent) => onBadgeTouchStart(e, `commander-${commanderIndex}`)"
+            >
+              <IconMana :size="10" />
+              T{{ gameStore.getCommanderTax(player, commanderIndex) }}
+            </span>
+          </div>
+
+          <!-- Life total (centered, above badges) — captures touch for life drag -->
           <span
-            class="life-tracker-life-total block select-none text-center font-bold leading-none tabular-nums"
+            class="life-tracker-life-total pointer-events-auto relative z-[2] block select-none text-center font-bold leading-none tabular-nums"
             :class="lifeColorClass"
             role="status"
             :aria-label="t('aria.lifePoints', { name: player.name, life: player.lifeTotal })"
             @click="openLifeNumpad"
+            @touchstart.passive="onLifeTouchStart"
+            @touchmove="onLifeTouchMove"
+            @touchend.passive="onLifeTouchEnd"
+            @touchcancel.passive="onLifeTouchCancel"
           >
             {{ animatedLife }}
           </span>
@@ -102,7 +231,7 @@
           <!-- Pending life indicator (tap accumulation or drag) -->
           <span
             v-if="displayedPendingLife !== 0"
-            class="life-drag-indicator absolute left-1/2 -translate-x-1/2 font-bold drop-shadow-lg"
+            class="life-drag-indicator absolute left-1/2 -translate-x-1/2 z-[2] font-bold drop-shadow-lg"
             :class="displayedPendingLife > 0 ? 'text-life-positive' : 'text-life-negative'"
           >
             {{ displayedPendingLife > 0 ? '+' : '' }}{{ displayedPendingLife }}
@@ -145,7 +274,7 @@
 
         <!-- Commander damage — pinned to outer corner (varies with card rotation) -->
         <button
-          class="card-commander-btn pointer-events-auto absolute z-[4] flex items-center justify-center gap-0.5 rounded-lg btn-press"
+          class="card-commander-btn pointer-events-auto absolute z-[4] flex items-center justify-center gap-1 rounded-xl btn-press"
           :style="commanderDamagePositionStyle"
           :class="[
             totalCommanderDamage > 0 ? 'bg-commander-damage/20 ring-1 ring-commander-damage/20' : 'bg-white/5',
@@ -158,117 +287,10 @@
           @touchcancel.passive="onCommanderTouchCancel"
         >
           <IconSwordSingle :size="14" class="shrink-0" :class="totalCommanderDamage > 0 ? 'text-commander-damage' : 'text-white/40'" />
-          <span class="text-xs" :class="totalCommanderDamage > 0 ? 'text-commander-damage font-bold' : 'text-white/50'">
+          <span :class="totalCommanderDamage > 0 ? 'text-commander-damage font-bold' : 'text-white/50'">
             {{ totalCommanderDamage }}
           </span>
         </button>
-
-        <!-- Zone: Token badges (clickable → open token picker modal) -->
-        <div class="card-badges-zone pointer-events-none relative z-[3] flex flex-wrap items-center justify-center">
-          <!-- Poison -->
-          <button
-            v-if="player.poisonCounters > 0"
-            class="pointer-events-auto flex items-center gap-0.5 rounded-lg bg-poison/20 ring-1 ring-poison/20 px-2 py-1 btn-press"
-            :aria-label="t('aria.poison', { count: player.poisonCounters })"
-            data-sound="none"
-            @click="changePoisonBy(1)"
-            @contextmenu.prevent="changePoisonBy(-1)"
-            @touchstart.passive="poisonLongPress.start"
-            @touchend.passive="poisonLongPress.cancel"
-            @touchcancel.passive="poisonLongPress.cancel"
-          >
-            <IconPoison :size="12" class="shrink-0 text-poison" />
-            <span class="text-xs font-bold text-poison">{{ player.poisonCounters }}</span>
-          </button>
-
-          <!-- Experience -->
-          <button
-            v-if="player.experienceCounters > 0"
-            class="pointer-events-auto flex min-h-[32px] items-center gap-0.5 rounded-lg bg-arena-blue/20 ring-1 ring-arena-blue/20 px-2 py-1 btn-press"
-            @click="openTokenPicker"
-          >
-            <IconExperience :size="12" class="text-arena-blue" />
-            <span class="text-xs font-bold text-arena-blue">{{ player.experienceCounters }}</span>
-          </button>
-
-          <!-- Energy -->
-          <button
-            v-if="player.energyCounters > 0"
-            class="pointer-events-auto flex min-h-[32px] items-center gap-0.5 rounded-lg bg-arena-gold/20 ring-1 ring-arena-gold/20 px-2 py-1 btn-press"
-            @click="openTokenPicker"
-          >
-            <IconEnergy :size="12" class="text-arena-gold" />
-            <span class="text-xs font-bold text-arena-gold">{{ player.energyCounters }}</span>
-          </button>
-
-          <!-- Monarch -->
-          <button
-            v-if="player.isMonarch"
-            class="pointer-events-auto flex items-center gap-1 rounded-lg bg-mana-gold/40 px-2 py-0.5 shadow-glow-gold glow-breathe btn-press"
-            style="--glow-color: rgba(212, 168, 67, 0.4)"
-            @click="openTokenPicker"
-          >
-            <IconCrown :size="14" color="#f0d078" />
-            <span class="text-xs font-bold text-arena-gold-light">M</span>
-          </button>
-
-          <!-- Initiative -->
-          <button
-            v-if="player.hasInitiative"
-            class="pointer-events-auto flex items-center gap-1 rounded-lg bg-white/10 px-2 py-0.5 btn-press"
-            @click="openTokenPicker"
-          >
-            <IconShield :size="14" />
-            <span class="text-xs font-bold text-white/80">I</span>
-          </button>
-
-          <!-- City's Blessing -->
-          <button
-            v-if="player.cityBlessing"
-            class="pointer-events-auto flex items-center gap-1 rounded-lg bg-emerald-500/20 ring-1 ring-emerald-500/20 px-2 py-0.5 btn-press"
-            @click="openTokenPicker"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" class="text-emerald-400">
-              <path d="M3 21h18M5 21V7l4-4 3 3 3-3 4 4v14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-            <span class="text-xs font-bold text-emerald-400">CB</span>
-          </button>
-
-          <!-- Ring level -->
-          <button
-            v-if="player.ringLevel > 0"
-            class="pointer-events-auto flex items-center gap-1 rounded-lg bg-amber-500/20 ring-1 ring-amber-500/20 px-2 py-0.5 btn-press"
-            @click="openTokenPicker"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" class="text-amber-400">
-              <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2.5" />
-            </svg>
-            <span class="text-xs font-bold text-amber-400">R{{ player.ringLevel }}</span>
-          </button>
-
-          <!-- Rad counter -->
-          <button
-            v-if="player.radCounters > 0"
-            class="pointer-events-auto flex items-center gap-1 rounded-lg bg-green-500/20 ring-1 ring-green-500/20 px-2 py-0.5 btn-press"
-            @click="openTokenPicker"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" class="text-green-400">
-              <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2.5" />
-              <circle cx="12" cy="12" r="3" fill="currentColor" />
-            </svg>
-            <span class="text-xs font-bold text-green-400">{{ player.radCounters }}</span>
-          </button>
-
-          <!-- Commander tax (non-clickable) -->
-          <span
-            v-for="(commander, commanderIndex) in player.commanders"
-            :key="commander.id"
-            class="flex items-center gap-0.5 rounded-lg bg-white/5 px-2 py-0.5 text-xs text-white/50"
-          >
-            <IconMana :size="10" />
-            T{{ gameStore.getCommanderTax(player, commanderIndex) }}
-          </span>
-        </div>
 
         <!-- Zone: Actions -->
         <div v-if="showAnyActionButton" class="card-actions-zone pointer-events-none relative z-[3] mt-auto flex flex-wrap items-center justify-center">
@@ -359,6 +381,49 @@
           </ActionButton>
         </div>
 
+        <!-- Counter stepper overlay (inline +/- for stackable tokens) -->
+        <Transition name="slide-fade">
+          <div
+            v-if="activeCounterStepper"
+            class="pointer-events-auto absolute inset-0 z-[5] flex items-center justify-center"
+            @click.self="closeCounterStepper"
+          >
+            <div class="flex items-center rounded-full bg-surface-elevated/90 shadow-lg backdrop-blur-sm ring-1 ring-white/10">
+              <button
+                class="counter-stepper-btn flex items-center justify-center rounded-full text-white/80 active:bg-white/10"
+                data-sound="none"
+                @click="stepCounter(-1)"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14" /></svg>
+              </button>
+
+              <div class="flex items-center gap-1 px-1">
+                <IconPoison v-if="activeCounterStepper === 'poison'" :size="18" class="text-poison" />
+                <IconExperience v-if="activeCounterStepper === 'experience'" :size="18" class="text-arena-blue" />
+                <IconEnergy v-if="activeCounterStepper === 'energy'" :size="18" class="text-arena-gold" />
+                <svg v-if="activeCounterStepper === 'ring'" width="18" height="18" viewBox="0 0 24 24" fill="none" class="text-amber-400">
+                  <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2.5" />
+                </svg>
+                <svg v-if="activeCounterStepper === 'rad'" width="18" height="18" viewBox="0 0 24 24" fill="none" class="text-green-400">
+                  <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2.5" />
+                  <circle cx="12" cy="12" r="3" fill="currentColor" />
+                </svg>
+                <span class="min-w-[1.2em] text-center text-sm font-bold tabular-nums text-white">
+                  {{ counterStepperValue }}
+                </span>
+              </div>
+
+              <button
+                class="counter-stepper-btn flex items-center justify-center rounded-full text-white/80 active:bg-white/10"
+                data-sound="none"
+                @click="stepCounter(1)"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+              </button>
+            </div>
+          </div>
+        </Transition>
+
         <!-- Death overlay (animated) -->
         <Transition name="death-overlay">
           <div
@@ -393,7 +458,26 @@
 
       <!-- ═══════ CARD BACK ═══════ -->
       <div class="card-face card-back border border-white/[0.04]" :class="playerBgClass" :style="cardBackTransform">
+        <!-- Swipe zones for flipping back (same gesture as front) -->
+        <div
+          class="life-tap-zone absolute inset-y-0 left-0 z-[1] w-1/2"
+          data-sound="none"
+          @touchstart.passive="(e: TouchEvent) => onSwipeTouchStart(e, 'left')"
+          @touchmove="onSwipeTouchMove"
+          @touchend="onSwipeTouchEnd"
+          @touchcancel.passive="onSwipeTouchCancel"
+        />
+        <div
+          class="life-tap-zone absolute inset-y-0 right-0 z-[1] w-1/2"
+          data-sound="none"
+          @touchstart.passive="(e: TouchEvent) => onSwipeTouchStart(e, 'right')"
+          @touchmove="onSwipeTouchMove"
+          @touchend="onSwipeTouchEnd"
+          @touchcancel.passive="onSwipeTouchCancel"
+        />
+
         <PlayerTokenPanel
+          class="relative z-[2]"
           :player="player"
           :player-bg-class="playerBgClass"
           @close="isFlipped = false"
@@ -413,6 +497,23 @@
       @cancel="cancelLifeNumpad"
     />
 
+    <!-- Floating token picker (outside flip to avoid 3D transform issues) -->
+    <TokenPickerSheet
+      :is-open="showTokenPicker"
+      :player="player"
+      :content-rotation="cardRotation"
+      @close="closeTokenPicker"
+    />
+
+    <!-- Floating commander damage sheet -->
+    <CommanderDamageSheet
+      :is-open="showCommanderDamage"
+      :target-player="player"
+      :initial-attacker-id="commanderDamageInitialAttackerId"
+      :content-rotation="cardRotation"
+      @close="onCommanderDamageClose"
+    />
+
   </div>
 </template>
 
@@ -423,24 +524,28 @@ import gsap from 'gsap'
 import type { PlayerState } from '@/types/game'
 import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { tapFeedback, lifeFeedback, heavyFeedback, warningFeedback } from '@/services/haptics'
-import { playLifeChange, playLargeLifeChange, playDamageHit, playPoisonChange, playPlayerDeath, playMonarchCrown } from '@/services/sounds'
-import { LOW_LIFE_WARNING_THRESHOLD, LARGE_LIFE_CHANGE_THRESHOLD, LONG_PRESS_DURATION_MS, FLOAT_ANIMATION_DELAY_MS } from '@/config/gameConstants'
+import { tapFeedback, lifeFeedback, heavyFeedback } from '@/services/haptics'
+import { playLifeChange, playPoisonChange, playPlayerDeath, playMonarchCrown } from '@/services/sounds'
+import { LOW_LIFE_WARNING_THRESHOLD, LONG_PRESS_DURATION_MS, FLOAT_ANIMATION_DELAY_MS } from '@/config/gameConstants'
 import { prefersReducedMotion } from '@/utils/motion'
 import { useAnimatedNumber } from '@/composables/useAnimatedNumber'
 import { useCelebration } from '@/composables/useCelebration'
 import { useFloatingNumbers } from '@/composables/useFloatingNumbers'
 import { useLifeDragGesture } from '@/composables/useLifeDragGesture'
 import { useCommanderDragDrop } from '@/composables/useCommanderDragDrop'
+import { useBadgeDrag } from '@/composables/useBadgeDrag'
 import { usePlayerTimerDisplay } from '@/composables/usePlayerTimerDisplay'
 import { useTurnActions } from '@/composables/useTurnActions'
 import { useLongPress } from '@/composables/useLongPress'
 import { useCardSwipeGesture } from '@/composables/useCardSwipeGesture'
 import { useCardRotationContext } from '@/composables/useCardRotationContext'
 import { useDamageShake } from '@/composables/useDamageShake'
+import { useLifeFeedback, type LifeChangeSource } from '@/composables/useLifeFeedback'
 import LifeNumpad from './LifeNumpad.vue'
 import PlayerTokenPanel from './PlayerTokenPanel.vue'
 import GameResultOverlay from './GameResultOverlay.vue'
+import TokenPickerSheet from './TokenPickerSheet.vue'
+import CommanderDamageSheet from './CommanderDamageSheet.vue'
 import { presentModal } from '@/composables/useControllerModal'
 import IconPoison from '@/components/icons/game/IconPoison.vue'
 import IconSwordSingle from '@/components/icons/game/IconSwordSingle.vue'
@@ -473,12 +578,15 @@ const settingsStore = useSettingsStore()
 const { cardRotation, cardRotationStyle: rotationStyle, innerCornerStyle } = useCardRotationContext(() => props.player.id)
 
 const panelRef = ref<HTMLElement>()
+const heroZoneRef = ref<HTMLElement>()
 const { triggerDamageShake } = useDamageShake({ containerRef: () => panelRef.value })
 const showLifeNumpad = ref(false)
+const showTokenPicker = ref(false)
 const isFlipped = ref(false)
 const showGameResult = ref(false)
 const gameResultSlideFromRight = ref(true)
 const flashType = ref<'positive' | 'negative' | null>(null)
+const holdFlashType = ref<'positive' | 'negative' | null>(null)
 
 // --- Flip axis: rotate in the swipe direction, accounting for card CSS rotation ---
 
@@ -542,6 +650,14 @@ const { addFloat } = useFloatingNumbers({
   containerRef: () => panelRef.value,
 })
 
+const { setSource: setLifeFeedbackSource } = useLifeFeedback({
+  playerId: () => props.player.id,
+  getLifeTotal: () => props.player.lifeTotal,
+  triggerDamageShake,
+  setFlashType: (type) => { flashType.value = type },
+  addFloat,
+})
+
 const animatedLife = useAnimatedNumber(() => props.player.lifeTotal)
 
 // --- Card swipe gesture ---
@@ -558,10 +674,10 @@ const {
 } = useCardSwipeGesture(
   {
     onTap(side) {
-      accumulateTap(side === 'left' ? -1 : 1)
+      if (!isFlipped.value) accumulateTap(side === 'left' ? -1 : 1)
     },
     onLongPressStart(side) {
-      startLifeRepeat(side === 'left' ? -1 : 1)
+      if (!isFlipped.value) startLifeRepeat(side === 'left' ? -1 : 1)
     },
     onLongPressEnd() {
       stopLifeRepeat()
@@ -605,6 +721,7 @@ const {
   showCommanderDamage, commanderDamageInitialAttackerId,
   onCommanderClick, onCommanderTouchStart, onCommanderTouchMove,
   onCommanderTouchEnd, onCommanderTouchCancel,
+  onCommanderDamageClose,
   cleanup: cleanupCommanderDrag,
 } = useCommanderDragDrop({
   playerId: () => props.player.id,
@@ -613,48 +730,33 @@ const {
   onStateChanged: () => emit('stateChanged'),
 })
 
-// --- Controller modals (escape swipe-track stacking context) ---
-
-/**
- * Watch showCommanderDamage from useCommanderDragDrop — it gets set to true
- * by onCommanderClick() and the attackerIdProp watcher. Present the modal
- * and immediately reset the ref so subsequent opens work.
- */
-watch(showCommanderDamage, (isOpen) => {
-  if (isOpen) {
-    openCommanderDamage()
-    showCommanderDamage.value = false
-  }
+const {
+  onBadgeTouchStart, draggedBadgeKey, dragOffset,
+  cleanup: cleanupBadgeDrag,
+} = useBadgeDrag({
+  playerId: () => props.player.id,
+  cardElement: () => heroZoneRef.value,
+  cardRotation: () => cardRotation.value,
+  onReposition: (badgeKey, left, top) => {
+    gameStore.setBadgePosition(props.player.id, badgeKey, left, top)
+    emit('stateChanged')
+  },
+  onTransfer: (badgeKey, targetPlayerId) => {
+    if (badgeKey === 'monarch') {
+      gameStore.toggleMonarch(targetPlayerId)
+    }
+    emit('stateChanged')
+  },
 })
 
-async function openCommanderDamage() {
-  const { default: CommanderDamageContent } = await import('./CommanderDamageContent.vue')
-  await presentModal({
-    component: CommanderDamageContent,
-    componentProps: {
-      targetPlayer: props.player,
-      initialAttackerId: commanderDamageInitialAttackerId.value,
-    },
-    cssClass: 'cmdr-dialog',
-    onDismiss: () => {
-      emit('stateChanged')
-    },
-  })
+function openTokenPicker() {
+  showTokenPicker.value = true
 }
 
-async function openTokenPicker() {
-  const { default: TokenPickerContent } = await import('./TokenPickerContent.vue')
-  await presentModal({
-    component: TokenPickerContent,
-    componentProps: {
-      player: props.player,
-    },
-    cssClass: 'cmdr-dialog',
-    onDismiss: () => {
-      isFlipped.value = false
-      emit('stateChanged')
-    },
-  })
+function closeTokenPicker() {
+  showTokenPicker.value = false
+  isFlipped.value = false
+  emit('stateChanged')
 }
 
 async function openCommanderPicker() {
@@ -732,6 +834,73 @@ const lifeColorClass = computed(() => {
   return 'text-white'
 })
 
+// --- Radial badge positioning ---
+
+const visibleBadgeKeys = computed(() => {
+  const keys: string[] = []
+  if (props.player.poisonCounters > 0) keys.push('poison')
+  if (props.player.experienceCounters > 0) keys.push('experience')
+  if (props.player.energyCounters > 0) keys.push('energy')
+  if (props.player.isMonarch) keys.push('monarch')
+  if (props.player.hasInitiative) keys.push('initiative')
+  if (props.player.cityBlessing) keys.push('cityBlessing')
+  if (props.player.ringLevel > 0) keys.push('ring')
+  if (props.player.radCounters > 0) keys.push('rad')
+  props.player.commanders.forEach((_, commanderIndex) => keys.push(`commander-${commanderIndex}`))
+  return keys
+})
+
+/** Position a badge on an ellipse around the life total center */
+function badgeRadialStyle(badgeKey: string): Record<string, string> {
+  // Use stored custom position if available
+  const storedPosition = props.player.badgePositions?.[badgeKey]
+  if (storedPosition) {
+    return {
+      position: 'absolute',
+      left: `${storedPosition.left}%`,
+      top: `${storedPosition.top}%`,
+      transform: 'translate(-50%, -50%)',
+    }
+  }
+
+  const keys = visibleBadgeKeys.value
+  const index = keys.indexOf(badgeKey)
+  if (index === -1) return { display: 'none' }
+
+  const total = keys.length
+  // Start at top for 3+, right for 2, bottom for 1
+  const startAngleDeg = total === 1 ? 90 : total === 2 ? 0 : -90
+  const angleStepDeg = 360 / total
+  const angleDeg = startAngleDeg + index * angleStepDeg
+  const angleRad = angleDeg * Math.PI / 180
+
+  const radiusX = 38
+  const radiusY = 34
+  const positionLeft = 50 + radiusX * Math.cos(angleRad)
+  const positionTop = 50 + radiusY * Math.sin(angleRad)
+
+  return {
+    position: 'absolute',
+    left: `${positionLeft}%`,
+    top: `${positionTop}%`,
+    transform: 'translate(-50%, -50%)',
+  }
+}
+
+/** Apply drag offset to badge during active drag, otherwise use radial/stored position */
+function badgeStyle(badgeKey: string): Record<string, string> {
+  const baseStyle = badgeRadialStyle(badgeKey)
+  if (draggedBadgeKey.value === badgeKey) {
+    return {
+      ...baseStyle,
+      transform: `translate(calc(-50% + ${dragOffset.value.x}px), calc(-50% + ${dragOffset.value.y}px))`,
+      zIndex: '10',
+      transition: 'none',
+    }
+  }
+  return baseStyle
+}
+
 const deathReason = computed(() => {
   if (props.player.lifeTotal <= 0) return t('game.deathLife')
   if (gameStore.isPlayerDeadByPoison(props.player)) return t('game.deathPoison')
@@ -775,7 +944,9 @@ onUnmounted(() => {
   stopLifeRepeat()
   if (tapCommitTimer) { clearTimeout(tapCommitTimer); commitTap() }
   hideActionTooltip()
+  closeCounterStepper()
   cleanupCommanderDrag()
+  cleanupBadgeDrag()
   cleanupSwipeGesture()
 })
 
@@ -796,7 +967,7 @@ function accumulateTap(delta: number) {
 
 function commitTap() {
   if (tapPendingAmount.value === 0) return
-  changeLifeBy(tapPendingAmount.value, { skipFeedback: true })
+  changeLifeBy(tapPendingAmount.value, 'commit')
   tapPendingAmount.value = 0
   tapCommitTimer = null
 }
@@ -808,37 +979,9 @@ const displayedPendingLife = computed(() =>
 
 // --- Life interactions ---
 
-function changeLifeBy(amount: number, { skipFeedback = false } = {}) {
+function changeLifeBy(amount: number, source: LifeChangeSource = 'direct') {
+  setLifeFeedbackSource(source)
   gameStore.changeLife(props.player.id, amount)
-  flashType.value = amount > 0 ? 'positive' : 'negative'
-  if (amount < 0) {
-    triggerDamageShake(Math.abs(amount))
-    playDamageHit(Math.abs(amount))
-  }
-  setTimeout(() => addFloat(amount, 'life'), FLOAT_ANIMATION_DELAY_MS)
-
-  if (!skipFeedback) {
-    if (settingsStore.hapticFeedback) {
-      const newLife = props.player.lifeTotal
-      if (newLife <= 0) warningFeedback()
-      else if (Math.abs(amount) >= LARGE_LIFE_CHANGE_THRESHOLD) heavyFeedback()
-      else lifeFeedback()
-    }
-
-    if (Math.abs(amount) >= LARGE_LIFE_CHANGE_THRESHOLD) {
-      playLargeLifeChange(amount > 0)
-    } else {
-      playLifeChange(amount > 0)
-    }
-  } else {
-    // Batched commit — still play large change feedback if total is big
-    if (Math.abs(amount) >= LARGE_LIFE_CHANGE_THRESHOLD) {
-      if (settingsStore.hapticFeedback) heavyFeedback()
-      playLargeLifeChange(amount > 0)
-    }
-    // Warning haptic if life is critical
-    if (settingsStore.hapticFeedback && props.player.lifeTotal <= 0) warningFeedback()
-  }
   emit('stateChanged')
 }
 
@@ -850,6 +993,7 @@ let lifeRepeatIntervalTimer: ReturnType<typeof setInterval> | null = null
 function startLifeRepeat(amount: number) {
   stopLifeRepeat()
   lifeRepeatDelayTimer = setTimeout(() => {
+    holdFlashType.value = amount > 0 ? 'positive' : 'negative'
     accumulateTap(amount)
     lifeRepeatIntervalTimer = setInterval(() => accumulateTap(amount), LIFE_REPEAT_INTERVAL_MS)
   }, LIFE_REPEAT_DELAY_MS)
@@ -858,6 +1002,7 @@ function startLifeRepeat(amount: number) {
 function stopLifeRepeat() {
   if (lifeRepeatDelayTimer) { clearTimeout(lifeRepeatDelayTimer); lifeRepeatDelayTimer = null }
   if (lifeRepeatIntervalTimer) { clearInterval(lifeRepeatIntervalTimer); lifeRepeatIntervalTimer = null }
+  holdFlashType.value = null
   // Commit accumulated amount immediately on finger release
   if (tapCommitTimer) clearTimeout(tapCommitTimer)
   commitTap()
@@ -891,6 +1036,70 @@ const poisonLongPress = useLongPress(() => {
   changePoisonBy(-1)
   if (settingsStore.hapticFeedback) heavyFeedback()
 }, LONG_PRESS_DURATION_MS)
+
+// --- Counter stepper (inline +/- overlay for stackable tokens) ---
+
+const STEPPER_AUTO_DISMISS_MS = 3000
+const activeCounterStepper = ref<string | null>(null)
+let stepperDismissTimer: ReturnType<typeof setTimeout> | null = null
+
+function openCounterStepper(badgeKey: string) {
+  activeCounterStepper.value = badgeKey
+  resetStepperDismissTimer()
+}
+
+function closeCounterStepper() {
+  activeCounterStepper.value = null
+  if (stepperDismissTimer) { clearTimeout(stepperDismissTimer); stepperDismissTimer = null }
+}
+
+function resetStepperDismissTimer() {
+  if (stepperDismissTimer) clearTimeout(stepperDismissTimer)
+  stepperDismissTimer = setTimeout(closeCounterStepper, STEPPER_AUTO_DISMISS_MS)
+}
+
+const counterStepperValue = computed(() => {
+  switch (activeCounterStepper.value) {
+    case 'poison': return props.player.poisonCounters
+    case 'experience': return props.player.experienceCounters
+    case 'energy': return props.player.energyCounters
+    case 'ring': return props.player.ringLevel
+    case 'rad': return props.player.radCounters
+    default: return 0
+  }
+})
+
+function stepCounter(amount: number) {
+  const key = activeCounterStepper.value
+  if (!key) return
+
+  switch (key) {
+    case 'poison':
+      gameStore.changePoison(props.player.id, amount)
+      playPoisonChange()
+      setTimeout(() => addFloat(amount, 'poison'), FLOAT_ANIMATION_DELAY_MS)
+      break
+    case 'experience':
+      gameStore.changeExperience(props.player.id, amount)
+      break
+    case 'energy':
+      gameStore.changeEnergy(props.player.id, amount)
+      break
+    case 'ring':
+      gameStore.setRingLevel(props.player.id, props.player.ringLevel + amount)
+      break
+    case 'rad':
+      gameStore.changeRadCounters(props.player.id, amount)
+      break
+  }
+
+  if (settingsStore.hapticFeedback) tapFeedback()
+  emit('stateChanged')
+  resetStepperDismissTimer()
+
+  // Auto-close when counter drops to 0 (badge disappears)
+  if (counterStepperValue.value <= 0) closeCounterStepper()
+}
 
 // --- Commander (from card back) ---
 
@@ -1170,33 +1379,39 @@ void hasPriority
 
 /* ── Commander damage — absolute positioned ── */
 .card-commander-btn {
-  min-height: clamp(30px, 10cqmin, 44px);
-  min-width: clamp(30px, 10cqmin, 44px);
-  padding: clamp(3px, 0.8cqmin, 6px) clamp(4px, 1.2cqmin, 8px);
-  font-size: clamp(0.6rem, 3cqmin, 0.85rem);
+  min-height: clamp(50px, 18cqmin, 80px);
+  min-width: clamp(50px, 18cqmin, 80px);
+  padding: clamp(6px, 1.6cqmin, 12px) clamp(8px, 2.4cqmin, 16px);
+  font-size: clamp(0.85rem, 5cqmin, 1.4rem);
 }
 
 .card-commander-btn :deep(svg) {
-  width: clamp(12px, 4cqmin, 18px);
-  height: clamp(12px, 4cqmin, 18px);
+  width: clamp(20px, 7cqmin, 32px);
+  height: clamp(20px, 7cqmin, 32px);
 }
 
-/* ── Token badges ── */
-.card-badges-zone {
-  gap: clamp(3px, 1cqmin, 6px);
+/* ── Token badges — radial orbit around the life total ── */
+.card-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: clamp(4px, 1cqmin, 8px) clamp(8px, 2.4cqmin, 14px);
+  border-radius: 12px;
+  font-size: clamp(0.75rem, 4cqmin, 1.2rem);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
 }
 
-.card-badges-zone > button,
-.card-badges-zone > span {
-  min-height: clamp(20px, 6.5cqmin, 32px);
-  padding: clamp(1px, 0.3cqmin, 4px) clamp(4px, 1cqmin, 8px);
-  font-size: clamp(0.5rem, 2.3cqmin, 0.75rem);
+.card-badge :deep(svg) {
+  width: clamp(16px, 5cqmin, 24px);
+  height: clamp(16px, 5cqmin, 24px);
 }
 
-.card-badges-zone > button :deep(svg),
-.card-badges-zone > span :deep(svg) {
-  width: clamp(8px, 2.5cqmin, 12px);
-  height: clamp(8px, 2.5cqmin, 12px);
+/* ── Counter stepper (inline +/- overlay) ── */
+.counter-stepper-btn {
+  width: clamp(28px, 9cqmin, 40px);
+  height: clamp(28px, 9cqmin, 40px);
 }
 
 /* ── Action buttons ── */

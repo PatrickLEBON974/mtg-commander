@@ -2,17 +2,12 @@
   <Teleport to="body">
     <Transition :css="false" @enter="onEnter" @leave="onLeave">
       <div v-if="isOpen" class="dice-overlay" @click.self="handleClose">
-        <div class="dice-popup" :style="popupRotationStyle" @click="clearAutoDismiss">
-          <!-- Decorative overlay -->
-          <div class="dice-decor" aria-hidden="true">
-            <CornerAccent position="top-left" />
-            <CornerAccent position="top-right" />
-            <CornerAccent position="bottom-left" />
-            <CornerAccent position="bottom-right" />
-            <div class="dice-top-accent" />
-            <div class="dice-vignette" />
-          </div>
-
+        <GameFrame
+          ref="frameComp"
+          class="dice-frame"
+          :style="popupRotationStyle"
+          @click="clearAutoDismiss"
+        >
           <!-- Back button -->
           <button v-if="currentView !== 'picker'" class="back-btn" @click="goBack">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -87,7 +82,7 @@
               </button>
             </div>
           </template>
-        </div>
+        </GameFrame>
       </div>
     </Transition>
   </Teleport>
@@ -105,7 +100,7 @@ import IconDie12 from '@/components/icons/dice/IconDie12.vue'
 import IconDie20 from '@/components/icons/dice/IconDie20.vue'
 import IconCoinFlip from '@/components/icons/dice/IconCoinFlip.vue'
 import IconPeople from '@/components/icons/nav/IconPeople.vue'
-import CornerAccent from '@/components/icons/decorative/CornerAccent.vue'
+import GameFrame from '@/components/GameFrame.vue'
 import { playDiceRoll, playVictory } from '@/services/sounds'
 
 const props = defineProps<{
@@ -120,10 +115,17 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const gameStore = useGameStore()
 
+const frameComp = ref<InstanceType<typeof GameFrame>>()
+
 const popupRotationStyle = computed(() => {
   const rotation = props.contentRotation ?? 0
-  if (rotation === 0) return {}
-  return { transform: `rotate(${rotation}deg)` }
+  const style: Record<string, string> = {}
+  if (rotation !== 0) style.transform = `rotate(${rotation}deg)`
+  if (rotation === 90 || rotation === 270) {
+    style.maxWidth = 'calc(100vh - 100px)'
+    style.maxHeight = 'calc(100vw - 32px)'
+  }
+  return style
 })
 
 type ViewState = 'picker' | 'playerPicker' | 'dieResult'
@@ -175,17 +177,16 @@ const formattedDisplayValue = computed(() => {
 
 function onEnter(el: Element, done: () => void) {
   const htmlEl = el as HTMLElement
-  // Block clicks during enter animation to prevent ghost clicks from previous modal
   htmlEl.style.pointerEvents = 'none'
-  const popup = htmlEl.querySelector('.dice-popup')
+  const popup = frameComp.value?.el
   const rotation = props.contentRotation ?? 0
   gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.2 })
   if (popup) {
     gsap.fromTo(
       popup,
-      { scale: 0.8, opacity: 0, y: -20, rotation },
+      { scale: 0.85, opacity: 0, y: -20, rotation },
       {
-        scale: 1, opacity: 1, y: 0, rotation, duration: 0.3, ease: 'back.out(2)',
+        scale: 1, opacity: 1, y: 0, rotation, duration: 0.3, ease: 'back.out(1.7)',
         onComplete: () => {
           htmlEl.style.pointerEvents = ''
           done()
@@ -199,7 +200,7 @@ function onEnter(el: Element, done: () => void) {
 }
 
 function onLeave(el: Element, done: () => void) {
-  const popup = (el as HTMLElement).querySelector('.dice-popup')
+  const popup = frameComp.value?.el
   const rotation = props.contentRotation ?? 0
   if (popup) {
     gsap.to(popup, { scale: 0.8, opacity: 0, y: -10, rotation, duration: 0.2, ease: 'power2.in' })
@@ -414,76 +415,11 @@ watch(() => props.isOpen, (open) => {
   background: rgba(0, 0, 0, 0.5);
 }
 
-.dice-popup {
-  position: relative;
-  background: var(--ion-color-step-100, #1c2138);
-  border: 1px solid rgba(212, 168, 67, 0.2);
-  border-radius: 20px;
-  padding: 16px;
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.5),
-    0 0 20px rgba(232, 96, 10, 0.08),
-    inset 0 1px 0 rgba(212, 168, 67, 0.1);
+.dice-frame {
   min-width: 240px;
   max-width: calc(100vw - 32px);
   max-height: calc(100vh - var(--ion-safe-area-top, 44px) - 100px);
   overflow-y: auto;
-}
-
-/* Surface grain texture */
-.dice-popup::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background:
-    repeating-linear-gradient(
-      92deg, transparent 0px, transparent 3px,
-      rgba(255, 255, 255, 0.005) 3px, rgba(255, 255, 255, 0.005) 4px
-    ),
-    repeating-linear-gradient(
-      178deg, transparent 0px, transparent 5px,
-      rgba(255, 255, 255, 0.003) 5px, rgba(255, 255, 255, 0.003) 6px
-    );
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* Decorative overlay container */
-.dice-decor {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 10;
-  overflow: hidden;
-  border-radius: inherit;
-}
-
-/* Gold accent line at top */
-.dice-top-accent {
-  position: absolute;
-  top: 0;
-  left: 10%;
-  right: 10%;
-  height: 2px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(212, 168, 67, 0.15) 20%,
-    rgba(212, 168, 67, 0.4) 50%,
-    rgba(212, 168, 67, 0.15) 80%,
-    transparent 100%
-  );
-  box-shadow: 0 0 12px rgba(212, 168, 67, 0.15);
-}
-
-/* Radial vignette at top */
-.dice-vignette {
-  position: absolute;
-  inset-inline: 0;
-  top: 0;
-  height: 100px;
-  background: radial-gradient(ellipse at 50% 0%, rgba(212, 168, 67, 0.06) 0%, transparent 70%);
 }
 
 /* --- Back button --- */

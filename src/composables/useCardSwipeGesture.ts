@@ -3,7 +3,8 @@ import { isDragLocked } from '@/composables/useDragLock'
 import { useLongPress } from '@/composables/useLongPress'
 
 // Thresholds for gesture detection
-const TAP_MAX_DISTANCE = 10
+const TAP_MAX_DISTANCE = 12
+const FLIP_SWIPE_THRESHOLD = 30
 const TAP_MAX_DURATION_MS = 300
 const LONG_PRESS_MIN_DURATION_MS = 400
 
@@ -96,8 +97,9 @@ export function useCardSwipeGesture(
     const screenDeltaY = touch.clientY - startY
     const distance = Math.hypot(screenDeltaX, screenDeltaY)
 
-    // Cancel long press if moved enough
-    if (distance > TAP_MAX_DISTANCE) {
+    // Cancel long press only if finger moved beyond a generous threshold
+    // (fingers naturally drift during a long press on mobile)
+    if (distance > FLIP_SWIPE_THRESHOLD) {
       longPress.cancel()
       if (longPress.isTriggered()) {
         callbacks.onLongPressEnd()
@@ -105,8 +107,8 @@ export function useCardSwipeGesture(
       }
     }
 
-    // Classify gesture in SCREEN-SPACE once threshold is met
-    if (!gestureDecided && distance > TAP_MAX_DISTANCE) {
+    // Classify gesture as flip swipe once the larger threshold is met
+    if (!gestureDecided && distance > FLIP_SWIPE_THRESHOLD) {
       gestureDecided = true
       isFlipGesture = true
       isDragLocked.value = true

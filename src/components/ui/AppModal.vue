@@ -2,18 +2,18 @@
   <ion-modal
     :is-open="isOpen"
     v-bind="$attrs"
+    class="app-modal-frame"
     :enter-animation="isSheetModal ? undefined : enterAnimation"
     :leave-animation="isSheetModal ? undefined : leaveAnimation"
     @didDismiss="$emit('close')"
   >
-    <!-- Decorative overlay — pinned to modal viewport, above content -->
+    <!-- Decorative overlay — matching GameFrame visual language -->
     <div class="app-modal-decor" aria-hidden="true">
-      <CornerAccent position="top-left" />
-      <CornerAccent position="top-right" />
-      <CornerAccent v-if="!isSheetModal" position="bottom-left" />
-      <CornerAccent v-if="!isSheetModal" position="bottom-right" />
-      <div class="app-modal-top-accent" />
-      <div class="app-modal-bottom-glow" />
+      <span class="app-modal-rivet rivet--tl" />
+      <span class="app-modal-rivet rivet--tr" />
+      <span v-if="!isSheetModal" class="app-modal-rivet rivet--bl" />
+      <span v-if="!isSheetModal" class="app-modal-rivet rivet--br" />
+      <div class="app-modal-radiance" />
     </div>
 
     <!-- Standard header with title + close button -->
@@ -30,13 +30,11 @@
 
     <!-- With header: ion-content for scrollable area -->
     <ion-content v-if="hasHeader" :class="contentClass" class="app-modal-content">
-      <div class="app-modal-vignette" />
       <slot />
     </ion-content>
 
     <!-- Sheet mode (no header): raw content with opaque background -->
     <div v-else class="app-modal-sheet">
-      <div class="app-modal-vignette" />
       <slot />
     </div>
 
@@ -58,7 +56,6 @@ import {
   IonContent,
 } from '@ionic/vue'
 import { useModalAnimation } from '@/composables/useModalAnimation'
-import CornerAccent from '@/components/icons/decorative/CornerAccent.vue'
 import DividerOrnament from '@/components/icons/decorative/DividerOrnament.vue'
 
 defineOptions({ inheritAttrs: false })
@@ -111,42 +108,39 @@ const hasHeader = computed(() => props.showHeader ?? !!props.title)
   border-radius: inherit;
 }
 
-/* Gold accent line at top of modal */
-.app-modal-top-accent {
+/* Corner rivets — matching GameFrame */
+.app-modal-rivet {
   position: absolute;
-  top: 0;
-  left: 10%;
-  right: 10%;
-  height: 2px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(212, 168, 67, 0.15) 20%,
-    rgba(212, 168, 67, 0.4) 50%,
-    rgba(212, 168, 67, 0.15) 80%,
-    transparent 100%
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 35%,
+    rgba(255, 255, 255, 0.4),
+    rgba(212, 168, 67, 0.6) 40%,
+    rgba(139, 105, 20, 0.8) 70%,
+    rgba(80, 60, 10, 0.9)
   );
-  box-shadow: 0 0 12px rgba(212, 168, 67, 0.15);
+  box-shadow:
+    0 0 4px rgba(212, 168, 67, 0.3),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.4);
 }
 
-/* Subtle warm glow at bottom */
-.app-modal-bottom-glow {
-  position: absolute;
-  bottom: 0;
-  inset-inline: 0;
-  height: 60px;
-  background: radial-gradient(ellipse at 50% 100%, rgba(212, 168, 67, 0.03) 0%, transparent 70%);
-}
+.rivet--tl { top: 8px; left: 8px; }
+.rivet--tr { top: 8px; right: 8px; }
+.rivet--bl { bottom: 8px; left: 8px; }
+.rivet--br { bottom: 8px; right: 8px; }
 
-/* ═══ Top radial vignette ═══ */
-.app-modal-vignette {
+/* Warm radiance at top — matching GameFrame */
+.app-modal-radiance {
   position: absolute;
-  inset-inline: 0;
-  top: 0;
-  height: 120px;
-  background: radial-gradient(ellipse at 50% 0%, rgba(212, 168, 67, 0.06) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: 0;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    ellipse 80% 50% at 50% 0%,
+    rgba(212, 168, 67, 0.07) 0%,
+    transparent 65%
+  );
 }
 
 /* ═══ Sheet mode ═══ */
@@ -155,23 +149,19 @@ const hasHeader = computed(() => props.showHeader ?? !!props.title)
   background: var(--modal-background);
   min-height: 100%;
 }
+</style>
 
-/* ═══ Surface grain on modal background ═══ */
-.app-modal-content::part(background),
-.app-modal-sheet::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    repeating-linear-gradient(
-      92deg, transparent 0px, transparent 3px,
-      rgba(255, 255, 255, 0.005) 3px, rgba(255, 255, 255, 0.005) 4px
-    ),
-    repeating-linear-gradient(
-      178deg, transparent 0px, transparent 5px,
-      rgba(255, 255, 255, 0.003) 5px, rgba(255, 255, 255, 0.003) 6px
-    );
-  pointer-events: none;
-  z-index: 0;
+<!-- Unscoped: ion-modal Shadow DOM parts need global selectors -->
+<style>
+.app-modal-frame {
+  --border-radius: 16px;
+  --box-shadow:
+    0 12px 48px rgba(0, 0, 0, 0.65),
+    0 4px 16px rgba(0, 0, 0, 0.5),
+    0 0 24px rgba(212, 168, 67, 0.06);
+}
+
+.app-modal-frame::part(content) {
+  border: 1.5px solid rgba(212, 168, 67, 0.25);
 }
 </style>

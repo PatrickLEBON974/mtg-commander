@@ -1,11 +1,5 @@
 <template>
   <div class="history-content">
-    <div class="history-decor" aria-hidden="true">
-      <CornerAccent position="top-left" />
-      <CornerAccent position="top-right" />
-      <div class="history-top-accent" />
-    </div>
-
     <!-- Header -->
     <div class="history-header">
       <h2 class="history-title">{{ t('history.title') }}</h2>
@@ -43,8 +37,6 @@ import {
 import { useGameStore } from '@/stores/gameStore'
 import { formatRelativeTime } from '@/utils/time'
 import type { GameAction, GameActionType } from '@/types/game'
-import CornerAccent from '@/components/icons/decorative/CornerAccent.vue'
-
 defineProps<{
   dismiss: (data?: unknown, role?: string) => void
 }>()
@@ -99,25 +91,6 @@ function translateActionDescription(action: GameAction): string {
 .history-content {
   position: relative;
   min-height: 200px;
-}
-
-.history-decor {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 10;
-  overflow: hidden;
-  border-radius: inherit;
-}
-
-.history-top-accent {
-  position: absolute;
-  top: 0;
-  left: 10%;
-  right: 10%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent 0%, rgba(212, 168, 67, 0.15) 20%, rgba(212, 168, 67, 0.4) 50%, rgba(212, 168, 67, 0.15) 80%, transparent 100%);
-  box-shadow: 0 0 12px rgba(212, 168, 67, 0.15);
 }
 
 .history-header {
