@@ -624,16 +624,16 @@ const flipAxisAndSign = computed(() => {
 })
 
 /**
- * Stored axis/sign from the flip that opened the card back.
- * Used for flip-back animation to avoid cross-axis CSS transition jank.
- * (e.g., flipped via UP=rotateX → flip back stays on rotateX regardless of new swipe direction)
+ * Stored axis/sign — captures the axis for the current flip (forward or back).
+ * Updated at flip-forward (onFlip) and at flip-back gesture start (onFlipBack)
+ * so the animation always follows the actual swipe direction.
  */
 const storedFlipAxis = ref<'rotateX' | 'rotateY'>('rotateX')
 const storedFlipSign = ref(-1)
 
-/** Use computed axis when flipping forward, stored axis when card is already flipped */
-const effectiveFlipAxis = computed(() => isFlipped.value ? storedFlipAxis.value : flipAxisAndSign.value.axis)
-const effectiveFlipSign = computed(() => isFlipped.value ? storedFlipSign.value : flipAxisAndSign.value.sign)
+/** During an active gesture, use the live computed axis; at rest, use stored */
+const effectiveFlipAxis = computed(() => isGestureActive.value ? flipAxisAndSign.value.axis : storedFlipAxis.value)
+const effectiveFlipSign = computed(() => isGestureActive.value ? flipAxisAndSign.value.sign : storedFlipSign.value)
 
 const flipInlineStyle = computed(() => {
   // During active drag: use inline transform for interactive feedback
@@ -701,6 +701,9 @@ const {
       isFlipped.value = true
     },
     onFlipBack() {
+      // Store the axis/sign of this flip-back swipe so the CSS transition uses the correct direction
+      storedFlipAxis.value = flipAxisAndSign.value.axis
+      storedFlipSign.value = flipAxisAndSign.value.sign
       isFlipped.value = false
     },
   },
@@ -1502,10 +1505,18 @@ function revertDeath() {
   }
 }
 
-/* MICRO: card under 160px tall — hide badges, max density */
+/* MICRO: card under 160px tall — compact badges, max density */
 @container card (max-height: 160px) {
-  .card-badges-zone {
-    display: none !important;
+  .card-badge {
+    padding: 2px 5px;
+    font-size: 0.65rem;
+    gap: 2px;
+    border-radius: 8px;
+  }
+
+  .card-badge :deep(svg) {
+    width: 10px;
+    height: 10px;
   }
 
   .card-identity-zone {

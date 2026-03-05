@@ -334,19 +334,26 @@ async function deleteProfile(profileId: string) {
   align-items: center;
   justify-content: center;
   width: 48px;
-  background: linear-gradient(180deg, var(--ion-color-primary) 0%, var(--ion-color-primary-shade) 100%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ion-color-primary) 100%, white 12%) 0%, var(--ion-color-primary) 100%);
   border-left: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 0 10px 10px 0;
   color: white;
-  transition: background 0.15s ease, transform 0.1s ease;
-  box-shadow: var(--shadow-btn-beveled);
+  transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
-.split-btn-arrow:active {
+.split-btn-arrow:active:not(.split-btn-arrow--open) {
   background: var(--ion-color-primary-shade);
-  transform: translateY(1px);
-  box-shadow: var(--shadow-btn-pressed);
+  transform: translateY(2px);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.split-btn-arrow--open {
+  background: var(--ion-color-primary-shade);
+  transform: translateY(2px);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .split-btn-arrow svg {

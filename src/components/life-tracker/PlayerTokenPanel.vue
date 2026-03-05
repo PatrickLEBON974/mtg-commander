@@ -1,5 +1,5 @@
 <template>
-  <div class="token-panel relative flex h-full flex-col overflow-y-auto rounded-2xl px-1.5 py-1" :class="playerBgClass">
+  <div class="token-panel relative flex h-full flex-col overflow-y-auto rounded-2xl px-1.5 py-1" style="touch-action: pan-y" :class="playerBgClass">
     <!-- Header -->
     <div class="flex items-center justify-between mb-0.5 min-h-[24px]">
       <span class="font-beleren text-[9px] font-bold uppercase tracking-[0.12em] text-arena-gold-light/80 truncate">
