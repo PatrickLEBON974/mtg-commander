@@ -441,10 +441,37 @@
           </div>
         </Transition>
 
-        <!-- Death overlay (animated) -->
+        <!-- Death confirmation overlay (awaiting user choice) -->
         <Transition name="death-overlay">
           <div
-            v-if="deathReason"
+            v-if="showDeathConfirmation"
+            class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-black/70 backdrop-blur-sm"
+            role="alertdialog"
+            :aria-label="deathReason"
+          >
+            <IconSkull :size="48" class="text-life-negative drop-shadow-lg" />
+            <span class="text-lg font-bold text-life-negative drop-shadow-lg">{{ deathReason }}</span>
+            <div class="mt-1 flex gap-3">
+              <button
+                class="flex items-center gap-1.5 rounded-full bg-life-negative/80 px-5 py-2 text-sm font-bold text-white shadow-lg transition-all active:scale-95"
+                @click.stop="confirmDeath"
+              >
+                {{ t('game.confirmDead') }}
+              </button>
+              <button
+                class="flex items-center gap-1.5 rounded-full bg-white/20 px-5 py-2 text-sm font-bold text-white shadow-lg transition-all active:scale-95 active:bg-white/30"
+                @click.stop="confirmAlive"
+              >
+                {{ t('game.confirmAlive') }}
+              </button>
+            </div>
+          </div>
+        </Transition>
+
+        <!-- Death overlay (confirmed dead) -->
+        <Transition name="death-overlay">
+          <div
+            v-if="isConfirmedDead"
             class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-black/70 backdrop-blur-sm"
             role="alert"
             :aria-label="t('aria.playerEliminated', { name: player.name, reason: deathReason })"
@@ -926,6 +953,12 @@ const deathReason = computed(() => {
   return null
 })
 
+// Death confirmation state: 'pending' = awaiting user choice, 'dead' = confirmed dead, 'alive' = dismissed as alive
+const deathConfirmationState = ref<'pending' | 'dead' | 'alive' | null>(null)
+
+const showDeathConfirmation = computed(() => deathConfirmationState.value === 'pending')
+const isConfirmedDead = computed(() => deathConfirmationState.value === 'dead')
+
 const activeTurnBreathingClass = computed(() => {
   if (props.isCurrentTurn && !deathReason.value) return 'card-front-active-turn'
   return ''
@@ -935,7 +968,8 @@ const activeTurnBreathingClass = computed(() => {
 
 watch(deathReason, (newValue, oldValue) => {
   if (newValue && !oldValue) {
-    playerEliminated()
+    // Death conditions newly met — show confirmation, don't auto-eliminate
+    deathConfirmationState.value = 'pending'
     playPlayerDeath()
 
     // Death screen shake
@@ -947,6 +981,12 @@ watch(deathReason, (newValue, oldValue) => {
         },
       )
     }
+  } else if (newValue && oldValue && newValue !== oldValue && deathConfirmationState.value === 'alive') {
+    // A different death condition appeared after dismissal — re-prompt
+    deathConfirmationState.value = 'pending'
+  } else if (!newValue) {
+    // Death conditions resolved (e.g., undo, life gain)
+    deathConfirmationState.value = null
   }
 })
 
@@ -1147,6 +1187,17 @@ function handleGameResultFromBack() {
 }
 
 // --- Misc actions ---
+
+function confirmDeath() {
+  deathConfirmationState.value = 'dead'
+  playerEliminated()
+  gameStore.declareGameResult(props.player.id, 'eliminated')
+  if (settingsStore.hapticFeedback) heavyFeedback()
+}
+
+function confirmAlive() {
+  deathConfirmationState.value = 'alive'
+}
 
 function revertDeath() {
   gameStore.undoUntilPlayerAlive(props.player.id)

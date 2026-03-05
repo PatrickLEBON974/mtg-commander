@@ -52,6 +52,8 @@ export default {
     deathLife: 'MORT',
     deathPoison: 'POISON',
     deathCommander: 'CMD {threshold}',
+    confirmDead: 'Mort',
+    confirmAlive: 'Vivant',
     pause: 'Pause',
     resume: 'Reprendre',
     defaultPlayerName: 'Joueur {index}',

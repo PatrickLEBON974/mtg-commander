@@ -50,6 +50,8 @@ export default {
     deathLife: 'DEAD',
     deathPoison: 'POISON',
     deathCommander: 'CMD {threshold}',
+    confirmDead: 'Dead',
+    confirmAlive: 'Alive',
     pause: 'Pause',
     resume: 'Resume',
     defaultPlayerName: 'Player {index}',
