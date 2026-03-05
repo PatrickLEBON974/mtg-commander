@@ -9,10 +9,10 @@
   >
     <!-- Decorative overlay — matching GameFrame visual language -->
     <div class="app-modal-decor" aria-hidden="true">
-      <span class="app-modal-rivet rivet--tl" />
-      <span class="app-modal-rivet rivet--tr" />
-      <span v-if="!isSheetModal" class="app-modal-rivet rivet--bl" />
-      <span v-if="!isSheetModal" class="app-modal-rivet rivet--br" />
+      <CornerAccent position="top-left" />
+      <CornerAccent position="top-right" />
+      <CornerAccent v-if="!isSheetModal" position="bottom-left" />
+      <CornerAccent v-if="!isSheetModal" position="bottom-right" />
       <div class="app-modal-radiance" />
     </div>
 
@@ -57,6 +57,7 @@ import {
 } from '@ionic/vue'
 import { useModalAnimation } from '@/composables/useModalAnimation'
 import DividerOrnament from '@/components/icons/decorative/DividerOrnament.vue'
+import CornerAccent from '@/components/icons/decorative/CornerAccent.vue'
 
 defineOptions({ inheritAttrs: false })
 
@@ -107,29 +108,6 @@ const hasHeader = computed(() => props.showHeader ?? !!props.title)
   overflow: hidden;
   border-radius: inherit;
 }
-
-/* Corner rivets — matching GameFrame */
-.app-modal-rivet {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle at 35% 35%,
-    rgba(255, 255, 255, 0.4),
-    rgba(212, 168, 67, 0.6) 40%,
-    rgba(139, 105, 20, 0.8) 70%,
-    rgba(80, 60, 10, 0.9)
-  );
-  box-shadow:
-    0 0 4px rgba(212, 168, 67, 0.3),
-    inset 0 -1px 1px rgba(0, 0, 0, 0.4);
-}
-
-.rivet--tl { top: 8px; left: 8px; }
-.rivet--tr { top: 8px; right: 8px; }
-.rivet--bl { bottom: 8px; left: 8px; }
-.rivet--br { bottom: 8px; right: 8px; }
 
 /* Warm radiance at top — matching GameFrame */
 .app-modal-radiance {

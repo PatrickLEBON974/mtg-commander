@@ -37,11 +37,11 @@
       </div>
     </div>
 
-    <!-- Corner rivets — small metallic dots, pure CSS -->
-    <span class="frame-rivet frame-rivet--tl" />
-    <span class="frame-rivet frame-rivet--tr" />
-    <span class="frame-rivet frame-rivet--bl" />
-    <span class="frame-rivet frame-rivet--br" />
+    <!-- Corner accents — decorative SVG arcs -->
+    <CornerAccent position="top-left" />
+    <CornerAccent position="top-right" />
+    <CornerAccent position="bottom-left" />
+    <CornerAccent position="bottom-right" />
   </div>
 </template>
 
@@ -49,6 +49,7 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { prefersReducedMotion } from '@/utils/motion'
+import CornerAccent from '@/components/icons/decorative/CornerAccent.vue'
 
 defineProps<{
   title?: string
@@ -228,35 +229,6 @@ defineExpose({ el: frameRef })
   z-index: 1;
   padding: 10px 14px 16px;
 }
-
-/* ═══════════════════════════════════════════════
-   CORNER RIVETS — small metallic dots
-   ═══════════════════════════════════════════════ */
-.frame-rivet {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  z-index: 2;
-  pointer-events: none;
-
-  /* Metallic rivet: layered radial gradient + shadow */
-  background: radial-gradient(
-    circle at 35% 35%,
-    rgba(255, 255, 255, 0.4),
-    rgba(212, 168, 67, 0.6) 40%,
-    rgba(139, 105, 20, 0.8) 70%,
-    rgba(80, 60, 10, 0.9)
-  );
-  box-shadow:
-    0 0 4px rgba(212, 168, 67, 0.3),
-    inset 0 -1px 1px rgba(0, 0, 0, 0.4);
-}
-
-.frame-rivet--tl { top: 6px; left: 6px; }
-.frame-rivet--tr { top: 6px; right: 6px; }
-.frame-rivet--bl { bottom: 6px; left: 6px; }
-.frame-rivet--br { bottom: 6px; right: 6px; }
 
 /* ═══ Reduced motion ═══ */
 @media (prefers-reduced-motion: reduce) {
