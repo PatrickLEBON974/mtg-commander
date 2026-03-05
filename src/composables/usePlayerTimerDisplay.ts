@@ -63,6 +63,11 @@ export function usePlayerTimerDisplay(options: UsePlayerTimerDisplayOptions) {
     return 'text-arena-gold-light'
   })
 
+  // Overtime state — native UI feature (no longer driven by behavior rules)
+  const isOvertime = computed(() =>
+    settingsStore.gameSettings.enableTurnTimer && roundTimeRemainingSeconds.value <= 0,
+  )
+
   // Timer flash effect — triggered by rules engine when time is critical
   const hasTimerFlashEffect = computed(() =>
     gameStore.currentGame?.activeFlashPlayerIds?.includes(playerId()) ?? false,
@@ -72,6 +77,7 @@ export function usePlayerTimerDisplay(options: UsePlayerTimerDisplayOptions) {
     formattedTotalPlayTime,
     formattedRoundTime,
     hasActiveTurn,
+    isOvertime,
     roundTimeDisplayClass,
     hasTimerFlashEffect,
   }
