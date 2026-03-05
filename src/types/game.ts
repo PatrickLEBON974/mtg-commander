@@ -20,6 +20,7 @@ export interface PlayerState {
   cityBlessing: boolean
   ringLevel: number // 0-4 (0 = no ring, 1-4 = The Ring tempts you levels)
   radCounters: number
+  hourglassTokens: number
   badgePositions?: Record<string, { left: number; top: number }>
 }
 
@@ -41,6 +42,7 @@ export interface GameState {
   gamePhase: GamePhase
   customPositionMap: number[] | null
   dayNightState: 'day' | 'night' | null // null = not yet established
+  hourglassTimeBankRemainingMs: Record<string, number>
 }
 
 export interface GameAction {
@@ -91,6 +93,12 @@ export interface GameSettings {
   turnTimerSeconds: number
   activeBehaviorRuleIds: string[]
   selectedBehaviorProfileId: string
+  hourglassEnabled: boolean
+  hourglassMode: 'fixed' | 'time_bank'
+  hourglassGracePeriodSeconds: number
+  hourglassLossThreshold: number
+  hourglassTimeBankCapEnabled: boolean
+  hourglassTimeBankCapSeconds: number
 }
 
 // ─── Behavior Rules ──────────────────────────────────────────────────
@@ -140,6 +148,11 @@ export interface PlayerDeathTrigger {
   type: 'player_death'
 }
 
+export interface HourglassAboveThresholdTrigger {
+  type: 'hourglass_above'
+  threshold: number
+}
+
 export type BehaviorRuleTrigger =
   | LifeBelowTrigger
   | LifeExactTrigger
@@ -150,6 +163,7 @@ export type BehaviorRuleTrigger =
   | TurnTimerOvertimeTrigger
   | GameTimeExceededTrigger
   | PlayerDeathTrigger
+  | HourglassAboveThresholdTrigger
 
 // === Effect Types (discriminated union) ===
 
@@ -210,6 +224,7 @@ export type RuleCategory =
   | 'game_time'
   | 'death'
   | 'penalty'
+  | 'hourglass'
 
 export interface BehaviorRule {
   id: string
@@ -256,4 +271,10 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   turnTimerSeconds: 120,
   activeBehaviorRuleIds: [],
   selectedBehaviorProfileId: 'default',
+  hourglassEnabled: false,
+  hourglassMode: 'fixed' as const,
+  hourglassGracePeriodSeconds: 300,
+  hourglassLossThreshold: 10,
+  hourglassTimeBankCapEnabled: false,
+  hourglassTimeBankCapSeconds: 900,
 }

@@ -36,6 +36,7 @@ function createPlayer(index: number, settings: GameSettings): PlayerState {
     cityBlessing: false,
     ringLevel: 0,
     radCounters: 0,
+    hourglassTokens: 0,
   }
 }
 
@@ -70,11 +71,15 @@ export const useGameStore = defineStore('game', () => {
     if (savedGame.dayNightState === undefined) {
       savedGame.dayNightState = null
     }
+    if (savedGame.hourglassTimeBankRemainingMs === undefined) {
+      savedGame.hourglassTimeBankRemainingMs = {}
+    }
     // Backfill new player fields for legacy saves
     for (const player of savedGame.players) {
       if (player.cityBlessing === undefined) player.cityBlessing = false
       if (player.ringLevel === undefined) player.ringLevel = 0
       if (player.radCounters === undefined) player.radCounters = 0
+      if (player.hourglassTokens === undefined) player.hourglassTokens = 0
     }
     currentGame.value = savedGame
   }
@@ -178,6 +183,7 @@ export const useGameStore = defineStore('game', () => {
       gamePhase: 'seating',
       customPositionMap: null,
       dayNightState: null,
+      hourglassTimeBankRemainingMs: {},
     }
   }
 
@@ -470,6 +476,13 @@ export const useGameStore = defineStore('game', () => {
     })
   }
 
+  function changeHourglassTokens(playerId: string, amount: number) {
+    if (!currentGame.value) return
+    const player = findPlayerById(playerId)
+    if (!player) return
+    player.hourglassTokens = Math.max(0, player.hourglassTokens + amount)
+  }
+
   function setBadgePosition(playerId: string, badgeKey: string, left: number, top: number) {
     if (!currentGame.value) return
     const player = findPlayerById(playerId)
@@ -740,6 +753,7 @@ export const useGameStore = defineStore('game', () => {
     toggleCityBlessing,
     setRingLevel,
     changeRadCounters,
+    changeHourglassTokens,
     toggleDayNight,
     declareGameResult,
     advanceTurn,

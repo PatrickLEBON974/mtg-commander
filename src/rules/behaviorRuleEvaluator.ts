@@ -41,6 +41,9 @@ function evaluatePlayerTrigger(
       return damageValues.some((damage) => damage >= trigger.threshold)
     }
 
+    case 'hourglass_above':
+      return player.hourglassTokens >= trigger.threshold
+
     case 'player_death': {
       const isLifeDead = player.lifeTotal <= 0
 
@@ -103,6 +106,7 @@ function evaluateGlobalTrigger(
     case 'life_exact':
     case 'poison_above':
     case 'commander_damage_above':
+    case 'hourglass_above':
     case 'player_death':
       return false
 
