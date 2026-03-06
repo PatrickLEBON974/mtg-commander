@@ -1,12 +1,12 @@
 <template>
-  <div class="token-panel relative flex h-full flex-col overflow-y-auto rounded-2xl px-1.5 py-1" style="touch-action: pan-y" :class="playerBgClass">
+  <div class="token-panel relative flex h-full flex-col rounded-2xl px-1.5 py-1" :class="playerBgClass">
     <!-- Header -->
     <div class="flex items-center justify-between mb-0.5 min-h-[24px]">
       <span class="font-beleren text-[9px] font-bold uppercase tracking-[0.12em] text-arena-gold-light/80 truncate">
         {{ player.name }}
       </span>
       <button
-        class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/60 active:bg-white/20"
+        class="pointer-events-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/60 active:bg-white/20"
         :aria-label="t('common.close')"
         @click="$emit('close')"
       >
@@ -23,7 +23,7 @@
         <div
           v-for="(commander, commanderIndex) in player.commanders"
           :key="commander.id"
-          class="commander-row"
+          class="commander-row pointer-events-auto"
         >
           <img
             v-if="commander.imageUri"
@@ -43,7 +43,7 @@
       </div>
 
       <!-- Action bar — icon buttons -->
-      <div class="flex items-center justify-center gap-2">
+      <div class="pointer-events-auto flex items-center justify-center gap-2">
       <!-- Manage tokens -->
       <button
         class="panel-icon-btn panel-icon-btn--gold"

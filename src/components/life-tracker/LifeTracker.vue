@@ -204,14 +204,25 @@
             <button
               v-if="settingsStore.gameSettings.hourglassEnabled"
               class="card-badge pointer-events-auto ring-1 btn-press"
-              :class="player.hourglassTokens >= settingsStore.gameSettings.hourglassLossThreshold
-                ? 'bg-red-500/20 ring-red-500/20'
-                : 'bg-amber-500/20 ring-amber-500/20'"
+              :class="[
+                player.hourglassTokens >= settingsStore.gameSettings.hourglassLossThreshold
+                  ? 'bg-red-500/20 ring-red-500/20'
+                  : 'bg-amber-500/20 ring-amber-500/20',
+                hourglassAnimating ? 'hourglass-pulse' : '',
+              ]"
               :style="badgeStyle('hourglass')"
               @click="openCounterStepper('hourglass')"
               @touchstart.stop="(e: TouchEvent) => onBadgeTouchStart(e, 'hourglass')"
+              @animationend="hourglassAnimating = false"
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" class="shrink-0" :class="player.hourglassTokens >= settingsStore.gameSettings.hourglassLossThreshold ? 'text-red-400' : 'text-amber-400'">
+              <svg
+                width="12" height="12" viewBox="0 0 24 24" fill="none"
+                class="shrink-0"
+                :class="[
+                  player.hourglassTokens >= settingsStore.gameSettings.hourglassLossThreshold ? 'text-red-400' : 'text-amber-400',
+                  hourglassAnimating ? 'hourglass-flip' : '',
+                ]"
+              >
                 <path d="M6 2h12v6l-4 4 4 4v6H6v-6l4-4-4-4V2z" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
               <span :class="player.hourglassTokens >= settingsStore.gameSettings.hourglassLossThreshold ? 'text-red-400' : 'text-amber-400'">{{ player.hourglassTokens }}</span>
@@ -466,9 +477,9 @@
 
       <!-- ═══════ CARD BACK ═══════ -->
       <div class="card-face card-back border border-white/[0.04]" :class="playerBgClass" :style="cardBackTransform">
-        <!-- Swipe zones for flipping back (same gesture as front) -->
+        <!-- Swipe zones for flipping back (same pattern as front face) -->
         <div
-          class="life-tap-zone absolute inset-y-0 left-0 z-[1] w-1/2"
+          class="life-tap-zone absolute inset-y-0 left-0 z-[2] w-1/2"
           data-sound="none"
           @touchstart="(e: TouchEvent) => onSwipeTouchStart(e, 'left')"
           @touchmove="onSwipeTouchMove"
@@ -476,7 +487,7 @@
           @touchcancel.passive="onSwipeTouchCancel"
         />
         <div
-          class="life-tap-zone absolute inset-y-0 right-0 z-[1] w-1/2"
+          class="life-tap-zone absolute inset-y-0 right-0 z-[2] w-1/2"
           data-sound="none"
           @touchstart="(e: TouchEvent) => onSwipeTouchStart(e, 'right')"
           @touchmove="onSwipeTouchMove"
@@ -485,7 +496,7 @@
         />
 
         <PlayerTokenPanel
-          class="relative z-[2]"
+          class="pointer-events-none relative z-[1]"
           :player="player"
           :player-bg-class="playerBgClass"
           @close="isFlipped = false"
@@ -493,10 +504,6 @@
           @state-changed="emit('stateChanged')"
           @show-game-result="handleGameResultFromBack"
           @open-token-picker="openTokenPicker"
-          @touchstart="(e: TouchEvent) => onSwipeTouchStart(e, 'left')"
-          @touchmove="onSwipeTouchMove"
-          @touchend="onSwipeTouchEnd"
-          @touchcancel.passive="onSwipeTouchCancel"
         />
       </div>
     </div>
@@ -599,6 +606,7 @@ const showGameResult = ref(false)
 const gameResultSlideFromRight = ref(true)
 const flashType = ref<'positive' | 'negative' | null>(null)
 const holdFlashType = ref<'positive' | 'negative' | null>(null)
+const hourglassAnimating = ref(false)
 
 // --- Flip axis: rotate in the swipe direction, accounting for card CSS rotation ---
 
@@ -959,6 +967,12 @@ watch(() => props.player.isMonarch, (newValue, oldValue) => {
   if (newValue && !oldValue) {
     monarchCrown()
     playMonarchCrown()
+  }
+})
+
+watch(() => props.player.hourglassTokens, (newValue, oldValue) => {
+  if (newValue > oldValue) {
+    hourglassAnimating.value = true
   }
 })
 
@@ -1518,5 +1532,26 @@ function revertDeath() {
   .card-identity-zone {
     min-height: 16px;
   }
+}
+
+/* ── Hourglass increment animation ── */
+
+.hourglass-pulse {
+  animation: hourglass-pulse 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes hourglass-pulse {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.hourglass-flip {
+  animation: hourglass-flip 400ms ease-in-out;
+}
+
+@keyframes hourglass-flip {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(180deg); }
 }
 </style>
