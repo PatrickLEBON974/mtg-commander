@@ -14,7 +14,7 @@
       :style="flipInlineStyle"
     >
       <!-- ═══════ CARD FRONT ═══════ -->
-      <div class="card-face card-front flex flex-col items-center justify-between border" :class="[playerBgClass, turnBorderClass, dangerPulseClass, activeTurnBreathingClass]">
+      <div class="card-face card-front flex flex-col items-center justify-between border" :class="[playerBgClass, turnBorderClass, dangerPulseClass, activeTurnBreathingClass]" :style="isFlipped ? { pointerEvents: 'none' } : undefined">
         <!-- Corner accents -->
         <CornerAccent position="top-left" />
         <CornerAccent position="top-right" />
@@ -631,35 +631,43 @@ const flipAxisAndSign = computed(() => {
   return FLIP_AXIS_MAP[rotation]?.[direction] ?? { axis: 'rotateX' as const, sign: -1 }
 })
 
-/**
- * Stored axis/sign from the flip that opened the card back.
- * Flip-back MUST use the same axis — switching axis mid-flip causes a visual jump.
- */
+/** Stored axis/sign — set on each flip, used for resting state */
 const storedFlipAxis = ref<'rotateX' | 'rotateY'>('rotateX')
 const storedFlipSign = ref(-1)
 
-/** Forward flip: use live swipe direction. Back flip: use stored axis (no axis jump). */
-const effectiveFlipAxis = computed(() => isFlipped.value ? storedFlipAxis.value : flipAxisAndSign.value.axis)
-const effectiveFlipSign = computed(() => isFlipped.value ? storedFlipSign.value : flipAxisAndSign.value.sign)
-
 const flipInlineStyle = computed(() => {
-  // During active drag: use inline transform for interactive feedback
-  if (isGestureActive.value && flipDragProgress.value !== (isFlipped.value ? 1 : 0)) {
-    const angle = flipDragProgress.value * 180 * effectiveFlipSign.value
-    return { transform: `${effectiveFlipAxis.value}(${angle}deg)`, transition: 'none' }
+  const { axis, sign } = flipAxisAndSign.value
+
+  // During active drag: use live swipe axis for interactive feedback
+  if (isGestureActive.value && flipDragProgress.value > 0) {
+    // Forward: sign as-is. Flip-back: invert sign so the card follows the finger.
+    const effectiveSign = isFlipped.value ? -sign : sign
+    const angle = isFlipped.value
+      ? (1 - flipDragProgress.value) * 180 * effectiveSign
+      : flipDragProgress.value * 180 * effectiveSign
+    return { transform: `${axis}(${angle}deg)`, transition: 'none' }
   }
-  // When flipped (resting state): use stored axis for stability
+
+  // Resting flipped state
   if (isFlipped.value) {
-    const angle = 180 * storedFlipSign.value
-    return { transform: `${storedFlipAxis.value}(${angle}deg)` }
+    return { transform: `${storedFlipAxis.value}(${180 * storedFlipSign.value}deg)` }
   }
+
   return {}
 })
 
-/** Card back pre-rotation must match the flip endpoint on the same axis */
+/** Card back pre-rotation — matches whichever axis is active */
 const cardBackTransform = computed(() => {
-  const axis = effectiveFlipAxis.value
-  const sign = effectiveFlipSign.value
+  // During drag, use live axis so both inner+back switch together (no jump at 180°)
+  if (isGestureActive.value && flipDragProgress.value > 0) {
+    const { axis, sign } = flipAxisAndSign.value
+    const effectiveSign = isFlipped.value ? -sign : sign
+    return { transform: `${axis}(${180 * effectiveSign}deg)` }
+  }
+  if (isFlipped.value) {
+    return { transform: `${storedFlipAxis.value}(${180 * storedFlipSign.value}deg)` }
+  }
+  const { axis, sign } = flipAxisAndSign.value
   return { transform: `${axis}(${180 * sign}deg)` }
 })
 
@@ -702,16 +710,14 @@ const {
       stopLifeRepeat()
     },
     onFlip() {
-      // Store the axis/sign computed for this specific swipe direction + card rotation
-      storedFlipAxis.value = flipAxisAndSign.value.axis
-      storedFlipSign.value = flipAxisAndSign.value.sign
-      isFlipped.value = true
-    },
-    onFlipBack() {
-      isFlipped.value = false
+      if (!isFlipped.value) {
+        // Forward flip: store the axis/sign for this swipe direction + card rotation
+        storedFlipAxis.value = flipAxisAndSign.value.axis
+        storedFlipSign.value = flipAxisAndSign.value.sign
+      }
+      isFlipped.value = !isFlipped.value
     },
   },
-  isFlipped,
 )
 
 // --- Composables ---

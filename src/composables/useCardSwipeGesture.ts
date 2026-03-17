@@ -13,7 +13,6 @@ export interface CardSwipeCallbacks {
   onLongPressStart: (side: 'left' | 'right') => void
   onLongPressEnd: () => void
   onFlip: () => void
-  onFlipBack: () => void
 }
 
 /** Physical screen-space swipe direction */
@@ -24,7 +23,7 @@ export interface CardSwipeGestureReturn {
   onTouchMove: (event: TouchEvent) => void
   onTouchEnd: (event: TouchEvent) => void
   onTouchCancel: () => void
-  /** 0 = front face, 1 = back face. Tracks finger during drag. */
+  /** 0 = idle, progresses toward 1 during swipe. Resets after each flip. */
   flipDragProgress: Ref<number>
   /** The physical screen-space swipe direction (for choosing CSS axis in LifeTracker) */
   flipDirection: Ref<FlipAxis>
@@ -33,22 +32,19 @@ export interface CardSwipeGestureReturn {
 }
 
 /**
- * Gesture composable for card flip detection in all 4 directions.
+ * Stateless gesture composable for card flip detection in all 4 directions.
  *
- * All gesture classification and drag progress use SCREEN-SPACE coordinates,
- * ensuring consistent behavior regardless of card CSS rotation (0/90/180/270°).
- *
- * The calling component (LifeTracker) translates the physical swipe direction
- * into the correct CSS 3D rotation axis/sign based on card rotation.
+ * Every swipe is treated identically: progress goes 0→1, and onFlip fires
+ * when the threshold is reached. The composable does NOT track whether the
+ * card is currently flipped — the caller toggles that state in onFlip.
  *
  * Gestures:
- * - Tap (<10px, <300ms) → life change
+ * - Tap (<12px, <300ms) → life change
  * - Long press (>400ms) → life repeat
- * - Swipe any direction → 3D card flip (up/down/left/right)
+ * - Swipe any direction → card flip
  */
 export function useCardSwipeGesture(
   callbacks: CardSwipeCallbacks,
-  isFlipped: Ref<boolean>,
 ): CardSwipeGestureReturn {
   let startX = 0
   let startY = 0
@@ -82,7 +78,7 @@ export function useCardSwipeGesture(
     gestureDecided = false
     isFlipGesture = false
     isGestureActive.value = true
-    flipDragProgress.value = isFlipped.value ? 1 : 0
+    flipDragProgress.value = 0
 
     longPress.reset()
     longPress.start()
@@ -118,7 +114,7 @@ export function useCardSwipeGesture(
         progressAxis = 'y'
         if (screenDeltaY < 0) {
           flipDirection.value = 'up'
-          progressSign = -1 // deltaY is negative for up → multiply by -1 to get positive
+          progressSign = -1
         } else {
           flipDirection.value = 'down'
           progressSign = 1
@@ -135,7 +131,7 @@ export function useCardSwipeGesture(
       }
     }
 
-    // Update flip drag progress
+    // Update flip drag progress (always 0→1)
     if (isFlipGesture) {
       event.preventDefault()
       const container = (event.target as HTMLElement)?.closest('.card-flip-container')
@@ -143,16 +139,9 @@ export function useCardSwipeGesture(
         ? (container?.clientHeight ?? 200)
         : (container?.clientWidth ?? 200)
       const rawDelta = progressAxis === 'y' ? screenDeltaY : screenDeltaX
-      // normalizedDelta is always positive when swiping in the initial direction
       const normalizedDelta = progressSign * rawDelta / cardSize
 
-      if (isFlipped.value) {
-        // Flipped → flip back: progress decreases from 1 toward 0
-        flipDragProgress.value = Math.max(0, Math.min(1, 1 - normalizedDelta))
-      } else {
-        // Not flipped → flip forward: progress increases from 0 toward 1
-        flipDragProgress.value = Math.max(0, Math.min(1, normalizedDelta))
-      }
+      flipDragProgress.value = Math.max(0, Math.min(1, normalizedDelta))
     }
   }
 
@@ -176,13 +165,8 @@ export function useCardSwipeGesture(
       return
     }
 
-    if (isFlipGesture) {
-      const progress = flipDragProgress.value
-      if (!isFlipped.value && progress > 0.3) {
-        callbacks.onFlip()
-      } else if (isFlipped.value && progress < 0.7) {
-        callbacks.onFlipBack()
-      }
+    if (isFlipGesture && flipDragProgress.value > 0.3) {
+      callbacks.onFlip()
     }
 
     reset()
@@ -202,7 +186,7 @@ export function useCardSwipeGesture(
     isFlipGesture = false
     longPress.reset()
     isDragLocked.value = false
-    flipDragProgress.value = isFlipped.value ? 1 : 0
+    flipDragProgress.value = 0
   }
 
   function cleanup() {
