@@ -17,7 +17,7 @@ interface UseLifeFeedbackOptions {
   getLifeTotal: () => number
   triggerDamageShake: (damageAmount: number) => void
   setFlashType: (type: 'positive' | 'negative') => void
-  addFloat: (amount: number, type: string) => void
+  addFloat: (amount: number, variant?: 'life' | 'poison' | 'commander') => void
 }
 
 /**
@@ -33,6 +33,7 @@ export function useLifeFeedback(options: UseLifeFeedbackOptions) {
   const settingsStore = useSettingsStore()
 
   let pendingSource: LifeChangeSource | null = null
+  const pendingFloatTimers = new Set<ReturnType<typeof setTimeout>>()
 
   /** Call before a store action so $onAction knows the feedback context */
   function setSource(source: LifeChangeSource) {
@@ -76,7 +77,11 @@ export function useLifeFeedback(options: UseLifeFeedbackOptions) {
   function applyLifeChangeFeedback(amount: number, source: LifeChangeSource | null) {
     // Always: visual flash + floating number
     options.setFlashType(amount > 0 ? 'positive' : 'negative')
-    setTimeout(() => options.addFloat(amount, 'life'), FLOAT_ANIMATION_DELAY_MS)
+    const floatTimerId = setTimeout(() => {
+      pendingFloatTimers.delete(floatTimerId)
+      options.addFloat(amount, 'life')
+    }, FLOAT_ANIMATION_DELAY_MS)
+    pendingFloatTimers.add(floatTimerId)
 
     // Always: shake + hit sound on damage
     if (amount < 0) {
@@ -111,6 +116,8 @@ export function useLifeFeedback(options: UseLifeFeedbackOptions) {
 
   onUnmounted(() => {
     unsubscribe()
+    pendingFloatTimers.forEach(clearTimeout)
+    pendingFloatTimers.clear()
   })
 
   return { setSource }

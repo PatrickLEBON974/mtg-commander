@@ -35,7 +35,7 @@ export function parseManaCostToSymbols(manaCost: string): string[] {
   let match: RegExpExecArray | null
 
   while ((match = symbolPattern.exec(manaCost)) !== null) {
-    symbols.push(symbolToClassName(match[1]))
+    symbols.push(symbolToClassName(match[1] ?? ''))
   }
 
   return symbols
@@ -68,7 +68,7 @@ export function parseOracleText(oracleText: string): OracleTextSegment[] {
     if (match.index > lastIndex) {
       segments.push({ type: 'text', value: oracleText.slice(lastIndex, match.index) })
     }
-    segments.push({ type: 'symbol', value: symbolToClassName(match[1]) })
+    segments.push({ type: 'symbol', value: symbolToClassName(match[1] ?? '') })
     lastIndex = match.index + match[0].length
   }
 

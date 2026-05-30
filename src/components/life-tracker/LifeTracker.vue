@@ -246,8 +246,12 @@
             class="life-tracker-life-total pointer-events-auto relative z-[2] block select-none text-center font-bold leading-none tabular-nums"
             :class="lifeColorClass"
             role="status"
+            tabindex="0"
             :aria-label="t('aria.lifePoints', { name: player.name, life: player.lifeTotal })"
+            :aria-keyshortcuts="'Enter'"
+            :title="t('aria.editLife', { name: player.name })"
             @click="openLifeNumpad"
+            @keydown.enter.space.prevent="openLifeNumpad"
             @touchstart="onLifeTouchStart"
             @touchmove="onLifeTouchMove"
             @touchend.passive="onLifeTouchEnd"
@@ -805,12 +809,16 @@ const {
 
 // --- Action tooltip (inlined) ---
 type ActionTooltipKey = 'reclaimPriority' | 'respond' | 'releasePriority'
+const ACTION_TOOLTIP_KEYS: readonly ActionTooltipKey[] = ['reclaimPriority', 'respond', 'releasePriority']
 const activeTooltip = ref<ActionTooltipKey | null>(null)
 let tooltipTimer: ReturnType<typeof setTimeout> | null = null
 
-function showActionTooltip(key: ActionTooltipKey) {
+// `key` arrives as the ActionButton tooltip-id (a string emit); guard against the known set.
+function showActionTooltip(key: string) {
+  if (!ACTION_TOOLTIP_KEYS.includes(key as ActionTooltipKey)) return
+  const tooltipKey = key as ActionTooltipKey
   tooltipTimer = setTimeout(() => {
-    activeTooltip.value = key
+    activeTooltip.value = tooltipKey
     if (settingsStore.hapticFeedback) tapFeedback()
   }, LONG_PRESS_DURATION_MS)
 }
@@ -929,7 +937,7 @@ const deathReason = computed(() => {
   if (props.player.lifeTotal <= 0) return t('game.deathLife')
   if (gameStore.isPlayerDeadByPoison(props.player)) return t('game.deathPoison')
   if (gameStore.isPlayerDeadByCommanderDamage(props.player)) return t('game.deathCommander')
-  return null
+  return undefined
 })
 
 // Death confirmation state: 'pending' = awaiting user choice, 'dead' = confirmed dead, 'alive' = dismissed as alive
@@ -1472,6 +1480,23 @@ function revertDeath() {
   height: clamp(16px, 5cqmin, 24px);
 }
 
+/* A11y (#15): invisible touch slop so interactive badges reach a ~44px tap
+   target on normal/compact cards. Non-interactive placeholder badges
+   (<span class="card-badge">) are excluded. In MICRO (6-player dense) the
+   radial spacing physically prevents 44px without overlap, so the slop is
+   capped smaller there — see the MICRO override below. */
+button.card-badge {
+  position: relative;
+}
+button.card-badge::after {
+  content: '';
+  position: absolute;
+  inset: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+
 /* ── Counter stepper (inline +/- overlay) ── */
 .counter-stepper-btn {
   width: clamp(28px, 9cqmin, 40px);
@@ -1533,6 +1558,13 @@ function revertDeath() {
   .card-badge :deep(svg) {
     width: 10px;
     height: 10px;
+  }
+
+  /* Dense radial layout: cap hit-slop below 44px to avoid overlapping
+     neighbouring badges and the life tap-zone (best achievable here). */
+  button.card-badge::after {
+    width: 30px;
+    height: 30px;
   }
 
   .card-identity-zone {

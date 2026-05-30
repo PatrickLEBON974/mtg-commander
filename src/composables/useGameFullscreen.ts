@@ -1,4 +1,4 @@
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, type ComputedRef } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { Fullscreen } from '@boengli/capacitor-fullscreen'
 import { useGameStore } from '@/stores/gameStore'
@@ -16,14 +16,21 @@ const isNative = Capacitor.isNativePlatform()
 export const isGameTabActive = ref(false)
 export const isGameMenuOpen = ref(false)
 
-export function useGameFullscreen() {
+// Module-level derived state + immersive-mode driver (shared singleton).
+// gameStore access is deferred until first use so Pinia is active.
+let isFullscreenSingleton: ComputedRef<boolean> | null = null
+let shouldShowTabBarSingleton: ComputedRef<boolean> | null = null
+let shouldDisableSwipeSingleton: ComputedRef<boolean> | null = null
+
+function ensureFullscreenState() {
+  if (isFullscreenSingleton) return
   const gameStore = useGameStore()
+  isFullscreenSingleton = computed(() => isGameTabActive.value && gameStore.isGameActive)
+  shouldShowTabBarSingleton = computed(() => !isFullscreenSingleton!.value || isGameMenuOpen.value)
+  shouldDisableSwipeSingleton = computed(() => isFullscreenSingleton!.value)
 
-  const isFullscreen = computed(() => isGameTabActive.value && gameStore.isGameActive)
-  const shouldShowTabBar = computed(() => !isFullscreen.value || isGameMenuOpen.value)
-  const shouldDisableSwipe = computed(() => isFullscreen.value)
-
-  watch(isFullscreen, (fullscreen) => {
+  // Single watch for the whole app, not one per calling component.
+  watch(isFullscreenSingleton, (fullscreen) => {
     if (!isNative) return
     if (fullscreen) {
       Fullscreen.activateImmersiveMode()
@@ -31,6 +38,15 @@ export function useGameFullscreen() {
       Fullscreen.deactivateImmersiveMode()
     }
   }, { immediate: true })
+}
 
-  return { isGameTabActive, isGameMenuOpen, isFullscreen, shouldShowTabBar, shouldDisableSwipe }
+export function useGameFullscreen() {
+  ensureFullscreenState()
+  return {
+    isGameTabActive,
+    isGameMenuOpen,
+    isFullscreen: isFullscreenSingleton!,
+    shouldShowTabBar: shouldShowTabBarSingleton!,
+    shouldDisableSwipe: shouldDisableSwipeSingleton!,
+  }
 }

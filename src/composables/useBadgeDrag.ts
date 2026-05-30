@@ -4,8 +4,9 @@ import { isDragLocked } from '@/composables/useDragLock'
 import { tapFeedback, heavyFeedback } from '@/services/haptics'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { prefersReducedMotion } from '@/utils/motion'
-
-const DRAG_THRESHOLD = 10
+import { DRAG_MOVEMENT_THRESHOLD_PX } from '@/config/gameConstants'
+import { rotateScreenDeltaToLocal } from '@/utils/rotateScreenDeltaToLocal'
+import { usePlayerDropTarget } from '@/composables/usePlayerDropTarget'
 
 interface UseBadgeDragOptions {
   /** Source player ID — used to distinguish reposition vs transfer */
@@ -20,14 +21,10 @@ interface UseBadgeDragOptions {
   onTransfer: (badgeKey: string, targetPlayerId: string) => void
 }
 
-/** Rotate screen-space deltas into the card's local coordinate system */
+/** Rotate screen-space deltas into the card's local coordinate system ({x,y} shape) */
 function screenToLocal(screenDx: number, screenDy: number, rotation: number): { x: number; y: number } {
-  switch (rotation) {
-    case 90:  return { x:  screenDy, y: -screenDx }
-    case 180: return { x: -screenDx, y: -screenDy }
-    case 270: return { x: -screenDy, y:  screenDx }
-    default:  return { x:  screenDx, y:  screenDy }
-  }
+  const [x, y] = rotateScreenDeltaToLocal(screenDx, screenDy, rotation)
+  return { x, y }
 }
 
 /** Convert a screen touch point to a percentage within the element's local coordinate space */
@@ -56,6 +53,12 @@ function screenToLocalPercent(
  */
 export function useBadgeDrag(options: UseBadgeDragOptions) {
   const { playerId, cardElement, cardRotation, onReposition, onTransfer } = options
+
+  const { findDropTarget, highlightDropTarget, clearDropHighlights } = usePlayerDropTarget({
+    sourcePlayerId: playerId,
+    highlightBoxShadow:
+      'inset 0 0 0 3px rgba(212, 168, 67, 0.8), 0 0 32px rgba(212, 168, 67, 0.4), inset 0 0 16px rgba(212, 168, 67, 0.1)',
+  })
 
   const draggedBadgeKey = ref<string | null>(null)
   const dragOffset = ref({ x: 0, y: 0 })
@@ -88,7 +91,7 @@ export function useBadgeDrag(options: UseBadgeDragOptions) {
     const screenDeltaX = touch.clientX - startX
     const screenDeltaY = touch.clientY - startY
 
-    if (!dragActive && Math.hypot(screenDeltaX, screenDeltaY) > DRAG_THRESHOLD) {
+    if (!dragActive && Math.hypot(screenDeltaX, screenDeltaY) > DRAG_MOVEMENT_THRESHOLD_PX) {
       dragActive = true
       isDragLocked.value = true
       const settingsStore = useSettingsStore()
@@ -154,31 +157,7 @@ export function useBadgeDrag(options: UseBadgeDragOptions) {
     cleanup()
   }
 
-  // ── Drop target detection ──
-
-  function findDropTarget(x: number, y: number): string | null {
-    const element = document.elementFromPoint(x, y)
-    const panel = element?.closest('[data-commander-player]') as HTMLElement | null
-    return panel?.dataset.commanderPlayer ?? null
-  }
-
-  function highlightDropTarget(x: number, y: number) {
-    clearDropHighlights()
-    const element = document.elementFromPoint(x, y)
-    const panel = element?.closest('[data-commander-player]') as HTMLElement | null
-    if (panel && panel.dataset.commanderPlayer !== playerId()) {
-      panel.style.boxShadow = 'inset 0 0 0 3px rgba(212, 168, 67, 0.8), 0 0 32px rgba(212, 168, 67, 0.4), inset 0 0 16px rgba(212, 168, 67, 0.1)'
-      panel.style.transition = 'box-shadow 0.15s ease'
-    }
-  }
-
-  function clearDropHighlights() {
-    document.querySelectorAll('[data-commander-player]').forEach((element) => {
-      const htmlElement = element as HTMLElement
-      htmlElement.style.boxShadow = ''
-      htmlElement.style.transition = ''
-    })
-  }
+  // ── Drop target detection (shared via usePlayerDropTarget) ──
 
   // ── Cleanup ──
 

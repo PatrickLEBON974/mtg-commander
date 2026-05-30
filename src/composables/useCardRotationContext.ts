@@ -1,6 +1,7 @@
-import { computed } from 'vue'
+import { computed, inject, ref } from 'vue'
 import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { gameDisplayModeKey } from '@/types/injectionKeys'
 import {
   SLOT_INNER_SCREEN_CORNER,
   resolveLayout,
@@ -16,6 +17,7 @@ import {
 export function useCardRotationContext(playerId: () => string) {
   const gameStore = useGameStore()
   const settingsStore = useSettingsStore()
+  const gameDisplayMode = inject(gameDisplayModeKey, ref<'grid' | 'list'>('grid'))
 
   const playerIndex = computed(() => {
     const players = gameStore.currentGame?.players
@@ -35,20 +37,23 @@ export function useCardRotationContext(playerId: () => string) {
   }
 
   const cardRotation = computed(() => {
+    if (gameDisplayMode.value === 'list') return 0
     const slotIndex = getResolvedSlot(playerIndex.value)
     return resolvedLayout.value.slotRotations?.[slotIndex] ?? 0
   })
 
   const cardRotationStyle = computed<Record<string, string>>(() => {
     const rotationDegrees = cardRotation.value
-    if (rotationDegrees === 0) return {}
-    if (rotationDegrees === 180) return { transform: 'rotate(180deg)' }
-    return {
-      width: '100cqh',
-      height: '100cqw',
-      flexShrink: '0',
-      transform: `rotate(${rotationDegrees}deg)`,
+    const rotationStyle: Record<string, string> = {}
+    if (rotationDegrees === 0) return rotationStyle
+    rotationStyle.transform = `rotate(${rotationDegrees}deg)`
+    // 90/270 swap the card's box, so re-map width/height to container query units
+    if (rotationDegrees !== 180) {
+      rotationStyle.width = '100cqh'
+      rotationStyle.height = '100cqw'
+      rotationStyle.flexShrink = '0'
     }
+    return rotationStyle
   })
 
   const innerCornerStyle = computed<Record<string, string>>(() => {

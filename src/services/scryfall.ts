@@ -15,6 +15,11 @@ const DEFAULT_FILTERS: CardSearchFilters = {
   toughnessMax: null,
 }
 
+/** Scryfall list endpoints (/cards/autocomplete, /cards/search) share this envelope. */
+interface ScryfallListResponse<T> {
+  data?: T[]
+}
+
 const BASE_URL = 'https://api.scryfall.com'
 const REQUEST_DELAY_MS = 100
 const MAX_RETRIES = 3
@@ -154,7 +159,7 @@ export async function autocompleteCards(
 
     if (!response.ok) return []
 
-    const data = await response.json()
+    const data = (await response.json()) as ScryfallListResponse<string>
     const results = data.data ?? []
     setCachedScryfall(cacheKey, results)
     return results
@@ -228,8 +233,8 @@ async function searchWithFiltersApi(query: string, filters: CardSearchFilters): 
 
     if (!response.ok) return []
 
-    const data = await response.json()
-    const names: string[] = (data.data ?? []).map((card: { name: string }) => card.name)
+    const data = (await response.json()) as ScryfallListResponse<{ name: string }>
+    const names: string[] = (data.data ?? []).map((card) => card.name)
     const uniqueNames = [...new Set(names)]
     setCachedScryfall(cacheKey, uniqueNames)
     return uniqueNames

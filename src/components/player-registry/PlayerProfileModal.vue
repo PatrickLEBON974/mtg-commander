@@ -54,7 +54,7 @@ import {
 import AppModal from '@/components/ui/AppModal.vue'
 import { usePlayerRegistryStore } from '@/stores/playerRegistryStore'
 import { PLAYER_COLORS, PLAYER_NAME_MAX_LENGTH } from '@/config/gameConstants'
-import type { ManaColor } from '@/types/game'
+import type { PlayerColor } from '@/types/game'
 
 const props = defineProps<{
   isOpen: boolean
@@ -69,7 +69,7 @@ const { t } = useI18n()
 const registryStore = usePlayerRegistryStore()
 
 const playerName = ref('')
-const selectedColor = ref<ManaColor>('white')
+const selectedColor = ref<PlayerColor>('white')
 const nameErrorMessage = ref('')
 
 const isEditing = ref(false)

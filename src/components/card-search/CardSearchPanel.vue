@@ -286,7 +286,7 @@
               <span class="meta-label">Commander</span>
               <span class="meta-value">
                 <span class="legality-dot" :class="`legality--${selectedCard.legalities.commander}`" />
-                {{ legalityLabel(selectedCard.legalities.commander) }}
+                {{ legalityLabel(selectedCard.legalities.commander ?? '') }}
               </span>
             </div>
 

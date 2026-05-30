@@ -147,19 +147,28 @@ export function useGameClock() {
       lastTickTimestamp = performance.now()
     }
 
-    // Start the singleton RAF loop (not tied to any component lifecycle)
-    startRafLoop()
+    // Start the singleton RAF loop only while a game is running
+    // (not tied to any component lifecycle). The isRunning watch below
+    // starts/stops it on every pause/resume transition.
+    if (gameStore.currentGame?.isRunning) {
+      startRafLoop()
+    }
 
     // Watch for external pause/resume (endGame, multiplayer sync)
     watchStopHandles.push(watch(
       () => gameStore.currentGame?.isRunning,
       (newIsRunning, oldIsRunning) => {
         if (newIsRunning === oldIsRunning) return
-        if (newIsRunning === false && oldIsRunning === true) {
+        // Stop on any transition away from running (true -> false/undefined)
+        if (oldIsRunning === true && newIsRunning !== true) {
           accumulatedBeforePause.value += (performance.now() - lastResumedAt.value)
-        } else if (newIsRunning === true && oldIsRunning === false) {
+          stopRafLoop()
+        // Start on any transition into running (false/undefined -> true),
+        // including a brand-new game where the previous value was undefined
+        } else if (newIsRunning === true && oldIsRunning !== true) {
           lastResumedAt.value = performance.now()
           lastTickTimestamp = performance.now()
+          startRafLoop()
         }
       },
     ))

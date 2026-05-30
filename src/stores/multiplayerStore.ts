@@ -294,6 +294,7 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
       cityBlessing: false,
       ringLevel: 0,
       radCounters: 0,
+      hourglassTokens: 0,
     }))
   }
 

@@ -4,8 +4,9 @@ import { isDragLocked } from '@/composables/useDragLock'
 import { tapFeedback, heavyFeedback } from '@/services/haptics'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { prefersReducedMotion } from '@/utils/motion'
+import { DRAG_MOVEMENT_THRESHOLD_PX } from '@/config/gameConstants'
+import { usePlayerDropTarget } from '@/composables/usePlayerDropTarget'
 
-const DRAG_THRESHOLD = 10
 const GHOST_INTERVAL = 3
 const MAX_GHOSTS = 10
 const INDICATOR_SIZE = 52
@@ -20,6 +21,13 @@ interface UseCommanderDragDropOptions {
 
 export function useCommanderDragDrop(options: UseCommanderDragDropOptions) {
   const { playerId, targetIdProp, onDragDrop, onStateChanged } = options
+
+  const { findDropTarget, highlightDropTarget, clearDropHighlights } = usePlayerDropTarget({
+    sourcePlayerId: playerId,
+    highlightBoxShadow:
+      'inset 0 0 0 3px var(--color-commander-damage), 0 0 32px rgba(245, 158, 11, 0.4), inset 0 0 16px rgba(245, 158, 11, 0.1)',
+    elementToHideDuringHitTest: () => commanderDragIndicator,
+  })
   const settingsStore = useSettingsStore()
 
   const showCommanderDamage = ref(false)
@@ -63,7 +71,7 @@ export function useCommanderDragDrop(options: UseCommanderDragDropOptions) {
     const deltaX = touch.clientX - commanderDragStartX
     const deltaY = touch.clientY - commanderDragStartY
 
-    if (!commanderDragActive && Math.hypot(deltaX, deltaY) > DRAG_THRESHOLD) {
+    if (!commanderDragActive && Math.hypot(deltaX, deltaY) > DRAG_MOVEMENT_THRESHOLD_PX) {
       commanderDragActive = true
       isDragLocked.value = true
       createCommanderDragIndicator()
@@ -280,35 +288,7 @@ export function useCommanderDragDrop(options: UseCommanderDragDropOptions) {
     activeGhosts.length = 0
   }
 
-  function findDropTarget(x: number, y: number): string | null {
-    if (commanderDragIndicator) commanderDragIndicator.style.display = 'none'
-    const element = document.elementFromPoint(x, y)
-    if (commanderDragIndicator) commanderDragIndicator.style.display = ''
-
-    const commanderButton = element?.closest('[data-commander-player]') as HTMLElement | null
-    return commanderButton?.dataset.commanderPlayer ?? null
-  }
-
-  function highlightDropTarget(x: number, y: number) {
-    clearDropHighlights()
-    if (commanderDragIndicator) commanderDragIndicator.style.display = 'none'
-    const element = document.elementFromPoint(x, y)
-    if (commanderDragIndicator) commanderDragIndicator.style.display = ''
-
-    const playerPanel = element?.closest('[data-commander-player]') as HTMLElement | null
-    if (playerPanel && playerPanel.dataset.commanderPlayer !== playerId()) {
-      playerPanel.style.boxShadow = 'inset 0 0 0 3px var(--color-commander-damage), 0 0 32px rgba(245, 158, 11, 0.4), inset 0 0 16px rgba(245, 158, 11, 0.1)'
-      playerPanel.style.transition = 'box-shadow 0.15s ease'
-    }
-  }
-
-  function clearDropHighlights() {
-    document.querySelectorAll('[data-commander-player]').forEach((el) => {
-      const htmlElement = el as HTMLElement
-      htmlElement.style.boxShadow = ''
-      htmlElement.style.transition = ''
-    })
-  }
+  // findDropTarget / highlightDropTarget / clearDropHighlights — shared via usePlayerDropTarget
 
   function cleanup() {
     stopTargetWatcher()

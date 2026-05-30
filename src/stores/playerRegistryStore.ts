@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import type { PlayerProfile, Deck, CommanderCardSnapshot } from '@/types/playerRegistry'
-import type { ManaColor } from '@/types/game'
+import type { PlayerColor } from '@/types/game'
 import { MAX_PLAYER_PROFILES, MAX_DECKS_PER_PLAYER } from '@/config/gameConstants'
 import { loadPlayerRegistry, savePlayerRegistry } from '@/services/persistence'
 
@@ -37,7 +37,7 @@ export const usePlayerRegistryStore = defineStore('playerRegistry', () => {
 
   // --- Player CRUD ---
 
-  function addPlayerProfile(name: string, preferredColor: ManaColor): PlayerProfile | null {
+  function addPlayerProfile(name: string, preferredColor: PlayerColor): PlayerProfile | null {
     if (playerProfiles.value.length >= MAX_PLAYER_PROFILES) return null
 
     const now = Date.now()
@@ -53,7 +53,7 @@ export const usePlayerRegistryStore = defineStore('playerRegistry', () => {
     return profile
   }
 
-  function updatePlayerProfile(profileId: string, updates: { name?: string; preferredColor?: ManaColor }) {
+  function updatePlayerProfile(profileId: string, updates: { name?: string; preferredColor?: PlayerColor }) {
     const profile = getProfileById(profileId)
     if (!profile) return
     if (updates.name !== undefined) profile.name = updates.name

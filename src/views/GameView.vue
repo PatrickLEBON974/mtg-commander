@@ -66,6 +66,23 @@
             </button>
             <button
               class="topbar-action-btn"
+              :aria-label="t('game.toggleView')"
+              @click="toggleDisplayMode"
+            >
+              <!-- List icon (switch to list) -->
+              <svg v-if="gameDisplayMode === 'grid'" width="16" height="16" viewBox="0 0 24 24" fill="none" :style="iconRotationStyle">
+                <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              </svg>
+              <!-- Grid icon (switch back to grid) -->
+              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" :style="iconRotationStyle">
+                <rect x="3" y="3" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="2" />
+                <rect x="13" y="3" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="2" />
+                <rect x="3" y="13" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="2" />
+                <rect x="13" y="13" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="2" />
+              </svg>
+            </button>
+            <button
+              class="topbar-action-btn"
               :aria-label="t('game.menu')"
               @click="openGameMenu"
             >
@@ -90,30 +107,17 @@
           </div>
         </TransitionGroup>
 
-        <!-- Player grid -->
-        <div
-          class="grid min-h-0 flex-1 gap-2 p-2"
-          :style="gridStyle"
-        >
-          <div
-            v-for="(player, index) in gameStore.currentGame?.players"
-            :key="player.id"
-            class="min-h-0 min-w-0 overflow-hidden"
-            :class="cardOuterClasses(index)"
-            :style="cardOuterStyle(index)"
-          >
-            <LifeTracker
-              class="h-full"
-              :player="player"
-              :is-current-turn="player.id === gameStore.currentTurnPlayer?.id"
-              :is-flashing="flashingPlayerIds.includes(player.id)"
-              :commander-damage-target-id="commanderDragState?.attackerPlayerId === player.id ? commanderDragState.targetPlayerId : null"
-              @state-changed="onPlayerStateChanged"
-              @turn-advanced="onTurnAdvanced"
-              @commander-drag-drop="(targetId: string) => handleCommanderDragDrop(player.id, targetId)"
-            />
-          </div>
-        </div>
+        <PlayerGrid
+          :display-mode="gameDisplayMode"
+          :players="gameStore.currentGame?.players ?? []"
+          :turn-order-players="turnOrderPlayers"
+          :current-turn-player-id="gameStore.currentTurnPlayer?.id"
+          :flashing-player-ids="flashingPlayerIds"
+          :commander-drag-state="commanderDragState"
+          @player-state-changed="onPlayerStateChanged"
+          @turn-advanced="onTurnAdvanced"
+          @commander-drag-drop="handleCommanderDragDrop"
+        />
         </div><!-- /game-content-wrapper -->
 
         <!-- Floating next turn button (draggable, snaps back to center) -->
@@ -184,7 +188,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, provide } from 'vue'
 import gsap from 'gsap'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -202,7 +206,7 @@ import { useMultiplayerStore } from '@/stores/multiplayerStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { usePlayerRegistryStore } from '@/stores/playerRegistryStore'
 import type { LayoutMode } from '@/services/persistence'
-import LifeTracker from '@/components/life-tracker/LifeTracker.vue'
+import PlayerGrid from '@/components/game/PlayerGrid.vue'
 import { useGameClock } from '@/composables/useGameClock'
 import { useLongPress } from '@/composables/useLongPress'
 import { formatMsToTimer } from '@/utils/time'
@@ -216,6 +220,7 @@ import SeatingPhase from '@/components/game/SeatingPhase.vue'
 import InitiativePhase from '@/components/game/InitiativePhase.vue'
 import { prefersReducedMotion } from '@/utils/motion'
 import { playTurnAdvance, playUndo, playEndGame } from '@/services/sounds'
+import { gameDisplayModeKey, type GameDisplayMode } from '@/types/injectionKeys'
 import { useBehaviorRuleEngine } from '@/rules/behaviorRuleEngine'
 import { isGameMenuOpen } from '@/composables/useGameFullscreen'
 
@@ -256,9 +261,29 @@ watch(isTimerRunning, (running, wasRunning) => {
   }
 })
 
-const { gridStyle, getCardRotation, getDirectionAngle, cardOuterClasses, cardOuterStyle } = usePlayerGridLayout()
+const { getCardRotation, getDirectionAngle } = usePlayerGridLayout()
 
 const showDiceRoller = ref(false)
+
+/* ── Display mode: grid (default) or turn-order list ── */
+const gameDisplayMode = ref<GameDisplayMode>('grid')
+provide(gameDisplayModeKey, gameDisplayMode)
+
+function toggleDisplayMode() {
+  gameDisplayMode.value = gameDisplayMode.value === 'grid' ? 'list' : 'grid'
+}
+
+const turnOrderPlayers = computed(() => {
+  const game = gameStore.currentGame
+  if (!game) return []
+  const players = game.players
+  const startIndex = game.currentTurnPlayerIndex
+  const ordered = []
+  for (let i = 0; i < players.length; i++) {
+    ordered.push(players[(startIndex + i) % players.length]!)
+  }
+  return ordered
+})
 
 /* ── Draggable next-turn button ── */
 const nextTurnBtnRef = ref<HTMLButtonElement | null>(null)
@@ -463,7 +488,7 @@ interface AnonymousPlayerCommander {
 }
 interface AnonymousPlayerEntry {
   name: string
-  color: import('@/types/game').ManaColor
+  color: import('@/types/game').PlayerColor
   commanders: AnonymousPlayerCommander[]
 }
 const anonymousPlayerQueue = ref<AnonymousPlayerEntry[]>([])
@@ -630,7 +655,7 @@ async function openSaveAnonymousModal() {
     onDismiss: ({ data, role }) => {
       if (role === 'save' && data) {
         const { name, color } = data as { name: string; color: string }
-        handleSaveAnonymousPlayer(name, color as import('@/types/game').ManaColor)
+        handleSaveAnonymousPlayer(name, color as import('@/types/game').PlayerColor)
       } else {
         handleSkipAnonymousPlayer()
       }
@@ -638,7 +663,7 @@ async function openSaveAnonymousModal() {
   })
 }
 
-async function handleSaveAnonymousPlayer(name: string, color: import('@/types/game').ManaColor) {
+async function handleSaveAnonymousPlayer(name: string, color: import('@/types/game').PlayerColor) {
   const currentEntry = currentAnonymousPlayer.value
   const profile = registryStore.addPlayerProfile(name, color)
 
@@ -881,6 +906,11 @@ function onTurnAdvanced() {
 .announce-slide-leave-to {
   opacity: 0;
   transform: translateY(-8px);
+}
+
+/* Turn-order list — FLIP move animation */
+.turn-order-move {
+  transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 </style>

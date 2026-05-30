@@ -110,7 +110,7 @@ import { useI18n } from 'vue-i18n'
 import { IonList, IonItem, IonInput, IonLabel, IonButton } from '@ionic/vue'
 import { usePlayerRegistryStore } from '@/stores/playerRegistryStore'
 import { PLAYER_COLORS, PLAYER_NAME_MAX_LENGTH } from '@/config/gameConstants'
-import type { ManaColor } from '@/types/game'
+import type { PlayerColor } from '@/types/game'
 interface AnonymousCommander {
   cardName: string
   imageUri?: string
@@ -118,7 +118,7 @@ interface AnonymousCommander {
 
 const props = defineProps<{
   playerName: string
-  playerColor: ManaColor
+  playerColor: PlayerColor
   commanders: AnonymousCommander[]
   dismiss: (data?: unknown, role?: string) => void
 }>()
@@ -127,7 +127,7 @@ const { t } = useI18n()
 const registryStore = usePlayerRegistryStore()
 
 const editableName = ref(props.playerName)
-const selectedColor = ref<ManaColor>(props.playerColor)
+const selectedColor = ref<PlayerColor>(props.playerColor)
 const nameErrorMessage = ref('')
 
 const DEFAULT_NAME_PATTERN = /^(player|joueur)\s+\d+$/i

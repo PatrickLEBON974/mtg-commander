@@ -2,8 +2,7 @@ import { onUnmounted } from 'vue'
 import gsap from 'gsap'
 import { prefersReducedMotion } from '@/utils/motion'
 
-const MAX_ACTIVE_FLOATS = 5
-const activeFloats: HTMLElement[] = []
+const MAX_FLOATS_PER_CARD = 5
 
 /** Read a CSS custom property once and cache the result */
 function getCSSColor(variableName: string, fallback: string): string {
@@ -27,7 +26,7 @@ interface FloatingNumberOptions {
 
 /**
  * Hearthstone/RPG-style floating +N/-N damage indicators.
- * Numbers arc upward and fade out. Object-pooled to max 5 active.
+ * Numbers arc upward and fade out. Capped to max 5 active per card instance.
  *
  * Colors: green=positive, red=negative, purple=poison, amber=commander
  */
@@ -40,10 +39,14 @@ export function useFloatingNumbers(options: FloatingNumberOptions) {
     const container = options.containerRef()
     if (!container) return
 
-    // Recycle oldest if at max
-    if (activeFloats.length >= MAX_ACTIVE_FLOATS) {
-      const oldest = activeFloats.shift()
-      oldest?.remove()
+    // Recycle this card's oldest float if at max (per-instance, so one player's
+    // floats can never evict another player's mid-flight)
+    if (localFloats.length >= MAX_FLOATS_PER_CARD) {
+      const oldestLocalFloat = localFloats.shift()
+      if (oldestLocalFloat) {
+        gsap.killTweensOf(oldestLocalFloat)
+        oldestLocalFloat.remove()
+      }
     }
 
     const colorMap = {
@@ -73,7 +76,6 @@ export function useFloatingNumbers(options: FloatingNumberOptions) {
     })
 
     container.appendChild(floatEl)
-    activeFloats.push(floatEl)
     localFloats.push(floatEl)
 
     gsap.fromTo(
@@ -87,8 +89,6 @@ export function useFloatingNumbers(options: FloatingNumberOptions) {
         ease: 'power2.out',
         onComplete: () => {
           floatEl.remove()
-          const activeIndex = activeFloats.indexOf(floatEl)
-          if (activeIndex > -1) activeFloats.splice(activeIndex, 1)
           const localIndex = localFloats.indexOf(floatEl)
           if (localIndex > -1) localFloats.splice(localIndex, 1)
         },
@@ -97,11 +97,9 @@ export function useFloatingNumbers(options: FloatingNumberOptions) {
   }
 
   onUnmounted(() => {
-    localFloats.forEach((el) => {
-      gsap.killTweensOf(el)
-      el.remove()
-      const activeIndex = activeFloats.indexOf(el)
-      if (activeIndex > -1) activeFloats.splice(activeIndex, 1)
+    localFloats.forEach((floatEl) => {
+      gsap.killTweensOf(floatEl)
+      floatEl.remove()
     })
     localFloats.length = 0
   })

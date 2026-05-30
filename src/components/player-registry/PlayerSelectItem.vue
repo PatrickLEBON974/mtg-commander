@@ -69,12 +69,12 @@ import {
   IonReorder,
 } from '@ionic/vue'
 import { usePlayerRegistryStore } from '@/stores/playerRegistryStore'
-import type { ManaColor } from '@/types/game'
+import type { PlayerColor } from '@/types/game'
 
 export interface PlayerConfigExtended {
   id: number
   name: string
-  color: ManaColor
+  color: PlayerColor
   playerProfileId?: string
   deckId?: string
 }

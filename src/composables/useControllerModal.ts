@@ -12,7 +12,9 @@ export interface ControllerModalOptions {
 
 export async function presentModal(options: ControllerModalOptions) {
   const modal = await modalController.create({
-    component: options.component,
+    // Ionic's ComponentRef type is DOM-oriented; the Vue delegate accepts a Vue Component
+    // at runtime. Cast narrowly here rather than weakening the public option type.
+    component: options.component as unknown as Parameters<typeof modalController.create>[0]['component'],
     componentProps: {
       ...options.componentProps,
       // Pass a dismiss function so the content component can close itself
@@ -24,7 +26,8 @@ export async function presentModal(options: ControllerModalOptions) {
   })
 
   if (options.onDismiss) {
-    modal.onDidDismiss().then(options.onDismiss)
+    const dismissCallback = options.onDismiss
+    modal.onDidDismiss().then((detail) => dismissCallback({ data: detail.data, role: detail.role }))
   }
 
   await modal.present()

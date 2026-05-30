@@ -16,6 +16,8 @@ export const GAME_STATE_SAVE_DEBOUNCE_MS = 500
 export const MULTIPLAYER_PUSH_DEBOUNCE_MS = 300
 export const LONG_PRESS_DURATION_MS = 500
 export const FLOAT_ANIMATION_DELAY_MS = 50
+/** Pointer travel (px) before a press is treated as a drag rather than a tap. */
+export const DRAG_MOVEMENT_THRESHOLD_PX = 10
 
 // ─── Limits ─────────────────────────────────────────────────────────
 export const MAX_HISTORY_LENGTH = 300
@@ -39,8 +41,8 @@ function rangeOptions(from: number, to: number): { value: number; label: string 
 export const STARTING_LIFE_OPTIONS = rangeOptions(1, 50)
 
 // ─── Player colours (mana identity order) ──────────────────────────
-import type { ManaColor } from '@/types/game'
-export const PLAYER_COLORS: ManaColor[] = ['white', 'blue', 'black', 'red', 'green', 'gold']
+import type { PlayerColor } from '@/types/game'
+export const PLAYER_COLORS: PlayerColor[] = ['white', 'blue', 'black', 'red', 'green', 'gold']
 
 // ─── Scryfall ───────────────────────────────────────────────────────
 export const ALLOWED_BULK_DOWNLOAD_ORIGIN = 'https://data.scryfall.io/'

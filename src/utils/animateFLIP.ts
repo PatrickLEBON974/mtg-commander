@@ -77,7 +77,7 @@ export async function animateFLIP(
       element.style.transition = ''
       element.style.translate = ''
       for (const property of additionalResets) {
-        ;(element.style as Record<string, string>)[property] = ''
+        ;(element.style as unknown as Record<string, string>)[property] = ''
       }
     })
   }, durationMs + 50)

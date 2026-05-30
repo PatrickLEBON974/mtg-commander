@@ -1,4 +1,4 @@
-import type { ManaColor } from '@/types/game'
+import type { PlayerColor } from '@/types/game'
 
 export interface CommanderCardSnapshot {
   scryfallId: string
@@ -18,7 +18,7 @@ export interface Deck {
 export interface PlayerProfile {
   id: string
   name: string
-  preferredColor: ManaColor
+  preferredColor: PlayerColor
   decks: Deck[]
   createdAt: number
   updatedAt: number
