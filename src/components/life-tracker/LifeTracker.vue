@@ -595,7 +595,6 @@ import { tapFeedback, lifeFeedback, heavyFeedback } from '@/services/haptics'
 import { playLifeChange, playPoisonChange, playPlayerDeath, playMonarchCrown } from '@/services/sounds'
 import { LOW_LIFE_WARNING_THRESHOLD, LONG_PRESS_DURATION_MS, FLOAT_ANIMATION_DELAY_MS } from '@/config/gameConstants'
 import { useAnimatedNumber } from '@/composables/useAnimatedNumber'
-import { useCelebration } from '@/composables/useCelebration'
 import { useFloatingNumbers } from '@/composables/useFloatingNumbers'
 import { useLifeDragGesture } from '@/composables/useLifeDragGesture'
 import { useCommanderDragDrop } from '@/composables/useCommanderDragDrop'
@@ -656,7 +655,6 @@ const flashType = ref<'positive' | 'negative' | null>(null)
 const holdFlashType = ref<'positive' | 'negative' | null>(null)
 const hourglassAnimating = ref(false)
 
-const { monarchCrown, playerEliminated } = useCelebration()
 
 const { addFloat } = useFloatingNumbers({
   containerRef: () => panelRef.value,
@@ -998,7 +996,6 @@ watch(deathReason, (newValue, oldValue) => {
 
 watch(() => props.player.isMonarch, (newValue, oldValue) => {
   if (newValue && !oldValue) {
-    monarchCrown()
     playMonarchCrown()
   }
 })
@@ -1202,7 +1199,6 @@ function handleGameResultFromBack() {
 
 function confirmDeath() {
   deathConfirmationState.value = 'dead'
-  playerEliminated()
   gameStore.declareGameResult(props.player.id, 'eliminated')
   if (settingsStore.hapticFeedback) heavyFeedback()
 }

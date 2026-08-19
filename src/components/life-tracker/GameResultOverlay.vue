@@ -62,7 +62,6 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGameStore } from '@/stores/gameStore'
 import { useMultiplayerStore } from '@/stores/multiplayerStore'
-import { useCelebration } from '@/composables/useCelebration'
 import { playVictory, playPlayerDeath } from '@/services/sounds'
 import IconCrown from '@/components/icons/game/IconCrown.vue'
 import IconSkull from '@/components/icons/game/IconSkull.vue'
@@ -80,7 +79,6 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const gameStore = useGameStore()
 const multiplayerStore = useMultiplayerStore()
-const { victory } = useCelebration()
 const canDeclareGlobalResult = computed(() =>
   !multiplayerStore.isMultiplayer || multiplayerStore.isHost,
 )
@@ -89,7 +87,6 @@ function handleResult(result: 'winner' | 'eliminated' | 'surrender' | 'draw') {
   gameStore.declareGameResult(props.playerId, result)
 
   if (result === 'winner') {
-    victory()
     playVictory()
   } else if (result === 'eliminated' || result === 'surrender') {
     playPlayerDeath()

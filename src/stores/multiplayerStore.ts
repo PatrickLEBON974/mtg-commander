@@ -932,7 +932,7 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
         return
       }
       reconcileRemoteGameState(committedState)
-      if (errorState.value?.code === 'network-unavailable') errorState.value = null
+      if (errorState.value?.operation === 'sync-game-state') errorState.value = null
     } catch (error) {
       if (activeSessionGeneration !== sessionGeneration || roomCode.value !== activeRoomCode) {
         return

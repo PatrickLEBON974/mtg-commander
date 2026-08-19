@@ -83,7 +83,7 @@ export default defineConfig(({ mode }) => ({
         manualChunks: {
           'ionic': ['@ionic/vue', '@ionic/vue-router', '@ionic/core'],
           'firebase': ['firebase/app', 'firebase/database', 'firebase/auth'],
-          'animation': ['gsap', 'canvas-confetti'],
+          'animation': ['gsap'],
           'i18n': ['vue-i18n'],
         },
       },

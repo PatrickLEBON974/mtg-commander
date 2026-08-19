@@ -202,6 +202,35 @@ describe('multiplayerStore session safety', () => {
     expect(multiplayerStore.errorState?.code).toBe('permission-denied')
   })
 
+  it('clears a stale game-sync error after the next accepted update', async () => {
+    const multiplayerStore = useMultiplayerStore()
+    await multiplayerStore.hostRoom(['Host'], settingsFixture())
+    await multiplayerStore.startGame()
+    const gameStore = useGameStore()
+    const hostPlayer = gameStore.currentGame!.players[0]!
+
+    firebaseMocks.commitGameStatePatch.mockRejectedValueOnce(
+      new MultiplayerServiceError('permission-denied'),
+    )
+    gameStore.changeLife(hostPlayer.id, -5)
+    await multiplayerStore.pushFullGameState()
+    expect(multiplayerStore.errorState).toMatchObject({
+      code: 'permission-denied',
+      operation: 'sync-game-state',
+    })
+
+    const acceptedState = structuredClone(firebaseMocks.startRoomGame.mock.calls[0]![1])
+    acceptedState.revision += 1
+    acceptedState.updatedAt = Date.now()
+    acceptedState.players.p0!.lifeTotal = 39
+    firebaseMocks.commitGameStatePatch.mockResolvedValueOnce(acceptedState)
+    gameStore.changeLife(hostPlayer.id, -1)
+    await multiplayerStore.pushFullGameState()
+
+    expect(multiplayerStore.errorState).toBeNull()
+    expect(gameStore.currentGame?.players[0]?.lifeTotal).toBe(39)
+  })
+
   it('clears a remote game when the room listener is revoked', async () => {
     const multiplayerStore = useMultiplayerStore()
     await multiplayerStore.hostRoom(['Host'], settingsFixture())
