@@ -58,6 +58,9 @@ import { playDiceRoll, playVictory } from '@/services/sounds'
 
 const { t } = useI18n()
 const gameStore = useGameStore()
+const props = withDefaults(defineProps<{ isAuthority?: boolean }>(), {
+  isAuthority: true,
+})
 const { gridStyle, cardOuterClasses, cardOuterStyle, cardRotationStyle, getSlot, clockwiseSlotOrder } = usePlayerGridLayout()
 
 const displayValues = ref<Record<string, number>>({})
@@ -255,6 +258,7 @@ let isMounted = true
 onUnmounted(() => { isMounted = false })
 
 onMounted(async () => {
+  if (!props.isAuthority) return
   const players = gameStore.currentGame?.players
   if (!players) return
 

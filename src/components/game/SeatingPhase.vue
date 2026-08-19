@@ -109,7 +109,7 @@
     </div>
 
     <div class="flex items-center justify-center px-4 py-3">
-      <button class="validate-btn" data-sound="none" @click="handleValidate">
+      <button v-if="props.isAuthority" class="validate-btn" data-sound="none" @click="handleValidate">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="20 6 9 17 4 12" />
         </svg>
@@ -130,6 +130,9 @@ import { findTouchById } from '@/utils/trackedTouch'
 
 const { t } = useI18n()
 const gameStore = useGameStore()
+const props = withDefaults(defineProps<{ isAuthority?: boolean }>(), {
+  isAuthority: true,
+})
 const { gridStyle, cardOuterClasses, cardOuterStyle, cardRotationStyle, getSlot, clockwiseSlotOrder } = usePlayerGridLayout()
 
 const seatingGridRef = ref<HTMLElement | null>(null)
@@ -156,6 +159,7 @@ let dialDragActive = false
 let dialTrackedTouchId: number | null = null
 
 onMounted(() => {
+  if (!props.isAuthority) return
   if (!gameStore.currentGame?.customPositionMap) {
     const count = gameStore.currentGame?.players.length ?? 0
     const initialMap = Array.from({ length: count }, (_, i) => getSlot(i))
@@ -164,6 +168,7 @@ onMounted(() => {
 })
 
 function handleValidate() {
+  if (!props.isAuthority) return
   gameStore.setGamePhase('initiative')
 }
 

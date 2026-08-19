@@ -92,11 +92,9 @@ const hasHeader = computed(() => props.showHeader ?? !!props.title)
 
 <style scoped>
 .app-modal-content {
-  --padding-bottom: var(--ion-safe-area-bottom, 0px);
-}
-
-.app-modal-content::part(scroll) {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  --padding-start: var(--app-safe-left);
+  --padding-end: var(--app-safe-right);
+  --padding-bottom: var(--app-safe-bottom);
 }
 
 .app-modal-frame ion-header ion-button {
@@ -128,8 +126,12 @@ const hasHeader = computed(() => props.showHeader ?? !!props.title)
 /* ═══ Sheet mode ═══ */
 .app-modal-sheet {
   position: relative;
-  background: var(--modal-background);
+  box-sizing: border-box;
   min-height: 100%;
+  padding-right: var(--app-safe-right);
+  padding-bottom: var(--app-safe-bottom);
+  padding-left: var(--app-safe-left);
+  background: var(--modal-background);
 }
 </style>
 
@@ -149,10 +151,15 @@ const hasHeader = computed(() => props.showHeader ?? !!props.title)
   border: 1.5px solid rgba(212, 168, 67, 0.25);
 }
 
+.app-modal-frame ion-toolbar {
+  --padding-start: var(--app-safe-left);
+  --padding-end: var(--app-safe-right);
+}
+
 @media (min-width: 600px) {
   .app-modal-frame {
-    --width: min(92vw, 820px);
-    --height: min(92vh, 920px);
+    --width: min(calc(var(--app-safe-viewport-width) - 32px), 820px);
+    --height: min(calc(var(--app-safe-viewport-height) - 32px), 920px);
     --border-radius: 20px;
   }
 }

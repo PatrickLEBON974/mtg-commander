@@ -121,7 +121,10 @@ const frameComp = ref<InstanceType<typeof GameFrame>>()
 const { popupRotationStyle, onEnter, onLeave } = useSheetAnimation({
   rotation: () => props.contentRotation ?? 0,
   getFrameElement: () => frameComp.value?.el,
-  sidewaysConstraints: { maxWidth: 'calc(100vh - 100px)', maxHeight: 'calc(100vw - 32px)' },
+  sidewaysConstraints: {
+    maxWidth: 'calc(var(--app-safe-viewport-height) - 100px)',
+    maxHeight: 'calc(var(--app-safe-viewport-width) - 32px)',
+  },
   verticalOffset: -20,
   leaveEase: 'power2.in',
 })
@@ -372,18 +375,21 @@ watch(() => props.isOpen, (open) => {
   inset: 0;
   z-index: var(--z-overlay);
   display: flex;
+  box-sizing: border-box;
   align-items: flex-start;
   justify-content: center;
-  padding-top: calc(var(--ion-safe-area-top, 44px) + 56px);
-  padding-left: 16px;
-  padding-right: 16px;
+  padding-top: calc(var(--app-safe-top) + 56px);
+  padding-right: calc(var(--app-safe-right) + 16px);
+  padding-bottom: calc(var(--app-safe-bottom) + 16px);
+  padding-left: calc(var(--app-safe-left) + 16px);
   background: rgba(0, 0, 0, 0.5);
 }
 
 .dice-frame {
   min-width: 240px;
-  max-width: calc(100vw - 32px);
-  max-height: calc(100vh - var(--ion-safe-area-top, 44px) - 100px);
+  max-width: 100%;
+  max-height: 100%;
+  overflow-x: hidden;
   overflow-y: auto;
 }
 

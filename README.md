@@ -1,54 +1,69 @@
-# mtg-commander
+# MTG Commander
 
-This template should help get you started developing with Vue 3 in Vite.
+Companion mobile/web app for Magic: The Gathering Commander games. It provides a multiplayer life tracker, Commander damage, counters and shared statuses, turn and chess clocks, game history, statistics, card search, and secure Firebase Realtime Database rooms for remote play.
 
-## Recommended IDE Setup
+## Requirements
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+- Node.js `^20.19.0` or `>=22.12.0`
+- npm
+- Java 21 for the Firebase Realtime Database rules emulator (`.java-version` documents the project version)
 
-## Recommended Browser Setup
-
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
-
-## Type Support for `.vue` Imports in TS
-
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
+## Local setup
 
 ```sh
 npm install
-```
-
-### Compile and Hot-Reload for Development
-
-```sh
+cp .env.example .env.local
 npm run dev
 ```
 
-### Type-Check, Compile and Minify for Production
+Fill `.env.local` with the Firebase web-app configuration and the reCAPTCHA Enterprise site key before using multiplayer. Firebase Authentication must have the Anonymous provider enabled, and the project must have a Realtime Database instance.
+
+The Firebase client configuration identifies the Firebase project; access control is enforced by [`database.rules.json`](./database.rules.json). Never put service-account credentials or private server keys in a Vite environment file.
+
+## Firebase App Check
+
+Multiplayer fails closed when App Check cannot attest the client.
+
+- Web uses reCAPTCHA Enterprise through `VITE_FIREBASE_APPCHECK_SITE_KEY`.
+- Android uses Play Integrity through `@capacitor-firebase/app-check` and `android/app/google-services.json`.
+- Local web and Android debug builds require debug tokens registered in the Firebase App Check console. Never enable a debug provider in a production build.
+- Register every release-signing SHA-256 certificate, including the Play App Signing certificate, before distributing Android builds.
+
+For an Android emulator or local test APK, build the synchronized project with the explicit debug provider flag:
 
 ```sh
-npm run build
+npm run android:deploy -- --app-check-debug
 ```
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+The normal `npm run android:deploy` command explicitly disables that provider. Never distribute an APK produced with `--app-check-debug`.
+
+Enable App Check enforcement for Realtime Database and Authentication only after both registered clients produce valid requests. This avoids locking out a platform during rollout.
+
+## Firebase rules
+
+Run the complete rules suite locally:
 
 ```sh
-npm run test:unit
+npm run test:rules
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+Select the intended Firebase project with `firebase use --add`, review the target, then deploy only the database rules:
+
+```sh
+npx firebase deploy --only database
+```
+
+Rules are not deployed by `npm run build`. Deployment remains an explicit production operation so a local build cannot modify remote access control accidentally.
+
+## Quality commands
 
 ```sh
 npm run lint
+npm run type-check
+npm run test:unit -- --run
+npm run test:rules
+npm run build
+npm audit --omit=dev
 ```
+
+The multiplayer architecture and authorization model are recorded in [`docs/adr/0001-secure-multiplayer-sync.md`](./docs/adr/0001-secure-multiplayer-sync.md).

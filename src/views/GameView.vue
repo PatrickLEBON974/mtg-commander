@@ -23,29 +23,50 @@
         </section>
       </div>
 
-      <div v-else-if="gameStore.currentGame?.gamePhase === 'seating'" class="relative flex h-full flex-col">
-        <SeatingPhase />
+      <div v-else-if="gameStore.currentGame?.gamePhase === 'seating'" class="safe-area-top safe-area-bottom safe-area-x relative flex h-full flex-col">
+        <SeatingPhase :is-authority="!pregameReadOnly" :inert="pregameReadOnly" />
+        <div v-if="pregameReadOnly" class="pregame-waiting-banner">
+          {{ t('multiplayer.hostControlsSetup') }}
+        </div>
       </div>
 
-      <div v-else-if="gameStore.currentGame?.gamePhase === 'initiative'" class="relative flex h-full flex-col">
-        <InitiativePhase />
+      <div v-else-if="gameStore.currentGame?.gamePhase === 'initiative'" class="safe-area-top safe-area-bottom safe-area-x relative flex h-full flex-col">
+        <InitiativePhase :is-authority="!pregameReadOnly" :inert="pregameReadOnly" />
+        <div v-if="pregameReadOnly" class="pregame-waiting-banner">
+          {{ t('multiplayer.hostControlsSetup') }}
+        </div>
       </div>
 
       <!-- safe-area-* : additive padding so the topbar (top edge) and player
            grid (bottom edge) stay clear of notches / home indicator -->
-      <div v-else class="safe-area-top safe-area-bottom safe-area-x relative flex h-full flex-col">
+      <div v-else ref="gameSafeShellRef" class="safe-area-top safe-area-bottom safe-area-x relative flex h-full flex-col">
         <!-- Game content wrapper — desaturates when paused -->
         <div
           class="game-content-wrapper flex min-h-0 flex-1 flex-col"
-          :class="{ 'game-paused-desaturate': !isTimerRunning && settingsStore.gameSettings.enableTimer }"
-          :inert="!isTimerRunning && settingsStore.gameSettings.enableTimer"
+          :class="{ 'game-paused-desaturate': multiplayerStore.gameFinished || (!isTimerRunning && settingsStore.gameSettings.enableTimer) }"
+          :inert="multiplayerStore.gameFinished || (!isTimerRunning && settingsStore.gameSettings.enableTimer)"
         >
         <!-- Multiplayer indicator -->
-        <div v-if="multiplayerStore.isMultiplayer" class="flex items-center justify-center gap-2 bg-mana-blue/20 px-4 py-2">
-          <div class="h-2 w-2 rounded-full bg-life-positive animate-pulse" />
+        <div
+          v-if="multiplayerStore.isMultiplayer || multiplayerStore.connectionError"
+          class="flex items-center justify-center gap-2 px-4 py-2"
+          :class="multiplayerConnectionHealthy ? 'bg-mana-blue/20' : 'bg-amber-500/20'"
+        >
+          <div
+            class="h-2 w-2 rounded-full"
+            :class="multiplayerConnectionHealthy ? 'bg-life-positive animate-pulse' : 'bg-amber-400'"
+          />
           <span class="text-xs text-text-secondary">
-            {{ t('game.roomStatus', { code: multiplayerStore.roomCode, count: multiplayerStore.connectedPlayerCount }) }}
+            {{ multiplayerStatusLabel }}
           </span>
+          <button
+            v-if="multiplayerStore.errorState?.recoverable || multiplayerStore.connectionState === 'offline'"
+            class="multiplayer-retry-btn"
+            :aria-label="t('common.retry')"
+            @click="multiplayerStore.retryConnection()"
+          >
+            <ion-icon :icon="refreshOutline" />
+          </button>
         </div>
 
         <!-- Turn indicator + timer + action buttons -->
@@ -140,6 +161,8 @@
           :current-turn-player-id="gameStore.currentTurnPlayer?.id"
           :flashing-player-ids="flashingPlayerIds"
           :commander-drag-state="commanderDragState"
+          :editable-player-ids="editablePlayerIds"
+          :read-only-label="t('multiplayer.remotePlayerReadOnly')"
           @player-state-changed="onPlayerStateChanged"
           @turn-advanced="onTurnAdvanced"
           @commander-drag-drop="handleCommanderDragDrop"
@@ -147,9 +170,12 @@
         </div><!-- /game-content-wrapper -->
 
         <!-- Floating next turn button (draggable, snaps back to center) -->
-        <div class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+        <div
+          v-if="!multiplayerStore.gameFinished && (!settingsStore.gameSettings.enableTimer || isTimerRunning || canControlTimer)"
+          class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
+        >
           <!-- Translate wrapper — handles drag position with smooth snap-back -->
-          <div class="next-turn-group" :style="nextTurnTranslateStyle">
+          <div ref="nextTurnGroupRef" class="next-turn-group" :style="nextTurnTranslateStyle">
             <!-- Pause ripple waves (outside button so they don't get clipped) -->
             <div
               v-if="showPauseRipple"
@@ -162,7 +188,7 @@
             <!-- Undo button — slides in when paused -->
             <Transition name="pause-undo">
               <button
-                v-if="!isTimerRunning && settingsStore.gameSettings.enableTimer && canGoToPreviousTurn"
+                v-if="!isTimerRunning && settingsStore.gameSettings.enableTimer && canGoToPreviousTurn && canControlTimer"
                 class="pause-undo-btn pointer-events-auto"
                 :style="nextTurnRotateStyle"
                 :aria-label="t('game.previousTurn')"
@@ -226,7 +252,7 @@ import {
   alertController,
   toastController,
 } from '@ionic/vue'
-import { menuOutline, playOutline } from 'ionicons/icons'
+import { menuOutline, playOutline, refreshOutline } from 'ionicons/icons'
 import { useGameStore } from '@/stores/gameStore'
 import { useMultiplayerStore } from '@/stores/multiplayerStore'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -258,7 +284,9 @@ const multiplayerStore = useMultiplayerStore()
 const settingsStore = useSettingsStore()
 const registryStore = usePlayerRegistryStore()
 // Initialize behavior rules engine (watches game state, fires effects)
-const { flashingPlayerIds, flashTimerZone, announceMessages } = useBehaviorRuleEngine()
+const { flashingPlayerIds, flashTimerZone, announceMessages } = useBehaviorRuleEngine({
+  canMutateGameState: () => !multiplayerStore.isMultiplayer || multiplayerStore.isHost,
+})
 
 // Game clock (singleton — starts the RAF tick loop)
 const { isRunning: isTimerRunning, toggleTimer } = useGameClock()
@@ -275,12 +303,34 @@ const chessClockUsedMs = computed(() => {
 const formattedGameTime = computed(() =>
   formatMsToTimer(gameStore.currentGame?.elapsedMs ?? 0),
 )
+const multiplayerStatusLabel = computed(() => {
+  if (multiplayerStore.gameFinished) return t('multiplayer.gameFinished')
+  if (multiplayerStore.connectionError) return multiplayerStore.connectionError
+  if (!multiplayerStore.isConnected) {
+    return t(`multiplayer.connectionStates.${multiplayerStore.connectionState}`)
+  }
+  return t('game.roomStatus', {
+    code: multiplayerStore.roomCode,
+    count: multiplayerStore.connectedPlayerCount,
+  })
+})
+const multiplayerConnectionHealthy = computed(() =>
+  multiplayerStore.isConnected && !multiplayerStore.errorState,
+)
+const canControlTimer = computed(() => !multiplayerStore.isMultiplayer || multiplayerStore.isHost)
+const editablePlayerIds = computed(() => {
+  if (!multiplayerStore.isMultiplayer || multiplayerStore.isHost) return null
+  return multiplayerStore.localPlayerIds
+})
+const pregameReadOnly = computed(() => multiplayerStore.isMultiplayer && !multiplayerStore.isHost)
 
 // Auto-resume timer when entering game page with a paused game in playing phase
 if (
   gameStore.currentGame?.gamePhase === 'playing'
   && settingsStore.gameSettings.enableTimer
   && !isTimerRunning.value
+  && (!multiplayerStore.isMultiplayer || multiplayerStore.isHost)
+  && !multiplayerStore.gameFinished
 ) {
   toggleTimer()
 }
@@ -324,6 +374,8 @@ const turnOrderPlayers = computed(() => {
 
 /* ── Draggable next-turn button ── */
 const nextTurnBtnRef = ref<HTMLButtonElement | null>(null)
+const nextTurnGroupRef = ref<HTMLElement | null>(null)
+const gameSafeShellRef = ref<HTMLElement | null>(null)
 const nextTurnOffsetX = ref(0)
 const nextTurnOffsetY = ref(0)
 const isNextTurnDragging = ref(false)
@@ -332,12 +384,13 @@ let nextTurnDragStartY = 0
 let nextTurnGestureStartX = 0
 let nextTurnGestureStartY = 0
 const DRAG_THRESHOLD = 6
+const DRAG_SAFE_MARGIN_PX = 8
 const SNAP_BACK_INACTIVITY_MS = 5000
 const LONG_PRESS_DELAY_MS = 500
 let snapBackTimer: ReturnType<typeof setTimeout> | null = null
 
 const longPress = useLongPress(() => {
-  if (settingsStore.gameSettings.enableTimer) {
+  if (settingsStore.gameSettings.enableTimer && canControlTimer.value) {
     toggleTimer()
   }
 }, LONG_PRESS_DELAY_MS)
@@ -407,12 +460,31 @@ function onNextTurnPointerDown(event: PointerEvent) {
 
 function onNextTurnPointerMove(event: PointerEvent) {
   if (!isNextTurnDragging.value) return
-  const deltaX = event.clientX - nextTurnDragStartX
-  const deltaY = event.clientY - nextTurnDragStartY
+  const requestedDeltaX = event.clientX - nextTurnDragStartX
+  const requestedDeltaY = event.clientY - nextTurnDragStartY
   // Cancel long-press if finger moves beyond drag threshold
-  if (Math.abs(deltaX) > DRAG_THRESHOLD || Math.abs(deltaY) > DRAG_THRESHOLD) {
+  if (Math.abs(requestedDeltaX) > DRAG_THRESHOLD || Math.abs(requestedDeltaY) > DRAG_THRESHOLD) {
     longPress.cancel()
   }
+
+  let deltaX = requestedDeltaX
+  let deltaY = requestedDeltaY
+  const group = nextTurnGroupRef.value
+  const safeShell = gameSafeShellRef.value
+
+  if (group && safeShell) {
+    const groupRect = group.getBoundingClientRect()
+    const shellRect = safeShell.getBoundingClientRect()
+    const shellStyle = getComputedStyle(safeShell)
+    const safeLeft = shellRect.left + Number.parseFloat(shellStyle.paddingLeft || '0') + DRAG_SAFE_MARGIN_PX
+    const safeRight = shellRect.right - Number.parseFloat(shellStyle.paddingRight || '0') - DRAG_SAFE_MARGIN_PX
+    const safeTop = shellRect.top + Number.parseFloat(shellStyle.paddingTop || '0') + DRAG_SAFE_MARGIN_PX
+    const safeBottom = shellRect.bottom - Number.parseFloat(shellStyle.paddingBottom || '0') - DRAG_SAFE_MARGIN_PX
+
+    deltaX = Math.min(Math.max(deltaX, safeLeft - groupRect.left), safeRight - groupRect.right)
+    deltaY = Math.min(Math.max(deltaY, safeTop - groupRect.top), safeBottom - groupRect.bottom)
+  }
+
   nextTurnOffsetX.value += deltaX
   nextTurnOffsetY.value += deltaY
   nextTurnDragStartX = event.clientX
@@ -436,7 +508,7 @@ function onNextTurnPointerUp(event: PointerEvent) {
   if (gestureDistance < DRAG_THRESHOLD) {
     // In pause mode, tap resumes the timer instead of advancing the turn
     if (settingsStore.gameSettings.enableTimer && !isTimerRunning.value) {
-      toggleTimer()
+      if (canControlTimer.value) toggleTimer()
     } else {
       handleAdvanceTurn()
     }
@@ -563,6 +635,7 @@ const canGoToPreviousTurn = computed(() => {
 })
 
 function goToPreviousTurn() {
+  if (!canControlTimer.value) return
   const game = gameStore.currentGame
   if (!game) return
   const playerCount = game.players.length
@@ -628,6 +701,17 @@ function handleAdvanceTurn() {
 }
 
 async function confirmEndGame() {
+  if (multiplayerStore.isMultiplayer && !multiplayerStore.isHost) {
+    const toast = await toastController.create({
+      message: t('multiplayer.errors.hostOnly'),
+      duration: 2500,
+      position: 'bottom',
+      color: 'warning',
+    })
+    await toast.present()
+    return
+  }
+
   const alert = await alertController.create({
     header: t('game.endGameTitle'),
     message: t('game.endGameConfirm'),
@@ -640,6 +724,21 @@ async function confirmEndGame() {
         text: t('common.confirm'),
         role: 'confirm',
         handler: async () => {
+          if (multiplayerStore.isMultiplayer) {
+            try {
+              await multiplayerStore.finishGame()
+            } catch {
+              const errorToast = await toastController.create({
+                message: multiplayerStore.connectionError ?? t('multiplayer.connectionError'),
+                duration: 3000,
+                position: 'bottom',
+                color: 'danger',
+              })
+              await errorToast.present()
+              return
+            }
+          }
+
           // Collect anonymous players before ending (for save proposal)
           const anonymousPlayers = gameStore.currentGame?.players.filter(
             (player) => !gameStore.playerProfileMapping[player.id],
@@ -761,6 +860,24 @@ function onTurnAdvanced() {
   --padding-bottom: 28px;
 }
 
+.pregame-waiting-banner {
+  position: absolute;
+  z-index: 20;
+  bottom: calc(24px + var(--app-safe-bottom));
+  left: 50%;
+  width: min(calc(100% - 32px), 420px);
+  padding: 11px 16px;
+  border: 1px solid rgba(216, 171, 79, 0.3);
+  border-radius: 999px;
+  background: rgba(7, 12, 14, 0.9);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.32);
+  color: rgba(238, 223, 190, 0.9);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
 .game-idle-wrap {
   display: grid;
   min-height: 100%;
@@ -875,8 +992,8 @@ function onTurnAdvanced() {
 
 @media (min-width: 700px) {
   .game-idle-content {
-    --padding-start: 28px;
-    --padding-end: 28px;
+    --padding-start: max(28px, var(--app-safe-left));
+    --padding-end: max(28px, var(--app-safe-right));
     --padding-top: 28px;
   }
 
@@ -982,6 +1099,21 @@ function onTurnAdvanced() {
 .game-paused-desaturate {
   filter: grayscale(0.75) brightness(0.7);
   opacity: 0.6;
+}
+
+.multiplayer-retry-btn {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.22);
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.multiplayer-retry-btn:active {
+  transform: scale(0.92);
 }
 
 /* Wrapper that handles drag translate — smooth snap-back */

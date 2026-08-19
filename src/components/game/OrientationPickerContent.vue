@@ -103,7 +103,11 @@ function selectOff() {
 <style scoped>
 .orientation-picker-content {
   position: relative;
-  padding: 20px 16px;
+  box-sizing: border-box;
+  height: 55dvh;
+  padding: 20px max(16px, var(--app-safe-right)) calc(44px + var(--app-safe-bottom)) max(16px, var(--app-safe-left));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .orientation-title {

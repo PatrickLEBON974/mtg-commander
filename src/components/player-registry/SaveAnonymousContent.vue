@@ -1,5 +1,5 @@
 <template>
-  <div class="save-content ion-padding">
+  <div class="save-content">
     <!-- Header -->
     <div class="save-header">
       <h2 class="save-title">{{ t('players.saveAnonymous') }}</h2>
@@ -165,6 +165,13 @@ function handleSave() {
 <style scoped>
 .save-content {
   position: relative;
+  box-sizing: border-box;
+  height: 100%;
+  padding-top: calc(16px + var(--app-safe-top));
+  padding-right: calc(16px + var(--app-safe-right));
+  padding-bottom: calc(16px + var(--app-safe-bottom));
+  padding-left: calc(16px + var(--app-safe-left));
+  overflow-y: auto;
 }
 
 .save-header {

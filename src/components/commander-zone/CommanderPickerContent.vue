@@ -17,7 +17,7 @@
       </ion-toolbar>
     </ion-header>
 
-    <ion-content>
+    <ion-content class="commander-picker-scroll">
       <ion-list v-if="suggestions.length > 0">
         <ion-item
           v-for="name in suggestions"
@@ -90,5 +90,16 @@ function confirmSelection() {
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+.commander-picker-content ion-toolbar {
+  --padding-start: var(--app-safe-left);
+  --padding-end: var(--app-safe-right);
+}
+
+.commander-picker-scroll {
+  --padding-start: var(--app-safe-left);
+  --padding-end: var(--app-safe-right);
+  --padding-bottom: var(--app-safe-bottom);
 }
 </style>

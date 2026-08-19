@@ -180,8 +180,8 @@ withDefaults(defineProps<{
 
   .sanctum-header__inner {
     min-height: 78px;
-    padding-right: max(26px, calc((100vw - 900px) / 2));
-    padding-left: max(26px, calc((100vw - 900px) / 2));
+    padding-right: max(26px, var(--app-safe-right), calc((100vw - 900px) / 2));
+    padding-left: max(26px, var(--app-safe-left), calc((100vw - 900px) / 2));
     grid-template-columns: 48px minmax(0, 1fr) auto;
     gap: 14px;
   }

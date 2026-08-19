@@ -9,6 +9,7 @@ import type {
   GameActionType,
   GameSettings,
 } from '@/types/game'
+import type { RoomPlayer, SyncedGameState } from '@/types/multiplayer'
 import { COMMANDER_TAX_PER_CAST, GAME_STATE_SAVE_DEBOUNCE_MS, PLAYER_COLORS, MAX_HISTORY_LENGTH, LIFE_CHANGE_BATCH_MS } from '@/config/gameConstants'
 import { saveGameState, loadGameState } from '@/services/persistence'
 import { useStatsStore } from '@/stores/statsStore'
@@ -55,13 +56,13 @@ function loadProfileMapping(): Record<string, { playerProfileId: string; deckId?
 }
 
 // ─── Remote sync hardening (multiplayer) ────────────────────────────
-// Whitelisted fields mirror `SyncedPlayerState` in services/firebase.ts.
-// Identity fields (id, name, color) and local-only fields (cityBlessing,
-// ringLevel, radCounters, hourglassTokens, badgePositions) never transit
-// through player sync and must never be overwritten from the network.
+// Whitelisted fields mirror `SyncedPlayerState`. UI-only badge positions and
+// local action history never transit through the network.
 type RemotePlayerSyncPayload = Partial<
   Pick<
     PlayerState,
+    | 'name'
+    | 'color'
     | 'lifeTotal'
     | 'commanderDamageReceived'
     | 'poisonCounters'
@@ -69,6 +70,10 @@ type RemotePlayerSyncPayload = Partial<
     | 'energyCounters'
     | 'isMonarch'
     | 'hasInitiative'
+    | 'cityBlessing'
+    | 'ringLevel'
+    | 'radCounters'
+    | 'hourglassTokens'
     | 'commanders'
   >
 >
@@ -77,6 +82,7 @@ const REMOTE_SYNC_LIFE_TOTAL_MIN = -999
 const REMOTE_SYNC_LIFE_TOTAL_MAX = 9999
 const REMOTE_SYNC_COUNTER_MAX = 999
 const REMOTE_SYNC_MAX_COMMANDERS = 10
+const REMOTE_SYNC_MAX_COMMANDER_DAMAGE_ENTRIES = REMOTE_SYNC_MAX_COMMANDERS * PLAYER_COLORS.length
 const REMOTE_SYNC_MAX_CARD_NAME_LENGTH = 200
 // Same identifier shape as isValidPlayerId() in services/firebase.ts
 const REMOTE_SYNC_IDENTIFIER_PATTERN = /^[a-zA-Z0-9_-]{1,50}$/
@@ -98,7 +104,7 @@ function clampRemoteSyncNumber(
 /** Keeps only entries with a plausible commander id and a finite damage value clamped to [0, max]. */
 function sanitizeRemoteCommanderDamage(remoteDamage: Record<string, number>): Record<string, number> {
   const sanitizedDamage: Record<string, number> = {}
-  for (const [sourceCommanderId, damageValue] of Object.entries(remoteDamage)) {
+  for (const [sourceCommanderId, damageValue] of Object.entries(remoteDamage).slice(0, REMOTE_SYNC_MAX_COMMANDER_DAMAGE_ENTRIES)) {
     if (!REMOTE_SYNC_IDENTIFIER_PATTERN.test(sourceCommanderId)) continue
     if (typeof damageValue !== 'number' || !Number.isFinite(damageValue)) continue
     sanitizedDamage[sourceCommanderId] = Math.min(REMOTE_SYNC_COUNTER_MAX, Math.max(0, Math.round(damageValue)))
@@ -842,6 +848,18 @@ export const useGameStore = defineStore('game', () => {
     const player = findPlayerById(playerId)
     if (!player) return
 
+    mergeRemotePlayerState(player, remoteData)
+  }
+
+  function mergeRemotePlayerState(player: PlayerState, remoteData: RemotePlayerSyncPayload) {
+    if (typeof remoteData.name === 'string') {
+      const normalizedName = remoteData.name.trim().slice(0, 30)
+      if (normalizedName) player.name = normalizedName
+    }
+    if (remoteData.color !== undefined && PLAYER_COLORS.includes(remoteData.color)) {
+      player.color = remoteData.color
+    }
+
     if (remoteData.lifeTotal !== undefined) {
       player.lifeTotal = clampRemoteSyncNumber(
         remoteData.lifeTotal,
@@ -865,6 +883,18 @@ export const useGameStore = defineStore('game', () => {
     if (typeof remoteData.hasInitiative === 'boolean') {
       player.hasInitiative = remoteData.hasInitiative
     }
+    if (typeof remoteData.cityBlessing === 'boolean') {
+      player.cityBlessing = remoteData.cityBlessing
+    }
+    if (remoteData.ringLevel !== undefined) {
+      player.ringLevel = clampRemoteSyncNumber(remoteData.ringLevel, player.ringLevel, 0, 4)
+    }
+    if (remoteData.radCounters !== undefined) {
+      player.radCounters = clampRemoteSyncNumber(remoteData.radCounters, player.radCounters, 0, REMOTE_SYNC_COUNTER_MAX)
+    }
+    if (remoteData.hourglassTokens !== undefined) {
+      player.hourglassTokens = clampRemoteSyncNumber(remoteData.hourglassTokens, player.hourglassTokens, 0, REMOTE_SYNC_COUNTER_MAX)
+    }
     if (
       remoteData.commanderDamageReceived !== undefined
       && typeof remoteData.commanderDamageReceived === 'object'
@@ -877,11 +907,90 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
-  function applyRemoteGameSync(remoteState: { currentTurnPlayerIndex?: number; turnNumber?: number; isRunning?: boolean }) {
-    if (!currentGame.value) return
-    if (remoteState.currentTurnPlayerIndex !== undefined) currentGame.value.currentTurnPlayerIndex = remoteState.currentTurnPlayerIndex
-    if (remoteState.turnNumber !== undefined) currentGame.value.turnNumber = remoteState.turnNumber
-    if (remoteState.isRunning !== undefined) currentGame.value.isRunning = remoteState.isRunning
+  function applyRemoteGameSync(
+    remoteState: SyncedGameState,
+    roomPlayers: Record<string, RoomPlayer>,
+  ) {
+    const previousGame = currentGame.value
+    const previousPlayers = new Map(
+      previousGame?.players.map((player) => [player.id, player]) ?? [],
+    )
+
+    const players = remoteState.playerOrder.flatMap((playerId) => {
+      const syncedPlayer = remoteState.players[playerId]
+      const lobbyPlayer = roomPlayers[playerId]
+      if (!syncedPlayer || !lobbyPlayer) return []
+
+      const existingPlayer = previousPlayers.get(playerId)
+      const player: PlayerState = existingPlayer
+        ? { ...existingPlayer, badgePositions: existingPlayer.badgePositions }
+        : {
+            id: playerId,
+            name: lobbyPlayer.name,
+            color: lobbyPlayer.color,
+            lifeTotal: 40,
+            commanders: [],
+            commanderDamageReceived: {},
+            poisonCounters: 0,
+            experienceCounters: 0,
+            energyCounters: 0,
+            isMonarch: false,
+            hasInitiative: false,
+            cityBlessing: false,
+            ringLevel: 0,
+            radCounters: 0,
+            hourglassTokens: 0,
+          }
+      mergeRemotePlayerState(player, syncedPlayer)
+      return [player]
+    })
+
+    if (players.length === 0) return
+    const currentTurnPlayerIndex = Math.max(
+      0,
+      players.findIndex((player) => player.id === remoteState.currentTurnPlayerId),
+    )
+    const previousOrder = previousGame?.players.map((player) => player.id).join('|')
+    const nextOrder = players.map((player) => player.id).join('|')
+
+    if (!previousGame || previousGame.id !== remoteState.id) {
+      currentGame.value = {
+        id: remoteState.id,
+        players,
+        currentTurnPlayerIndex,
+        turnNumber: remoteState.turnNumber,
+        startedAt: remoteState.startedAt,
+        elapsedMs: remoteState.elapsedMs,
+        isRunning: remoteState.isRunning,
+        history: [],
+        playerPlayTimeMs: { ...remoteState.playerPlayTimeMs },
+        playerRoundTimeMs: { ...remoteState.playerRoundTimeMs },
+        priorityPlayerId: remoteState.priorityPlayerId,
+        activeFlashPlayerIds: [],
+        gamePhase: remoteState.gamePhase,
+        customPositionMap: null,
+        dayNightState: remoteState.dayNightState,
+        hourglassTimeBankRemainingMs: { ...remoteState.hourglassTimeBankRemainingMs },
+        chessClock: remoteState.chessClock ? { ...remoteState.chessClock } : null,
+      }
+      redoStack.value = []
+      return
+    }
+
+    previousGame.players = players
+    previousGame.currentTurnPlayerIndex = currentTurnPlayerIndex
+    previousGame.turnNumber = remoteState.turnNumber
+    previousGame.startedAt = remoteState.startedAt
+    previousGame.elapsedMs = remoteState.elapsedMs
+    previousGame.isRunning = remoteState.isRunning
+    previousGame.playerPlayTimeMs = { ...remoteState.playerPlayTimeMs }
+    previousGame.playerRoundTimeMs = { ...remoteState.playerRoundTimeMs }
+    previousGame.priorityPlayerId = remoteState.priorityPlayerId
+    previousGame.gamePhase = remoteState.gamePhase
+    previousGame.dayNightState = remoteState.dayNightState
+    previousGame.hourglassTimeBankRemainingMs = { ...remoteState.hourglassTimeBankRemainingMs }
+    previousGame.chessClock = remoteState.chessClock ? { ...remoteState.chessClock } : null
+    if (previousOrder !== nextOrder) previousGame.customPositionMap = null
   }
 
   function resetGame() {

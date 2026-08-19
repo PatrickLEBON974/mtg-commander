@@ -14,6 +14,7 @@
  */
 import { ref, computed, watch, type WatchStopHandle } from 'vue'
 import { useGameStore } from '@/stores/gameStore'
+import { useMultiplayerStore } from '@/stores/multiplayerStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { accrueGameClockDelta } from '@/utils/gameClock'
 
@@ -84,6 +85,13 @@ function tick() {
   if (!game || !game.isRunning) return
 
   const now = performance.now()
+  const multiplayerStore = useMultiplayerStore()
+  if (multiplayerStore.isMultiplayer && !multiplayerStore.isHost) {
+    // A single clock authority prevents every connected device from accruing
+    // and publishing the same elapsed time independently.
+    lastTickTimestamp = now
+    return
+  }
   const actualDeltaMs = now - lastTickTimestamp
   lastTickTimestamp = now
 
@@ -193,6 +201,8 @@ export function useGameClock() {
       () => gameStore.currentGame?.currentTurnPlayerIndex,
       (newIndex) => {
         const game = gameStore.currentGame
+        const multiplayerStore = useMultiplayerStore()
+        if (multiplayerStore.isMultiplayer && !multiplayerStore.isHost) return
         if (game && newIndex !== undefined) {
           if (!game.playerRoundTimeMs) game.playerRoundTimeMs = {}
           const newTurnPlayer = game.players[newIndex]

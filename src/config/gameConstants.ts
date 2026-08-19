@@ -13,7 +13,11 @@ export const PLAYER_NAME_MAX_LENGTH = 30
 // ─── Timing ─────────────────────────────────────────────────────────
 export const LIFE_CHANGE_BATCH_MS = 1000
 export const GAME_STATE_SAVE_DEBOUNCE_MS = 500
-export const MULTIPLAYER_PUSH_DEBOUNCE_MS = 300
+export const MULTIPLAYER_SCHEMA_VERSION = 3
+export const MULTIPLAYER_SYNC_INTERVAL_MS = 500
+export const MULTIPLAYER_SESSION_STORAGE_KEY = 'mtg_multiplayer_session_v3'
+export const LEGACY_MULTIPLAYER_SESSION_STORAGE_KEY = 'mtg_multiplayer_session_v2'
+export const ROOM_TTL_MS = 4 * 60 * 60 * 1000
 export const LONG_PRESS_DURATION_MS = 500
 export const FLOAT_ANIMATION_DELAY_MS = 50
 /** Pointer travel (px) before a press is treated as a drag rather than a tap. */
@@ -28,6 +32,9 @@ export const LOCAL_SEARCH_LIMIT = 50
 export const MAX_PLAYER_PROFILES = 20
 export const MAX_DECKS_PER_PLAYER = 20
 export const MAX_ROOM_CODE_ATTEMPTS = 5
+export const MAX_ROOM_JOIN_ATTEMPTS = 5
+export const MAX_ROOM_JOIN_REQUESTS = 12
+export const MULTIPLAYER_REMOTE_OPERATION_TIMEOUT_MS = 30_000
 
 // ─── Shared stepper options (HomeView + SettingsView) ───────────────
 export const PLAYER_COUNT_OPTIONS = [2, 3, 4, 5, 6].map((v) => ({ value: v, label: String(v) }))

@@ -34,7 +34,11 @@ function applyCounterChange(
 
 // ─── Composable ──────────────────────────────────────────────────────
 
-export function useBehaviorRuleEngine() {
+export interface BehaviorRuleEngineOptions {
+  canMutateGameState?: () => boolean
+}
+
+export function useBehaviorRuleEngine(options: BehaviorRuleEngineOptions = {}) {
   const gameStore = useGameStore()
   const settingsStore = useSettingsStore()
 
@@ -176,7 +180,7 @@ export function useBehaviorRuleEngine() {
         break
 
       case 'modify_life':
-        if (gameStore.currentGame?.isRunning) {
+        if (gameStore.currentGame?.isRunning && (options.canMutateGameState?.() ?? true)) {
           for (const playerId of affectedPlayerIds) {
             gameStore.changeLife(playerId, effect.amount)
           }
@@ -184,7 +188,7 @@ export function useBehaviorRuleEngine() {
         break
 
       case 'modify_counter':
-        if (gameStore.currentGame?.isRunning) {
+        if (gameStore.currentGame?.isRunning && (options.canMutateGameState?.() ?? true)) {
           for (const playerId of affectedPlayerIds) {
             applyCounterChange(gameStore, playerId, effect.counterType, effect.amount)
           }
@@ -279,7 +283,7 @@ export function useBehaviorRuleEngine() {
     }
 
     // Hourglass lethal: eliminate affected players
-    if (rule.id === 'hourglass-lethal') {
+    if (rule.id === 'hourglass-lethal' && (options.canMutateGameState?.() ?? true)) {
       for (const playerId of effectivePlayerIds) {
         gameStore.declareGameResult(playerId, 'eliminated')
       }

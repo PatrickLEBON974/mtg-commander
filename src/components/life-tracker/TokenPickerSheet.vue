@@ -184,7 +184,10 @@ const frameComp = ref<InstanceType<typeof GameFrame>>()
 const { popupRotationStyle, onEnter, onLeave } = useSheetAnimation({
   rotation: () => props.contentRotation ?? 0,
   getFrameElement: () => frameComp.value?.el,
-  sidewaysConstraints: { maxWidth: 'calc(100vh - 32px)', maxHeight: 'calc(100vw - 32px)' },
+  sidewaysConstraints: {
+    maxWidth: 'calc(var(--app-safe-viewport-height) - 32px)',
+    maxHeight: 'calc(var(--app-safe-viewport-width) - 32px)',
+  },
 })
 
 function handleClose() {
@@ -269,14 +272,19 @@ function handleToggleRing() {
   inset: 0;
   z-index: var(--z-overlay);
   display: flex;
+  box-sizing: border-box;
   align-items: center;
   justify-content: center;
+  padding: calc(16px + var(--app-safe-top)) calc(16px + var(--app-safe-right)) calc(16px + var(--app-safe-bottom)) calc(16px + var(--app-safe-left));
   background: rgba(0, 0, 0, 0.6);
 }
 
 .token-frame {
   min-width: 220px;
-  max-width: calc(100vw - 32px);
+  max-width: 100%;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* Compact grid — 3 columns */

@@ -84,6 +84,15 @@
   --ion-safe-area-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
   --ion-safe-area-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
 
+  /* Canonical app insets. Capacitor injects --safe-area-inset-* on Android
+     and env() supplies the same values on browsers/iOS. */
+  --app-safe-top: var(--ion-safe-area-top, 0px);
+  --app-safe-right: var(--ion-safe-area-right, 0px);
+  --app-safe-bottom: var(--ion-safe-area-bottom, 0px);
+  --app-safe-left: var(--ion-safe-area-left, 0px);
+  --app-safe-viewport-width: calc(100dvw - var(--app-safe-left) - var(--app-safe-right));
+  --app-safe-viewport-height: calc(100dvh - var(--app-safe-top) - var(--app-safe-bottom));
+
   --modal-background: #0e1518;
 
   /* Mobile-first foundations */
@@ -750,7 +759,9 @@ ion-segment-button {
    ============================================= */
 
 ion-content {
-  --keyboard-offset: 0;
+  /* Ionic adds this token to every bottom padding in a calc(). It must keep
+     a length unit or the entire bottom safe-area declaration becomes invalid. */
+  --keyboard-offset: 0px;
 }
 
 ion-content::part(scroll) {
@@ -938,16 +949,16 @@ ion-content.sanctum-content ion-card {
    ============================================= */
 
 .safe-area-top {
-  padding-top: var(--ion-safe-area-top, env(safe-area-inset-top, 0px));
+  padding-top: var(--app-safe-top);
 }
 
 .safe-area-bottom {
-  padding-bottom: var(--ion-safe-area-bottom, env(safe-area-inset-bottom, 0px));
+  padding-bottom: var(--app-safe-bottom);
 }
 
 .safe-area-x {
-  padding-left: var(--ion-safe-area-left, env(safe-area-inset-left, 0px));
-  padding-right: var(--ion-safe-area-right, env(safe-area-inset-right, 0px));
+  padding-left: var(--app-safe-left);
+  padding-right: var(--app-safe-right);
 }
 
 /* =============================================

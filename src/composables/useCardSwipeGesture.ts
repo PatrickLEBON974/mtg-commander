@@ -4,7 +4,6 @@ import { useLongPress } from '@/composables/useLongPress'
 import { findTouchById } from '@/utils/trackedTouch'
 
 // Thresholds for gesture detection
-const TAP_MAX_DISTANCE = 12
 const FLIP_SWIPE_THRESHOLD = 30
 const TAP_MAX_DURATION_MS = 300
 const LONG_PRESS_MIN_DURATION_MS = 400

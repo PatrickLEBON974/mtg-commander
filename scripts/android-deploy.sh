@@ -10,10 +10,12 @@ CLIENT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 # ── Parse flags ────────────────────────────────────────
 SYNC_MODULES=false
 SKIP_BUILD=false
+APP_CHECK_DEBUG=false
 for arg in "$@"; do
     case "$arg" in
         --sync-modules) SYNC_MODULES=true ;;
         --skip-build)   SKIP_BUILD=true ;;
+        --app-check-debug) APP_CHECK_DEBUG=true ;;
     esac
 done
 
@@ -22,6 +24,10 @@ step() { echo ""; echo "── $1 ───────────────�
 ok()   { echo "  ✅ $1"; }
 fail() { echo "  ❌ $1"; exit 1; }
 
+if [ "$SKIP_BUILD" = true ] && [ "$APP_CHECK_DEBUG" = true ]; then
+    fail "--app-check-debug ne peut pas etre combine avec --skip-build"
+fi
+
 # ── 1. Build client ─────────────────────────────────────
 if [ "$SKIP_BUILD" = true ]; then
     step "Build client (skipped)"
@@ -29,7 +35,12 @@ if [ "$SKIP_BUILD" = true ]; then
 else
     step "Build client"
     cd "$CLIENT_DIR"
-    npm run build-only || fail "Vite build failed"
+    if [ "$APP_CHECK_DEBUG" = true ]; then
+        echo "  ⚠️  App Check debug provider active — ne pas distribuer ce build"
+        VITE_FIREBASE_APPCHECK_NATIVE_DEBUG=true npm run build-only || fail "Vite build failed"
+    else
+        VITE_FIREBASE_APPCHECK_NATIVE_DEBUG=false npm run build-only || fail "Vite build failed"
+    fi
     ok "Build OK"
 fi
 

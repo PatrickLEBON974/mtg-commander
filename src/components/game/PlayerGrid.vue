@@ -8,12 +8,14 @@
     <div
       v-for="(player, index) in players"
       :key="player.id"
-      class="min-h-0 min-w-0 overflow-hidden"
+      class="relative min-h-0 min-w-0 overflow-hidden"
       :class="cardOuterClasses(index)"
       :style="cardOuterStyle(index)"
     >
       <LifeTracker
         class="h-full"
+        :inert="isPlayerReadOnly(player.id)"
+        :aria-disabled="isPlayerReadOnly(player.id)"
         :player="player"
         :is-current-turn="player.id === currentTurnPlayerId"
         :is-flashing="flashingPlayerIds.includes(player.id)"
@@ -22,6 +24,17 @@
         @turn-advanced="emit('turn-advanced')"
         @commander-drag-drop="(targetId: string) => emit('commander-drag-drop', player.id, targetId)"
       />
+      <div
+        v-if="isPlayerReadOnly(player.id)"
+        class="player-readonly-badge"
+        aria-hidden="true"
+      >
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+          <rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2" />
+          <path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+        {{ readOnlyLabel }}
+      </div>
     </div>
   </div>
 
@@ -35,10 +48,12 @@
     <div
       v-for="player in turnOrderPlayers"
       :key="player.id"
-      class="min-h-0 flex-1 overflow-hidden rounded-2xl"
+      class="relative min-h-0 flex-1 overflow-hidden rounded-2xl"
     >
       <LifeTracker
         class="h-full"
+        :inert="isPlayerReadOnly(player.id)"
+        :aria-disabled="isPlayerReadOnly(player.id)"
         :player="player"
         :is-current-turn="player.id === currentTurnPlayerId"
         :is-flashing="flashingPlayerIds.includes(player.id)"
@@ -47,6 +62,17 @@
         @turn-advanced="emit('turn-advanced')"
         @commander-drag-drop="(targetId: string) => emit('commander-drag-drop', player.id, targetId)"
       />
+      <div
+        v-if="isPlayerReadOnly(player.id)"
+        class="player-readonly-badge"
+        aria-hidden="true"
+      >
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+          <rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2" />
+          <path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+        {{ readOnlyLabel }}
+      </div>
     </div>
   </TransitionGroup>
 </template>
@@ -69,6 +95,8 @@ const props = defineProps<{
   currentTurnPlayerId: string | null | undefined
   flashingPlayerIds: string[]
   commanderDragState: CommanderDragState | null
+  editablePlayerIds?: string[] | null
+  readOnlyLabel?: string
 }>()
 
 const emit = defineEmits<{
@@ -85,4 +113,31 @@ function commanderDamageTargetIdFor(playerId: string): string | null {
   const dragState = props.commanderDragState
   return dragState?.attackerPlayerId === playerId ? dragState.targetPlayerId : null
 }
+
+function isPlayerReadOnly(playerId: string): boolean {
+  return Array.isArray(props.editablePlayerIds) && !props.editablePlayerIds.includes(playerId)
+}
 </script>
+
+<style scoped>
+.player-readonly-badge {
+  position: absolute;
+  z-index: 12;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  padding: 3px 7px;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(216, 171, 79, 0.28);
+  border-radius: 999px;
+  background: rgba(7, 12, 14, 0.82);
+  color: rgba(238, 223, 190, 0.82);
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  pointer-events: none;
+  text-transform: uppercase;
+}
+</style>

@@ -38,24 +38,24 @@
             <span class="session-panel__format">EDH</span>
           </div>
 
-          <h3>{{ gameStore.isGameActive ? t('home.resumeTitle') : t('home.newSessionTitle') }}</h3>
-          <p>{{ gameStore.isGameActive ? t('home.resumeHint') : t('home.newSessionHint') }}</p>
+          <h3>{{ multiplayerStore.isMultiplayer || gameStore.isGameActive ? t('home.resumeTitle') : t('home.newSessionTitle') }}</h3>
+          <p>{{ multiplayerStore.isMultiplayer ? t('home.multiplayerHint') : gameStore.isGameActive ? t('home.resumeHint') : t('home.newSessionHint') }}</p>
 
           <button
             type="button"
             class="sanctum-primary-button"
-            @click="gameStore.isGameActive ? resumeGame() : (showNewGameModal = true)"
+            @click="multiplayerStore.isMultiplayer || gameStore.isGameActive ? resumeGame() : (showNewGameModal = true)"
           >
             <span class="sanctum-primary-button__glint" aria-hidden="true" />
-            <ion-icon :icon="gameStore.isGameActive ? returnUpForwardOutline : playOutline" />
-            <span>{{ gameStore.isGameActive ? t('home.resumeGame') : t('home.newGame') }}</span>
+            <ion-icon :icon="multiplayerStore.isMultiplayer || gameStore.isGameActive ? returnUpForwardOutline : playOutline" />
+            <span>{{ multiplayerStore.isMultiplayer && !multiplayerStore.gameStarted ? t('home.multiplayer') : multiplayerStore.isMultiplayer || gameStore.isGameActive ? t('home.resumeGame') : t('home.newGame') }}</span>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
           </button>
 
           <button
-            v-if="gameStore.isGameActive"
+            v-if="gameStore.isGameActive && !multiplayerStore.isMultiplayer"
             type="button"
             class="session-panel__secondary"
             @click="showNewGameModal = true"
@@ -102,7 +102,7 @@
 
       <!-- New Game Modal -->
       <NewGameModal
-        :is-open="showNewGameModal"
+        :is-open="showNewGameModal && !multiplayerStore.isMultiplayer"
         @close="showNewGameModal = false"
         @confirm="confirmNewGame"
       />
@@ -191,6 +191,7 @@ import {
   addOutline,
 } from 'ionicons/icons'
 import { useGameStore } from '@/stores/gameStore'
+import { useMultiplayerStore } from '@/stores/multiplayerStore'
 import { usePageEnterAnimation } from '@/composables/usePageEnterAnimation'
 import { playGameStart } from '@/services/sounds'
 import AppModal from '@/components/ui/AppModal.vue'
@@ -205,6 +206,7 @@ import type { PlayerConfigExtended } from '@/components/player-registry/PlayerSe
 const { t } = useI18n()
 const router = useRouter()
 const gameStore = useGameStore()
+const multiplayerStore = useMultiplayerStore()
 const registryStore = usePlayerRegistryStore()
 
 const showNewGameModal = ref(false)
@@ -218,6 +220,10 @@ usePageEnterAnimation()
 
 function confirmNewGame(confirmedPlayerConfigs: PlayerConfigExtended[]) {
   showNewGameModal.value = false
+  if (multiplayerStore.isMultiplayer) {
+    resumeGame()
+    return
+  }
   gameStore.startNewGame()
   playGameStart()
   // Apply player names, colors, and commanders from modal config
@@ -248,7 +254,11 @@ function confirmNewGame(confirmedPlayerConfigs: PlayerConfigExtended[]) {
 }
 
 function resumeGame() {
-  router.push('/game')
+  router.push(
+    multiplayerStore.isMultiplayer && !multiplayerStore.gameStarted
+      ? '/multiplayer'
+      : '/game',
+  )
 }
 
 // --- Player registry modal ---
@@ -770,8 +780,8 @@ async function deleteProfile(profileId: string) {
 @media (min-width: 700px) {
   .home-shell {
     display: grid;
-    width: min(calc(100% - 48px), 860px);
-    padding: 28px 0 38px;
+    width: min(100%, 908px);
+    padding: 28px max(24px, var(--app-safe-right)) 38px max(24px, var(--app-safe-left));
     grid-template-areas:
       'hero hero'
       'session actions'

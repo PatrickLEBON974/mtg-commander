@@ -16,7 +16,7 @@
           :class="slideFromRight ? 'mr-2' : 'ml-2'"
         >
           <!-- Winner -->
-          <button class="result-option result-winner" @click="handleResult('winner')">
+          <button v-if="canDeclareGlobalResult" class="result-option result-winner" @click="handleResult('winner')">
             <IconCrown :size="16" color="#f0d078" />
             <span class="result-label text-arena-gold-light">{{ t('gameResult.winner') }}</span>
           </button>
@@ -37,7 +37,7 @@
           </button>
 
           <!-- Draw -->
-          <button class="result-option result-draw" @click="handleResult('draw')">
+          <button v-if="canDeclareGlobalResult" class="result-option result-draw" @click="handleResult('draw')">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="text-white/50">
               <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
@@ -58,8 +58,10 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGameStore } from '@/stores/gameStore'
+import { useMultiplayerStore } from '@/stores/multiplayerStore'
 import { useCelebration } from '@/composables/useCelebration'
 import { playVictory, playPlayerDeath } from '@/services/sounds'
 import IconCrown from '@/components/icons/game/IconCrown.vue'
@@ -77,7 +79,11 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const gameStore = useGameStore()
+const multiplayerStore = useMultiplayerStore()
 const { victory } = useCelebration()
+const canDeclareGlobalResult = computed(() =>
+  !multiplayerStore.isMultiplayer || multiplayerStore.isHost,
+)
 
 function handleResult(result: 'winner' | 'eliminated' | 'surrender' | 'draw') {
   gameStore.declareGameResult(props.playerId, result)

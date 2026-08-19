@@ -70,7 +70,14 @@ function action(name: string) {
 <style scoped>
 .game-menu-content {
   position: relative;
-  padding: 20px 16px calc(80px + 48px + var(--ion-safe-area-bottom, 0px));
+  box-sizing: border-box;
+  height: 55dvh;
+  padding-top: 20px;
+  padding-right: max(16px, var(--app-safe-right));
+  padding-bottom: calc(128px + var(--app-safe-bottom));
+  padding-left: max(16px, var(--app-safe-left));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .menu-title {

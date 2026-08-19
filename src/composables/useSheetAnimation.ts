@@ -10,7 +10,8 @@ interface UseSheetAnimationOptions {
   /**
    * Dimension constraints applied when the popup is rotated sideways.
    * maxWidth / maxHeight are swapped vs the normal orientation.
-   * Defaults: maxWidth = 'calc(100vh - 80px)', maxHeight = 'calc(100vw - 32px)'
+   * Defaults use the safe dynamic viewport so rotated sheets stay clear of
+   * notches, rounded corners, and system navigation bars.
    */
   sidewaysConstraints?: { maxWidth?: string; maxHeight?: string }
   /**
@@ -26,8 +27,8 @@ interface UseSheetAnimationOptions {
 }
 
 export function useSheetAnimation(options: UseSheetAnimationOptions) {
-  const defaultSidewaysMaxWidth = options.sidewaysConstraints?.maxWidth ?? 'calc(100vh - 80px)'
-  const defaultSidewaysMaxHeight = options.sidewaysConstraints?.maxHeight ?? 'calc(100vw - 32px)'
+  const defaultSidewaysMaxWidth = options.sidewaysConstraints?.maxWidth ?? 'calc(var(--app-safe-viewport-height) - 80px)'
+  const defaultSidewaysMaxHeight = options.sidewaysConstraints?.maxHeight ?? 'calc(var(--app-safe-viewport-width) - 32px)'
   const verticalOffset = options.verticalOffset ?? 0
   const leaveEase = options.leaveEase ?? 'power3.in'
 

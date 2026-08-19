@@ -6,7 +6,7 @@
       badge="404"
     />
 
-    <ion-content class="sanctum-content ion-padding">
+    <ion-content class="sanctum-content not-found-content">
       <div class="not-found-panel">
         <ion-icon
           :icon="alertCircleOutline"
@@ -45,6 +45,13 @@ const router = useRouter()
 </script>
 
 <style scoped>
+.not-found-content {
+  --padding-top: 16px;
+  --padding-right: max(16px, var(--app-safe-right));
+  --padding-bottom: calc(16px + var(--app-safe-bottom));
+  --padding-left: max(16px, var(--app-safe-left));
+}
+
 .not-found-panel {
   display: flex;
   width: min(100%, 430px);

@@ -104,14 +104,25 @@ function translateActionDescription(action: GameAction): string {
 <style scoped>
 .history-content {
   position: relative;
+  box-sizing: border-box;
+  height: 100%;
   min-height: 200px;
+  padding-top: var(--app-safe-top);
+  padding-right: var(--app-safe-right);
+  padding-bottom: var(--app-safe-bottom);
+  padding-left: var(--app-safe-left);
+  overflow-y: auto;
 }
 
 .history-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 16px;
+  background: linear-gradient(180deg, var(--modal-background) 78%, transparent);
 }
 
 .history-title {
@@ -126,8 +137,8 @@ function translateActionDescription(action: GameAction): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.5);
