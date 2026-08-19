@@ -65,7 +65,7 @@ export function useBehaviorRuleEngine() {
   // ─── Turn timer state (derived from gameStore) ───────────────────
 
   const turnTimerState = computed<TurnTimerState>(() => {
-    if (!settingsStore.gameSettings.enableTurnTimer) {
+    if (settingsStore.gameSettings.timerMode !== 'turn') {
       return { remainingSeconds: Infinity, isEnabled: false }
     }
 

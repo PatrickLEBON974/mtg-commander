@@ -4,6 +4,7 @@ import type {
   GameState,
   GamePhase,
   PlayerState,
+  Commander,
   GameAction,
   GameActionType,
   GameSettings,
@@ -13,6 +14,7 @@ import { saveGameState, loadGameState } from '@/services/persistence'
 import { useStatsStore } from '@/stores/statsStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { applyActionReverse as applyReverse, applyActionForward as applyForward } from '@/utils/gameActionHandlers'
+import { createChessClockState } from '@/utils/chessClock'
 
 function generateId(): string {
   return crypto.randomUUID()
@@ -52,6 +54,79 @@ function loadProfileMapping(): Record<string, { playerProfileId: string; deckId?
   }
 }
 
+// ─── Remote sync hardening (multiplayer) ────────────────────────────
+// Whitelisted fields mirror `SyncedPlayerState` in services/firebase.ts.
+// Identity fields (id, name, color) and local-only fields (cityBlessing,
+// ringLevel, radCounters, hourglassTokens, badgePositions) never transit
+// through player sync and must never be overwritten from the network.
+type RemotePlayerSyncPayload = Partial<
+  Pick<
+    PlayerState,
+    | 'lifeTotal'
+    | 'commanderDamageReceived'
+    | 'poisonCounters'
+    | 'experienceCounters'
+    | 'energyCounters'
+    | 'isMonarch'
+    | 'hasInitiative'
+    | 'commanders'
+  >
+>
+
+const REMOTE_SYNC_LIFE_TOTAL_MIN = -999
+const REMOTE_SYNC_LIFE_TOTAL_MAX = 9999
+const REMOTE_SYNC_COUNTER_MAX = 999
+const REMOTE_SYNC_MAX_COMMANDERS = 10
+const REMOTE_SYNC_MAX_CARD_NAME_LENGTH = 200
+// Same identifier shape as isValidPlayerId() in services/firebase.ts
+const REMOTE_SYNC_IDENTIFIER_PATTERN = /^[a-zA-Z0-9_-]{1,50}$/
+
+/**
+ * Returns the remote value rounded and clamped to [minimumValue, maximumValue],
+ * or fallbackValue when the remote value is not a finite number.
+ */
+function clampRemoteSyncNumber(
+  remoteValue: unknown,
+  fallbackValue: number,
+  minimumValue: number,
+  maximumValue: number,
+): number {
+  if (typeof remoteValue !== 'number' || !Number.isFinite(remoteValue)) return fallbackValue
+  return Math.min(maximumValue, Math.max(minimumValue, Math.round(remoteValue)))
+}
+
+/** Keeps only entries with a plausible commander id and a finite damage value clamped to [0, max]. */
+function sanitizeRemoteCommanderDamage(remoteDamage: Record<string, number>): Record<string, number> {
+  const sanitizedDamage: Record<string, number> = {}
+  for (const [sourceCommanderId, damageValue] of Object.entries(remoteDamage)) {
+    if (!REMOTE_SYNC_IDENTIFIER_PATTERN.test(sourceCommanderId)) continue
+    if (typeof damageValue !== 'number' || !Number.isFinite(damageValue)) continue
+    sanitizedDamage[sourceCommanderId] = Math.min(REMOTE_SYNC_COUNTER_MAX, Math.max(0, Math.round(damageValue)))
+  }
+  return sanitizedDamage
+}
+
+/** Rebuilds fresh commander objects from remote data, dropping malformed entries. */
+function sanitizeRemoteCommanders(remoteCommanders: Commander[]): Commander[] {
+  const sanitizedCommanders: Commander[] = []
+  for (const remoteCommander of remoteCommanders.slice(0, REMOTE_SYNC_MAX_COMMANDERS)) {
+    if (typeof remoteCommander?.cardName !== 'string' || remoteCommander.cardName.length === 0) continue
+    sanitizedCommanders.push({
+      id:
+        typeof remoteCommander.id === 'string' && REMOTE_SYNC_IDENTIFIER_PATTERN.test(remoteCommander.id)
+          ? remoteCommander.id
+          : generateId(),
+      cardName: remoteCommander.cardName.slice(0, REMOTE_SYNC_MAX_CARD_NAME_LENGTH),
+      imageUri:
+        typeof remoteCommander.imageUri === 'string' && remoteCommander.imageUri.startsWith('https://')
+          ? remoteCommander.imageUri
+          : undefined,
+      castCount: clampRemoteSyncNumber(remoteCommander.castCount, 0, 0, REMOTE_SYNC_COUNTER_MAX),
+    })
+  }
+  return sanitizedCommanders
+}
+
 export const useGameStore = defineStore('game', () => {
   const currentGame = ref<GameState | null>(null)
   const redoStack = ref<GameAction[]>([])
@@ -78,6 +153,9 @@ export const useGameStore = defineStore('game', () => {
     }
     if (savedGame.playerPlayTimeMs === undefined) {
       savedGame.playerPlayTimeMs = {}
+    }
+    if (savedGame.chessClock === undefined) {
+      savedGame.chessClock = null
     }
     // Backfill new player fields for legacy saves
     for (const player of savedGame.players) {
@@ -147,14 +225,14 @@ export const useGameStore = defineStore('game', () => {
     return currentTurnPlayer.value
   })
 
+  /**
+   * Single death rule: life depleted, lethal poison, or lethal commander damage.
+   * Delegates to the public threshold helpers so each rule lives in one place.
+   */
   function checkPlayerDead(player: PlayerState): boolean {
-    const gameSettings = useSettingsStore().gameSettings
     if (player.lifeTotal <= 0) return true
-    if (gameSettings.poisonThreshold > 0 && player.poisonCounters >= gameSettings.poisonThreshold) return true
-    for (const damage of Object.values(player.commanderDamageReceived)) {
-      if (damage >= gameSettings.commanderDamageThreshold) return true
-    }
-    return false
+    if (isPlayerDeadByPoison(player)) return true
+    return isPlayerDeadByCommanderDamage(player) !== null
   }
 
   const playerDeadStatusMap = computed<Record<string, boolean>>(() => {
@@ -168,11 +246,22 @@ export const useGameStore = defineStore('game', () => {
     return playerDeadStatusMap.value[player.id] ?? false
   }
 
-  function startNewGame() {
+  function startNewGame(playerCountOverride?: number) {
     const gameSettings = useSettingsStore().gameSettings
-    const players = Array.from({ length: gameSettings.playerCount }, (_, index) =>
+    const requestedPlayerCount = playerCountOverride ?? gameSettings.playerCount
+    const playerCount = Number.isFinite(requestedPlayerCount)
+      ? Math.max(1, Math.round(requestedPlayerCount))
+      : gameSettings.playerCount
+    const players = Array.from({ length: playerCount }, (_, index) =>
       createPlayer(index, gameSettings),
     )
+    const chessClock = gameSettings.enableTimer && gameSettings.timerMode === 'chess'
+      ? createChessClockState(
+          gameSettings.chessGameDurationMinutes,
+          players.length,
+          gameSettings.chessExpectedRounds,
+        )
+      : null
 
     currentGame.value = {
       id: generateId(),
@@ -191,6 +280,7 @@ export const useGameStore = defineStore('game', () => {
       customPositionMap: null,
       dayNightState: null,
       hourglassTimeBankRemainingMs: {},
+      chessClock,
     }
   }
 
@@ -741,11 +831,50 @@ export const useGameStore = defineStore('game', () => {
     if (details.color !== undefined) player.color = details.color
   }
 
-  function applyRemotePlayerSync(playerId: string, remoteData: Partial<PlayerState>) {
+  /**
+   * Merges a network payload into the authoritative local player state.
+   * Explicit whitelist merge (no Object.assign): only the fields of
+   * `SyncedPlayerState` are accepted, numerics are validated and clamped,
+   * and identity/local-only fields are never overwritten.
+   */
+  function applyRemotePlayerSync(playerId: string, remoteData: RemotePlayerSyncPayload) {
     if (!currentGame.value) return
     const player = findPlayerById(playerId)
     if (!player) return
-    Object.assign(player, remoteData)
+
+    if (remoteData.lifeTotal !== undefined) {
+      player.lifeTotal = clampRemoteSyncNumber(
+        remoteData.lifeTotal,
+        player.lifeTotal,
+        REMOTE_SYNC_LIFE_TOTAL_MIN,
+        REMOTE_SYNC_LIFE_TOTAL_MAX,
+      )
+    }
+    if (remoteData.poisonCounters !== undefined) {
+      player.poisonCounters = clampRemoteSyncNumber(remoteData.poisonCounters, player.poisonCounters, 0, REMOTE_SYNC_COUNTER_MAX)
+    }
+    if (remoteData.experienceCounters !== undefined) {
+      player.experienceCounters = clampRemoteSyncNumber(remoteData.experienceCounters, player.experienceCounters, 0, REMOTE_SYNC_COUNTER_MAX)
+    }
+    if (remoteData.energyCounters !== undefined) {
+      player.energyCounters = clampRemoteSyncNumber(remoteData.energyCounters, player.energyCounters, 0, REMOTE_SYNC_COUNTER_MAX)
+    }
+    if (typeof remoteData.isMonarch === 'boolean') {
+      player.isMonarch = remoteData.isMonarch
+    }
+    if (typeof remoteData.hasInitiative === 'boolean') {
+      player.hasInitiative = remoteData.hasInitiative
+    }
+    if (
+      remoteData.commanderDamageReceived !== undefined
+      && typeof remoteData.commanderDamageReceived === 'object'
+      && remoteData.commanderDamageReceived !== null
+    ) {
+      player.commanderDamageReceived = sanitizeRemoteCommanderDamage(remoteData.commanderDamageReceived)
+    }
+    if (Array.isArray(remoteData.commanders)) {
+      player.commanders = sanitizeRemoteCommanders(remoteData.commanders)
+    }
   }
 
   function applyRemoteGameSync(remoteState: { currentTurnPlayerIndex?: number; turnNumber?: number; isRunning?: boolean }) {

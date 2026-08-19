@@ -1,6 +1,7 @@
 import { ref, type Ref } from 'vue'
 import { isDragLocked } from '@/composables/useDragLock'
 import { useLongPress } from '@/composables/useLongPress'
+import { findTouchById } from '@/utils/trackedTouch'
 
 // Thresholds for gesture detection
 const TAP_MAX_DISTANCE = 12
@@ -52,10 +53,14 @@ export function useCardSwipeGesture(
   let activeSide: 'left' | 'right' = 'left'
   let gestureDecided = false
   let isFlipGesture = false
+  /** Identifier of the finger driving this gesture (multi-player safety) */
+  let trackedTouchId: number | null = null
   /** Which screen-space axis controls flip progress ('x' or 'y') */
   let progressAxis: 'x' | 'y' = 'y'
   /** Sign multiplier so progress is always positive in the swipe direction */
   let progressSign = -1
+  /** Screen-space card size along progressAxis, resolved once per gesture */
+  let progressDenominator = 200
 
   const flipDragProgress = ref(0)
   const flipDirection = ref<FlipAxis>('up')
@@ -68,9 +73,12 @@ export function useCardSwipeGesture(
   }, LONG_PRESS_MIN_DURATION_MS)
 
   function onTouchStart(event: TouchEvent, side: 'left' | 'right') {
-    const touch = event.touches[0]
+    // Ignore additional fingers while a gesture is in progress
+    if (trackedTouchId !== null) return
+    const touch = event.changedTouches[0]
     if (!touch) return
 
+    trackedTouchId = touch.identifier
     startX = touch.clientX
     startY = touch.clientY
     startTime = Date.now()
@@ -85,8 +93,8 @@ export function useCardSwipeGesture(
   }
 
   function onTouchMove(event: TouchEvent) {
-    if (!isGestureActive.value) return
-    const touch = event.touches[0]
+    if (!isGestureActive.value || trackedTouchId === null) return
+    const touch = findTouchById(event.touches, trackedTouchId)
     if (!touch) return
 
     const screenDeltaX = touch.clientX - startX
@@ -129,24 +137,33 @@ export function useCardSwipeGesture(
           progressSign = 1
         }
       }
+
+      // Resolve the card's SCREEN-space size along the swipe axis once.
+      // getBoundingClientRect accounts for the card's CSS rotation —
+      // clientWidth/clientHeight are the untransformed layout box, which is
+      // swapped for 90/270° rotated cards and made flips position-dependent
+      // (nearly impossible along one axis, hypersensitive along the other).
+      const container = (event.target as HTMLElement)?.closest('.card-flip-container')
+      const containerScreenRect = container?.getBoundingClientRect()
+      progressDenominator = (progressAxis === 'y'
+        ? containerScreenRect?.height
+        : containerScreenRect?.width) || 200
     }
 
     // Update flip drag progress (always 0→1)
     if (isFlipGesture) {
       event.preventDefault()
-      const container = (event.target as HTMLElement)?.closest('.card-flip-container')
-      const cardSize = progressAxis === 'y'
-        ? (container?.clientHeight ?? 200)
-        : (container?.clientWidth ?? 200)
       const rawDelta = progressAxis === 'y' ? screenDeltaY : screenDeltaX
-      const normalizedDelta = progressSign * rawDelta / cardSize
+      const normalizedDelta = progressSign * rawDelta / progressDenominator
 
       flipDragProgress.value = Math.max(0, Math.min(1, normalizedDelta))
     }
   }
 
-  function onTouchEnd(_event: TouchEvent) {
-    if (!isGestureActive.value) return
+  function onTouchEnd(event: TouchEvent) {
+    if (!isGestureActive.value || trackedTouchId === null) return
+    // Only conclude the gesture when OUR finger lifts, not another player's
+    if (!findTouchById(event.changedTouches, trackedTouchId)) return
     longPress.cancel()
 
     const elapsed = Date.now() - startTime
@@ -184,6 +201,7 @@ export function useCardSwipeGesture(
     isGestureActive.value = false
     gestureDecided = false
     isFlipGesture = false
+    trackedTouchId = null
     longPress.reset()
     isDragLocked.value = false
     flipDragProgress.value = 0

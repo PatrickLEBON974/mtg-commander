@@ -99,6 +99,10 @@ const hasHeader = computed(() => props.showHeader ?? !!props.title)
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+.app-modal-frame ion-header ion-button {
+  min-height: 44px;
+}
+
 /* ═══ Decorative overlay ═══ */
 .app-modal-decor {
   position: absolute;
@@ -132,7 +136,9 @@ const hasHeader = computed(() => props.showHeader ?? !!props.title)
 <!-- Unscoped: ion-modal Shadow DOM parts need global selectors -->
 <style>
 .app-modal-frame {
-  --border-radius: 16px;
+  --width: 100%;
+  --height: 100%;
+  --border-radius: 0;
   --box-shadow:
     0 12px 48px rgba(0, 0, 0, 0.65),
     0 4px 16px rgba(0, 0, 0, 0.5),
@@ -141,5 +147,13 @@ const hasHeader = computed(() => props.showHeader ?? !!props.title)
 
 .app-modal-frame::part(content) {
   border: 1.5px solid rgba(212, 168, 67, 0.25);
+}
+
+@media (min-width: 600px) {
+  .app-modal-frame {
+    --width: min(92vw, 820px);
+    --height: min(92vh, 920px);
+    --border-radius: 20px;
+  }
 }
 </style>

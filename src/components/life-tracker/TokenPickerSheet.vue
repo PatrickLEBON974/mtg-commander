@@ -14,8 +14,10 @@
           <div class="token-grid">
             <!-- Monarch -->
             <button
+              type="button"
               class="token-cell"
               :class="{ 'token-cell-on': player.isMonarch }"
+              :aria-pressed="player.isMonarch"
               style="--token-color: #f0d078"
               @click="handleToggleMonarch"
             >
@@ -25,8 +27,10 @@
 
             <!-- Initiative -->
             <button
+              type="button"
               class="token-cell"
               :class="{ 'token-cell-on': player.hasInitiative }"
+              :aria-pressed="player.hasInitiative"
               style="--token-color: rgba(255, 255, 255, 0.9)"
               @click="handleToggleInitiative"
             >
@@ -36,8 +40,10 @@
 
             <!-- City's Blessing -->
             <button
+              type="button"
               class="token-cell"
               :class="{ 'token-cell-on': player.cityBlessing }"
+              :aria-pressed="player.cityBlessing"
               style="--token-color: #34d399"
               @click="handleToggleCityBlessing"
             >
@@ -49,8 +55,10 @@
 
             <!-- Poison -->
             <button
+              type="button"
               class="token-cell"
               :class="{ 'token-cell-on': player.poisonCounters > 0 }"
+              :aria-pressed="player.poisonCounters > 0"
               style="--token-color: #a855f7"
               @click="handleTogglePoison"
             >
@@ -60,8 +68,10 @@
 
             <!-- Experience -->
             <button
+              type="button"
               class="token-cell"
               :class="{ 'token-cell-on': player.experienceCounters > 0 }"
+              :aria-pressed="player.experienceCounters > 0"
               style="--token-color: #4a90e2"
               @click="handleToggleExperience"
             >
@@ -71,8 +81,10 @@
 
             <!-- Energy -->
             <button
+              type="button"
               class="token-cell"
               :class="{ 'token-cell-on': player.energyCounters > 0 }"
+              :aria-pressed="player.energyCounters > 0"
               style="--token-color: #d4a843"
               @click="handleToggleEnergy"
             >
@@ -82,8 +94,10 @@
 
             <!-- Rad -->
             <button
+              type="button"
               class="token-cell"
               :class="{ 'token-cell-on': player.radCounters > 0 }"
+              :aria-pressed="player.radCounters > 0"
               style="--token-color: #4ade80"
               @click="handleToggleRad"
             >
@@ -96,8 +110,10 @@
 
             <!-- Ring -->
             <button
+              type="button"
               class="token-cell"
               :class="{ 'token-cell-on': player.ringLevel > 0 }"
+              :aria-pressed="player.ringLevel > 0"
               style="--token-color: #f59e0b"
               @click="handleToggleRing"
             >
@@ -110,8 +126,10 @@
 
             <!-- Day/Night -->
             <button
+              type="button"
               class="token-cell"
               :class="{ 'token-cell-on': dayNightState !== null }"
+              :aria-pressed="dayNightState !== null"
               :style="{ '--token-color': dayNightState === 'night' ? '#93c5fd' : '#facc15' }"
               @pointerdown.prevent="onDayNightPointerDown"
               @pointerup="onDayNightPointerUp"
@@ -274,7 +292,8 @@ function handleToggleRing() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  min-height: 44px;
+  gap: 4px;
   padding: 8px 4px 6px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.03);
@@ -301,11 +320,11 @@ function handleToggleRing() {
 }
 
 .token-cell-label {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(232, 237, 234, 0.68);
   text-align: center;
-  line-height: 1;
+  line-height: 1.15;
   transition: color 0.15s ease;
 }
 .token-cell-on .token-cell-label {

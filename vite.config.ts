@@ -18,10 +18,9 @@ export default defineConfig(({ mode }) => ({
         name: 'MTG Commander Companion',
         short_name: 'MTG Commander',
         description: 'Life tracker for Magic: The Gathering Commander / EDH games',
-        theme_color: '#1a1a2e',
-        background_color: '#0a0e17',
+        theme_color: '#070b0d',
+        background_color: '#070b0d',
         display: 'standalone',
-        orientation: 'portrait',
         scope: '/',
         start_url: '/',
         icons: [

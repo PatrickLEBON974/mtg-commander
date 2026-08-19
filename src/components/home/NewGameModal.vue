@@ -29,15 +29,31 @@
         <ion-toggle slot="end" v-model="settingsStore.gameSettings.enableTimer" />
       </ion-item>
 
-      <!-- Turn timer (nested under game timer) -->
+      <!-- Timer modes (nested under game timer) -->
       <template v-if="settingsStore.gameSettings.enableTimer">
-        <ion-item :lines="settingsStore.gameSettings.enableTurnTimer ? 'inset' : 'none'">
-          <ion-icon :icon="hourglassOutline" slot="start" color="medium" />
-          <ion-label>{{ t('home.turnTimer') }}</ion-label>
-          <ion-toggle slot="end" v-model="settingsStore.gameSettings.enableTurnTimer" />
-        </ion-item>
+        <div class="timer-mode-panel">
+          <div class="timer-mode-panel__title">
+            <span>{{ t('home.timerMode') }}</span>
+            <strong>{{ t(`home.timerMode${timerMode === 'elapsed' ? 'Elapsed' : timerMode === 'turn' ? 'Turn' : 'Chess'}`) }}</strong>
+          </div>
+          <ion-segment v-model="timerMode" class="timer-mode-segment" :aria-label="t('home.timerMode')">
+            <ion-segment-button value="elapsed">
+              <ion-icon :icon="stopwatchOutline" />
+              <ion-label>{{ t('home.timerModeElapsed') }}</ion-label>
+            </ion-segment-button>
+            <ion-segment-button value="turn">
+              <ion-icon :icon="timeOutline" />
+              <ion-label>{{ t('home.timerModeTurn') }}</ion-label>
+            </ion-segment-button>
+            <ion-segment-button value="chess">
+              <ion-icon :icon="hourglassOutline" />
+              <ion-label>{{ t('home.timerModeChess') }}</ion-label>
+            </ion-segment-button>
+          </ion-segment>
+          <p>{{ timerModeHint }}</p>
+        </div>
 
-        <ion-item v-if="settingsStore.gameSettings.enableTurnTimer" lines="none">
+        <ion-item v-if="timerMode === 'turn'" lines="none">
           <ion-icon :icon="timeOutline" slot="start" color="medium" />
           <ion-label>{{ t('home.turnDuration') }}</ion-label>
           <SettingStepper
@@ -48,63 +64,120 @@
           />
         </ion-item>
 
-        <!-- Hourglass tokens -->
-        <ion-item :lines="settingsStore.gameSettings.hourglassEnabled ? 'inset' : 'none'">
-          <ion-icon :icon="hourglassOutline" slot="start" color="warning" />
-          <ion-label>{{ t('rules.hourglassEnabled') }}</ion-label>
-          <ion-toggle slot="end" v-model="settingsStore.gameSettings.hourglassEnabled" />
-        </ion-item>
-
-        <template v-if="settingsStore.gameSettings.hourglassEnabled">
-          <ion-item lines="inset">
-            <ion-label>{{ t('rules.hourglassMode') }}</ion-label>
-            <ion-select v-model="settingsStore.gameSettings.hourglassMode" interface="action-sheet">
-              <ion-select-option value="fixed">{{ t('rules.hourglassModeFixed') }}</ion-select-option>
-              <ion-select-option value="time_bank">{{ t('rules.hourglassModeTimeBank') }}</ion-select-option>
-            </ion-select>
-          </ion-item>
-
-          <ion-item lines="inset">
-            <ion-label>{{ t('rules.hourglassGracePeriod') }}</ion-label>
+        <template v-if="timerMode === 'chess'">
+          <ion-item class="chess-clock-setting-item" lines="inset">
+            <ion-icon :icon="timerOutline" slot="start" color="warning" />
+            <ion-label>
+              <h3>{{ t('home.chessGameDuration') }}</h3>
+              <p>{{ t('home.chessGameDurationHint') }}</p>
+            </ion-label>
             <SettingStepper
               slot="end"
-              v-model="settingsStore.gameSettings.hourglassGracePeriodSeconds"
-              :options="HOURGLASS_GRACE_OPTIONS"
-              :label="t('rules.hourglassGracePeriod')"
+              v-model="settingsStore.gameSettings.chessGameDurationMinutes"
+              :options="chessDurationOptions"
+              :label="t('home.chessGameDuration')"
             />
           </ion-item>
 
-          <ion-item lines="inset">
-            <ion-label>{{ t('rules.hourglassLossThreshold') }}</ion-label>
+          <ion-item class="chess-clock-setting-item" lines="none">
+            <ion-icon :icon="repeatOutline" slot="start" color="tertiary" />
+            <ion-label>
+              <h3>{{ t('home.chessExpectedRounds') }}</h3>
+              <p>{{ t('home.chessExpectedRoundsHint') }}</p>
+            </ion-label>
             <SettingStepper
               slot="end"
-              v-model="settingsStore.gameSettings.hourglassLossThreshold"
-              :options="HOURGLASS_THRESHOLD_OPTIONS"
-              :label="t('rules.hourglassLossThreshold')"
+              v-model="settingsStore.gameSettings.chessExpectedRounds"
+              :options="chessRoundOptions"
+              :label="t('home.chessExpectedRounds')"
             />
           </ion-item>
 
-          <!-- Time bank cap (only shown in time_bank mode) -->
-          <template v-if="settingsStore.gameSettings.hourglassMode === 'time_bank'">
-            <ion-item :lines="settingsStore.gameSettings.hourglassTimeBankCapEnabled ? 'inset' : 'none'">
-              <ion-label>{{ t('rules.hourglassTimeBankCapEnabled') }}</ion-label>
-              <ion-toggle slot="end" v-model="settingsStore.gameSettings.hourglassTimeBankCapEnabled" />
+          <div class="chess-clock-preview" role="status" aria-live="polite">
+            <div class="chess-clock-preview__header">
+              <span class="chess-clock-preview__sigil" aria-hidden="true" />
+              <div>
+                <strong>{{ t('home.chessAllocationTitle') }}</strong>
+                <p>{{ t('home.chessAllocationFormula', { players: settingsStore.gameSettings.playerCount }) }}</p>
+              </div>
+            </div>
+            <div class="chess-clock-preview__metrics">
+              <div>
+                <span>{{ t('home.chessTotalGame') }}</span>
+                <strong>{{ formattedChessGameDuration }}</strong>
+              </div>
+              <div class="chess-clock-preview__primary">
+                <span>{{ t('home.chessPerPlayer') }}</span>
+                <strong>{{ formattedChessPlayerBudget }}</strong>
+              </div>
+              <div>
+                <span>{{ t('home.chessTheoreticalTurn') }}</span>
+                <strong>{{ formattedChessTheoreticalTurn }}</strong>
+              </div>
+            </div>
+            <p class="chess-clock-preview__note">{{ t('home.chessFlexibleOvertime') }}</p>
+          </div>
+        </template>
+
+        <!-- Hourglass tokens are an alternative pressure rule. -->
+        <template v-if="timerMode !== 'chess'">
+          <ion-item :lines="settingsStore.gameSettings.hourglassEnabled ? 'inset' : 'none'">
+            <ion-icon :icon="hourglassOutline" slot="start" color="warning" />
+            <ion-label>{{ t('rules.hourglassEnabled') }}</ion-label>
+            <ion-toggle slot="end" v-model="settingsStore.gameSettings.hourglassEnabled" />
+          </ion-item>
+
+          <template v-if="settingsStore.gameSettings.hourglassEnabled">
+            <ion-item lines="inset">
+              <ion-label>{{ t('rules.hourglassMode') }}</ion-label>
+              <ion-select v-model="settingsStore.gameSettings.hourglassMode" interface="action-sheet">
+                <ion-select-option value="fixed">{{ t('rules.hourglassModeFixed') }}</ion-select-option>
+                <ion-select-option value="time_bank">{{ t('rules.hourglassModeTimeBank') }}</ion-select-option>
+              </ion-select>
             </ion-item>
 
-            <ion-item v-if="settingsStore.gameSettings.hourglassTimeBankCapEnabled" lines="none">
-              <ion-label>{{ t('rules.hourglassTimeBankCap') }}</ion-label>
+            <ion-item lines="inset">
+              <ion-label>{{ t('rules.hourglassGracePeriod') }}</ion-label>
               <SettingStepper
                 slot="end"
-                v-model="settingsStore.gameSettings.hourglassTimeBankCapSeconds"
-                :options="HOURGLASS_CAP_OPTIONS"
-                :label="t('rules.hourglassTimeBankCap')"
+                v-model="settingsStore.gameSettings.hourglassGracePeriodSeconds"
+                :options="HOURGLASS_GRACE_OPTIONS"
+                :label="t('rules.hourglassGracePeriod')"
               />
             </ion-item>
+
+            <ion-item lines="inset">
+              <ion-label>{{ t('rules.hourglassLossThreshold') }}</ion-label>
+              <SettingStepper
+                slot="end"
+                v-model="settingsStore.gameSettings.hourglassLossThreshold"
+                :options="HOURGLASS_THRESHOLD_OPTIONS"
+                :label="t('rules.hourglassLossThreshold')"
+              />
+            </ion-item>
+
+            <!-- Time bank cap (only shown in time_bank mode) -->
+            <template v-if="settingsStore.gameSettings.hourglassMode === 'time_bank'">
+              <ion-item :lines="settingsStore.gameSettings.hourglassTimeBankCapEnabled ? 'inset' : 'none'">
+                <ion-label>{{ t('rules.hourglassTimeBankCapEnabled') }}</ion-label>
+                <ion-toggle slot="end" v-model="settingsStore.gameSettings.hourglassTimeBankCapEnabled" />
+              </ion-item>
+
+              <ion-item v-if="settingsStore.gameSettings.hourglassTimeBankCapEnabled" lines="none">
+                <ion-label>{{ t('rules.hourglassTimeBankCap') }}</ion-label>
+                <SettingStepper
+                  slot="end"
+                  v-model="settingsStore.gameSettings.hourglassTimeBankCapSeconds"
+                  :options="HOURGLASS_CAP_OPTIONS"
+                  :label="t('rules.hourglassTimeBankCap')"
+                />
+              </ion-item>
+            </template>
           </template>
         </template>
       </template>
 
-      <ion-item lines="inset">
+      <ion-item class="threshold-setting-item" lines="inset">
         <ion-icon :icon="shieldOutline" slot="start" color="warning" />
         <ion-label>{{ t('home.commanderDamage') }}</ion-label>
         <SettingStepper
@@ -115,7 +188,7 @@
         />
       </ion-item>
 
-      <ion-item lines="none">
+      <ion-item class="threshold-setting-item" lines="none">
         <ion-icon :icon="skullOutline" slot="start" color="primary" />
         <ion-label>{{ t('home.poisonThreshold') }}</ion-label>
         <SettingStepper
@@ -129,7 +202,13 @@
 
     <!-- Behavior Rules Section (collapsible, closed by default) -->
     <ion-list :inset="true">
-      <ion-item button lines="none" @click="isBehaviorRulesOpen = !isBehaviorRulesOpen">
+      <ion-item
+        button
+        lines="none"
+        :aria-expanded="isBehaviorRulesOpen"
+        aria-controls="behavior-rules-panel"
+        @click="isBehaviorRulesOpen = !isBehaviorRulesOpen"
+      >
         <ion-icon :icon="shieldCheckmarkOutline" slot="start" color="tertiary" />
         <ion-label>{{ t('rules.sectionTitle') }}</ion-label>
         <ion-icon
@@ -142,7 +221,7 @@
     </ion-list>
 
     <Transition name="collapse">
-      <ion-list v-if="isBehaviorRulesOpen" :inset="true" class="mt-0">
+      <ion-list id="behavior-rules-panel" v-if="isBehaviorRulesOpen" :inset="true" class="mt-0">
         <!-- Profile selector -->
         <ion-item lines="inset">
           <ion-icon :icon="shieldCheckmarkOutline" slot="start" color="tertiary" />
@@ -197,7 +276,13 @@
 
     <!-- Player list (collapsible, closed by default) -->
     <ion-list :inset="true">
-      <ion-item button lines="none" @click="isPlayersOpen = !isPlayersOpen">
+      <ion-item
+        button
+        lines="none"
+        :aria-expanded="isPlayersOpen"
+        aria-controls="game-players-panel"
+        @click="isPlayersOpen = !isPlayersOpen"
+      >
         <ion-icon :icon="peopleOutline" slot="start" color="tertiary" />
         <ion-label>{{ t('home.playerList') }}</ion-label>
         <ion-icon
@@ -210,7 +295,7 @@
     </ion-list>
 
     <Transition name="collapse">
-      <div v-if="isPlayersOpen">
+      <div id="game-players-panel" v-if="isPlayersOpen">
         <ion-reorder-group :disabled="false" @ionItemReorder="handleReorder($event)">
           <PlayerSelectItem
             v-for="(player, index) in playerConfigs"
@@ -254,6 +339,8 @@ import {
   IonIcon,
   IonSelect,
   IonSelectOption,
+  IonSegment,
+  IonSegmentButton,
   alertController,
 } from '@ionic/vue'
 import {
@@ -269,6 +356,8 @@ import {
   addOutline,
   saveOutline,
   chevronDownOutline,
+  repeatOutline,
+  stopwatchOutline,
 } from 'ionicons/icons'
 import { useSettingsStore } from '@/stores/settingsStore'
 import AppModal from '@/components/ui/AppModal.vue'
@@ -276,8 +365,10 @@ import SettingStepper from '@/components/ui/SettingStepper.vue'
 import PlayerSelectItem from '@/components/player-registry/PlayerSelectItem.vue'
 import BehaviorRuleEditor from '@/components/home/BehaviorRuleEditor.vue'
 import type { PlayerConfigExtended } from '@/components/player-registry/PlayerSelectItem.vue'
-import type { BehaviorRule } from '@/types/game'
+import type { BehaviorRule, TimerMode } from '@/types/game'
 import { PLAYER_COUNT_OPTIONS, STARTING_LIFE_OPTIONS, PLAYER_COLORS } from '@/config/gameConstants'
+import { createChessClockState } from '@/utils/chessClock'
+import { formatMsToTimer } from '@/utils/time'
 
 defineProps<{
   isOpen: boolean
@@ -290,6 +381,21 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const settingsStore = useSettingsStore()
+
+const timerMode = computed<TimerMode>({
+  get: () => settingsStore.gameSettings.timerMode,
+  set: (mode) => {
+    settingsStore.gameSettings.timerMode = mode
+  },
+})
+
+const timerModeHint = computed(() => t(
+  timerMode.value === 'elapsed'
+    ? 'home.timerModeElapsedHint'
+    : timerMode.value === 'turn'
+      ? 'home.timerModeTurnHint'
+      : 'home.timerModeChessHint',
+))
 
 const isBehaviorRulesOpen = ref(false)
 const isPlayersOpen = ref(false)
@@ -310,6 +416,38 @@ const turnTimerOptions = Array.from({ length: 59 }, (_, i) => {
   const remainingSeconds = seconds % 60
   return { value: seconds, label: `${minutes}:${String(remainingSeconds).padStart(2, '0')}` }
 })
+
+const chessDurationOptions = Array.from({ length: 48 }, (_, index) => {
+  const minutes = 15 + (index * 15)
+  const hours = Math.floor(minutes / 60)
+  const remainingMinutes = minutes % 60
+  const label = hours === 0
+    ? `${minutes} min`
+    : remainingMinutes === 0
+      ? `${hours} h`
+      : `${hours} h ${remainingMinutes}`
+  return { value: minutes, label }
+})
+
+const chessRoundOptions = Array.from({ length: 27 }, (_, index) => {
+  const rounds = index + 4
+  return { value: rounds, label: String(rounds) }
+})
+
+const chessClockPreview = computed(() => createChessClockState(
+  settingsStore.gameSettings.chessGameDurationMinutes,
+  settingsStore.gameSettings.playerCount,
+  settingsStore.gameSettings.chessExpectedRounds,
+))
+const formattedChessGameDuration = computed(() =>
+  formatMsToTimer(chessClockPreview.value.totalGameDurationMs),
+)
+const formattedChessPlayerBudget = computed(() =>
+  formatMsToTimer(chessClockPreview.value.playerBudgetMs),
+)
+const formattedChessTheoreticalTurn = computed(() =>
+  formatMsToTimer(chessClockPreview.value.theoreticalTurnMs),
+)
 
 const HOURGLASS_GRACE_OPTIONS = [
   { value: 120, label: '2 min' },
@@ -454,6 +592,219 @@ function handleConfirm() {
 </script>
 
 <style scoped>
+.timer-mode-panel {
+  margin: 4px 12px 10px;
+  padding: 12px;
+  border: 1px solid rgba(203, 170, 99, 0.18);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 78% 10%, rgba(217, 104, 32, 0.1), transparent 38%),
+    linear-gradient(145deg, rgba(22, 31, 34, 0.94), rgba(10, 15, 17, 0.96));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.timer-mode-panel__title {
+  display: flex;
+  margin: 0 2px 9px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.timer-mode-panel__title span {
+  color: rgba(211, 223, 219, 0.58);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.timer-mode-panel__title strong {
+  color: rgba(239, 217, 160, 0.9);
+  font-family: var(--font-beleren);
+  font-size: 13px;
+  letter-spacing: 0.03em;
+}
+
+.timer-mode-segment {
+  --background: rgba(0, 0, 0, 0.28);
+  min-height: 52px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 11px;
+}
+
+.timer-mode-segment ion-segment-button {
+  --background-checked: linear-gradient(180deg, rgba(217, 104, 32, 0.32), rgba(117, 61, 25, 0.26));
+  --border-radius: 8px;
+  --color: rgba(198, 211, 207, 0.58);
+  --color-checked: #f2ddb0;
+  --indicator-color: transparent;
+  min-width: 0;
+  min-height: 44px;
+  margin: 0;
+  border: 1px solid transparent;
+}
+
+.timer-mode-segment ion-segment-button.segment-button-checked {
+  border-color: rgba(229, 173, 79, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 3px 10px rgba(0, 0, 0, 0.22);
+}
+
+.timer-mode-segment ion-icon {
+  margin-bottom: 2px;
+  font-size: 16px;
+}
+
+.timer-mode-segment ion-label {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.timer-mode-panel > p {
+  min-height: 17px;
+  margin: 8px 3px 0;
+  color: rgba(202, 216, 211, 0.58);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.chess-clock-preview {
+  position: relative;
+  overflow: hidden;
+  margin: 2px 12px 12px;
+  padding: 13px;
+  border: 1px solid rgba(203, 170, 99, 0.24);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 50% -20%, rgba(203, 170, 99, 0.16), transparent 48%),
+    linear-gradient(135deg, rgba(18, 27, 29, 0.98), rgba(8, 13, 15, 0.98));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 20px rgba(0, 0, 0, 0.24);
+}
+
+.chess-clock-preview::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 18%;
+  left: 18%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(239, 217, 160, 0.68), transparent);
+}
+
+.chess-clock-preview__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chess-clock-preview__sigil {
+  position: relative;
+  width: 27px;
+  height: 27px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(239, 217, 160, 0.4);
+  transform: rotate(45deg);
+  box-shadow: inset 0 0 12px rgba(203, 170, 99, 0.1), 0 0 10px rgba(203, 170, 99, 0.12);
+}
+
+.chess-clock-preview__sigil::before,
+.chess-clock-preview__sigil::after {
+  content: '';
+  position: absolute;
+  background: rgba(239, 217, 160, 0.42);
+}
+
+.chess-clock-preview__sigil::before {
+  top: 5px;
+  bottom: 5px;
+  left: 50%;
+  width: 1px;
+}
+
+.chess-clock-preview__sigil::after {
+  top: 50%;
+  right: 5px;
+  left: 5px;
+  height: 1px;
+}
+
+.chess-clock-preview__header strong {
+  color: rgba(241, 226, 192, 0.92);
+  font-family: var(--font-beleren);
+  font-size: 14px;
+}
+
+.chess-clock-preview__header p {
+  margin: 2px 0 0;
+  color: rgba(198, 211, 207, 0.58);
+  font-size: 10px;
+}
+
+.chess-clock-preview__metrics {
+  display: grid;
+  margin-top: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.chess-clock-preview__metrics > div {
+  display: flex;
+  min-width: 0;
+  padding: 9px 6px;
+  align-items: center;
+  flex-direction: column;
+  gap: 3px;
+  text-align: center;
+}
+
+.chess-clock-preview__metrics > div + div {
+  border-left: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+.chess-clock-preview__metrics span {
+  overflow: hidden;
+  width: 100%;
+  color: rgba(198, 211, 207, 0.52);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.chess-clock-preview__metrics strong {
+  color: rgba(232, 235, 225, 0.82);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: clamp(12px, 4vw, 16px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+}
+
+.chess-clock-preview__metrics .chess-clock-preview__primary strong {
+  color: #efd9a0;
+  text-shadow: 0 0 10px rgba(239, 217, 160, 0.2);
+}
+
+.chess-clock-preview__note {
+  margin: 9px 2px 0;
+  color: rgba(224, 188, 117, 0.72);
+  font-size: 10px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.collapsible-chevron,
+ion-item[button] {
+  touch-action: manipulation;
+}
+
 .collapsible-chevron {
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   font-size: 16px;
@@ -483,5 +834,68 @@ function handleConfirm() {
 .collapse-leave-from {
   opacity: 1;
   max-height: 2000px;
+}
+
+@media (max-width: 359px) {
+  :deep(ion-list[inset='true']) {
+    margin-right: 8px;
+    margin-left: 8px;
+  }
+
+  :deep(ion-item) {
+    --padding-start: 10px;
+    --inner-padding-end: 8px;
+  }
+
+  :deep(ion-item ion-icon[slot='start']) {
+    margin-inline-end: 8px;
+  }
+
+  :deep(.threshold-setting-item ion-icon[slot='start']) {
+    display: none;
+  }
+
+  .timer-mode-panel,
+  .chess-clock-preview {
+    margin-right: 8px;
+    margin-left: 8px;
+  }
+
+  .timer-mode-panel {
+    padding: 9px;
+  }
+
+  .timer-mode-segment ion-label {
+    font-size: 9px;
+  }
+
+  .chess-clock-preview {
+    padding: 11px 9px;
+  }
+
+  :deep(.chess-clock-setting-item ion-label p) {
+    display: none;
+  }
+}
+
+@media (min-width: 700px) {
+  .timer-mode-panel,
+  .chess-clock-preview {
+    margin-right: 18px;
+    margin-left: 18px;
+  }
+
+  .timer-mode-panel,
+  .chess-clock-preview {
+    padding: 16px;
+  }
+
+  .timer-mode-panel > p {
+    font-size: 12px;
+  }
+
+  .chess-clock-preview__metrics strong {
+    font-size: 17px;
+  }
 }
 </style>

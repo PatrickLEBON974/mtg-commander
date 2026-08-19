@@ -126,6 +126,7 @@ import { useGameStore } from '@/stores/gameStore'
 import { usePlayerGridLayout } from '@/composables/usePlayerGridLayout'
 import { isDragLocked } from '@/composables/useDragLock'
 import { animateFLIP } from '@/utils/animateFLIP'
+import { findTouchById } from '@/utils/trackedTouch'
 
 const { t } = useI18n()
 const gameStore = useGameStore()
@@ -140,6 +141,7 @@ const dragTargetIndex = ref<number | null>(null)
 let cardDragActive = false
 let cardDragStartX = 0
 let cardDragStartY = 0
+let cardTrackedTouchId: number | null = null
 let dragIndicator: HTMLElement | null = null
 const DRAG_THRESHOLD = 15
 
@@ -151,6 +153,7 @@ let lastFingerAngle = 0
 let dragDeltaAccumulator = 0
 let stepsInCurrentDrag = 0
 let dialDragActive = false
+let dialTrackedTouchId: number | null = null
 
 onMounted(() => {
   if (!gameStore.currentGame?.customPositionMap) {
@@ -214,7 +217,10 @@ function vibrate() {
 }
 
 function onDialTouchStart(event: TouchEvent) {
-  const touch = event.touches[0]!
+  if (dialTrackedTouchId !== null) return
+  const touch = event.changedTouches[0]
+  if (!touch) return
+  dialTrackedTouchId = touch.identifier
   lastFingerAngle = getFingerAngleFromDialCenter(touch.clientX, touch.clientY)
   dragDeltaAccumulator = 0
   stepsInCurrentDrag = 0
@@ -224,8 +230,9 @@ function onDialTouchStart(event: TouchEvent) {
 }
 
 function onDialTouchMove(event: TouchEvent) {
-  if (!dialDragActive) return
-  const touch = event.touches[0]!
+  if (!dialDragActive || dialTrackedTouchId === null) return
+  const touch = findTouchById(event.touches, dialTrackedTouchId)
+  if (!touch) return
   const currentFingerAngle = getFingerAngleFromDialCenter(touch.clientX, touch.clientY)
 
   let delta = currentFingerAngle - lastFingerAngle
@@ -255,6 +262,7 @@ function onDialTouchMove(event: TouchEvent) {
 function onDialTouchEnd() {
   if (!dialDragActive) return
   dialDragActive = false
+  dialTrackedTouchId = null
   isDragLocked.value = false
 
   const stepDegrees = 360 / playerCount.value
@@ -270,7 +278,10 @@ function onDialTouchEnd() {
 // ─── Card drag-to-swap logic ─────────────────────────────────────────
 
 function onCardTouchStart(event: TouchEvent, playerIndex: number) {
-  const touch = event.touches[0]!
+  if (cardTrackedTouchId !== null) return
+  const touch = event.changedTouches[0]
+  if (!touch) return
+  cardTrackedTouchId = touch.identifier
   cardDragStartX = touch.clientX
   cardDragStartY = touch.clientY
   dragSourceIndex.value = playerIndex
@@ -278,8 +289,9 @@ function onCardTouchStart(event: TouchEvent, playerIndex: number) {
 }
 
 function onCardTouchMove(event: TouchEvent) {
-  if (dragSourceIndex.value === null) return
-  const touch = event.touches[0]!
+  if (dragSourceIndex.value === null || cardTrackedTouchId === null) return
+  const touch = findTouchById(event.touches, cardTrackedTouchId)
+  if (!touch) return
   const deltaX = touch.clientX - cardDragStartX
   const deltaY = touch.clientY - cardDragStartY
 
@@ -339,6 +351,7 @@ function onCardTouchCancel() {
 
 function cleanupCardDrag() {
   cardDragActive = false
+  cardTrackedTouchId = null
   dragSourceIndex.value = null
   dragTargetIndex.value = null
   isDragLocked.value = false

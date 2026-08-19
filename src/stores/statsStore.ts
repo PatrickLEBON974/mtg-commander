@@ -7,22 +7,22 @@ import { loadGameRecords, saveGameRecords } from '@/services/persistence'
 export const useStatsStore = defineStore('stats', () => {
   const gameRecords = ref<GameRecord[]>(loadGameRecords())
 
-  watch(
-    gameRecords,
-    (records) => {
-      saveGameRecords(records)
-    },
-    { deep: true },
-  )
+  // Records are append-only and never mutated in place: recordGame replaces
+  // gameRecords.value at the root, so a shallow watch on the ref is enough.
+  // No deep:true — avoids traversing/serializing every record on each tick.
+  watch(gameRecords, (records) => {
+    saveGameRecords(records)
+  })
 
   function recordGame(record: Omit<GameRecord, 'id'>) {
-    gameRecords.value.push({
-      ...record,
-      id: crypto.randomUUID(),
-    })
-    if (gameRecords.value.length > MAX_STORED_GAME_RECORDS) {
-      gameRecords.value = gameRecords.value.slice(-MAX_STORED_GAME_RECORDS)
-    }
+    const updatedRecords = [
+      ...gameRecords.value,
+      { ...record, id: crypto.randomUUID() },
+    ]
+    // Root-level replacement (not push) so the shallow persistence watch fires
+    gameRecords.value = updatedRecords.length > MAX_STORED_GAME_RECORDS
+      ? updatedRecords.slice(-MAX_STORED_GAME_RECORDS)
+      : updatedRecords
   }
 
   const totalGamesPlayed = computed(() => gameRecords.value.length)

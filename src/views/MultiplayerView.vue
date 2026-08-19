@@ -1,17 +1,16 @@
 <template>
-  <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>{{ t('multiplayer.title') }}</ion-title>
-        <ion-buttons slot="start">
-          <ion-back-button default-href="/home" />
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
+  <ion-page class="app-screen">
+    <SanctumHeader
+      :title="t('multiplayer.title')"
+      :eyebrow="t('multiplayer.headerEyebrow')"
+      badge="LAN"
+      back-href="/home"
+      :back-label="t('common.back')"
+    />
 
-    <ion-content class="ion-padding">
+    <ion-content class="sanctum-content multiplayer-sanctum-content ion-padding">
       <!-- Not in a room: show create/join -->
-      <div v-if="!multiplayerStore.isMultiplayer">
+      <div v-if="!multiplayerStore.isMultiplayer" class="multiplayer-layout multiplayer-layout--setup">
         <!-- Local player setup -->
         <ion-list :inset="true" data-animate>
           <ion-list-header>
@@ -118,7 +117,7 @@
       </div>
 
       <!-- In a room: show lobby -->
-      <div v-else>
+      <div v-else class="multiplayer-layout multiplayer-layout--lobby">
         <!-- Room code display -->
         <div class="flex flex-col items-center gap-2 py-6" data-animate>
           <ion-icon :icon="qrCodeOutline" size="large" color="medium" />
@@ -196,11 +195,6 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonBackButton,
   IonContent,
   IonList,
   IonListHeader,
@@ -234,6 +228,7 @@ import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { usePageEnterAnimation } from '@/composables/usePageEnterAnimation'
 import { ROOM_CODE_LENGTH, PLAYER_NAME_MAX_LENGTH } from '@/config/gameConstants'
+import SanctumHeader from '@/components/ui/SanctumHeader.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -288,7 +283,7 @@ function startMultiplayerGame() {
 
   // startNewGame creates default players; replace them with multiplayer-coordinated ones.
   // Direct mutation is acceptable — no store action exists for bulk player replacement.
-  gameStore.startNewGame()
+  gameStore.startNewGame(players.length)
   if (gameStore.currentGame) {
     gameStore.currentGame.players = players
   }
@@ -301,3 +296,53 @@ async function leave() {
   await multiplayerStore.disconnect()
 }
 </script>
+
+<style scoped>
+.multiplayer-sanctum-content {
+  --padding-start: max(16px, var(--ion-safe-area-left, 0px));
+  --padding-end: max(16px, var(--ion-safe-area-right, 0px));
+  --padding-top: 8px;
+  --padding-bottom: 28px;
+}
+
+.multiplayer-sanctum-content ion-list-header ion-label::before {
+  content: '◆';
+  margin-right: 8px;
+  color: rgba(216, 171, 79, 0.55);
+  font-size: 7px;
+  vertical-align: 1px;
+}
+
+.multiplayer-layout {
+  width: min(100%, 900px);
+  margin: 0 auto;
+}
+
+@media (min-width: 700px) {
+  .multiplayer-sanctum-content {
+    --padding-top: 20px;
+    --padding-start: max(24px, var(--ion-safe-area-left, 0px));
+    --padding-end: max(24px, var(--ion-safe-area-right, 0px));
+  }
+
+  .multiplayer-layout--setup {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+    gap: 16px;
+  }
+
+  .multiplayer-layout--setup > ion-list {
+    margin: 0;
+  }
+
+  .multiplayer-layout--setup > ion-list:first-of-type,
+  .multiplayer-layout--setup > ion-item {
+    grid-column: 1 / -1;
+  }
+
+  .multiplayer-layout--lobby {
+    max-width: 720px;
+  }
+}
+</style>

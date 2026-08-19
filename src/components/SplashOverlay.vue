@@ -2,8 +2,7 @@
   <Transition name="splash-fade">
     <div
       v-if="isVisible"
-      class="fixed inset-0 z-[9999] flex flex-col items-center justify-center"
-      style="background: radial-gradient(ellipse at 50% 40%, #111827 0%, #0a0e17 60%, #050810 100%)"
+      class="splash-overlay fixed inset-0 z-[9999] flex flex-col items-center justify-center"
     >
       <!-- Animated logo with Arena gold glow -->
       <div class="splash-logo" :class="{ 'animate-pulse-glow': !isReady }">
@@ -74,6 +73,53 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.splash-overlay {
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(4, 8, 10, 0.7), rgba(4, 8, 10, 0.92)),
+    url('@/assets/art/command-sanctum.webp') center / cover no-repeat;
+}
+
+.splash-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(213, 129, 34, 0.15), transparent 27%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.2), transparent 28% 72%, rgba(0, 0, 0, 0.2));
+  pointer-events: none;
+}
+
+.splash-overlay > * {
+  position: relative;
+}
+
+.splash-logo {
+  display: grid;
+  width: 168px;
+  height: 168px;
+  place-items: center;
+  border: 1px solid rgba(213, 177, 99, 0.16);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(212, 131, 36, 0.12), rgba(5, 9, 11, 0.48) 58%, transparent 60%);
+  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.42), 0 0 40px rgba(212, 126, 31, 0.06);
+}
+
+.splash-logo::before,
+.splash-logo::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border: 1px solid rgba(225, 188, 105, 0.48);
+  background: #0b1113;
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.splash-logo::before { left: -4px; }
+.splash-logo::after { right: -4px; }
+
 .splash-fade-leave-active {
   transition: opacity 400ms ease-out;
 }

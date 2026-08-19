@@ -13,13 +13,13 @@ const config: CapacitorConfig = {
       launchShowDuration: 0,
       androidScaleType: 'CENTER_CROP',
       showSpinner: false,
-      backgroundColor: '#1a1a2e',
+      backgroundColor: '#070b0d',
       splashFullScreen: true,
       splashImmersive: true,
     },
     StatusBar: {
       style: 'DARK',
-      backgroundColor: '#1a1a2e',
+      backgroundColor: '#070b0d',
     },
     SystemBars: {
       insetsHandling: 'css',

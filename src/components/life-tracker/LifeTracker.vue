@@ -6,6 +6,7 @@
       isFlashing ? 'behavior-rule-flash' : '',
     ]"
     :data-commander-player="player.id"
+    :data-card-face="isFlipped ? 'back' : 'front'"
     :style="[{ perspective: '1200px' }, rotationStyle]"
   >
     <!-- 3D flip inner -->
@@ -14,7 +15,18 @@
       :style="flipInlineStyle"
     >
       <!-- ═══════ CARD FRONT ═══════ -->
-      <div class="card-face card-front flex flex-col items-center justify-between border" :class="[playerBgClass, turnBorderClass, dangerPulseClass, activeTurnBreathingClass]" :style="isFlipped ? { pointerEvents: 'none' } : undefined">
+      <div
+        class="card-face card-front flex flex-col items-center justify-between border"
+        :class="[
+          playerBgClass,
+          turnBorderClass,
+          dangerPulseClass,
+          activeTurnBreathingClass,
+          { 'card-face--active': !isFlipped },
+        ]"
+        :aria-hidden="isFlipped"
+        :inert="isFlipped"
+      >
         <!-- Corner accents -->
         <CornerAccent position="top-left" />
         <CornerAccent position="top-right" />
@@ -85,7 +97,22 @@
               {{ player.commanders.map(c => c.cardName).join(' / ') }}
             </span>
           </div>
-          <div class="card-identity-spacer flex-shrink-0" aria-hidden="true" />
+          <div class="card-identity-spacer pointer-events-auto flex flex-shrink-0 justify-end">
+            <button
+              class="card-flip-trigger"
+              type="button"
+              :aria-label="t('cardBack.open', { name: player.name })"
+              data-sound="none"
+              @click.stop="flipToBack"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M7.2 7.4A7 7 0 0 1 19 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                <path d="m17 9 2 3 2-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M16.8 16.6A7 7 0 0 1 5 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                <path d="m7 15-2-3-2 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <!-- Zone: Hero — Life Total + surrounding badges
@@ -202,7 +229,7 @@
 
             <!-- Hourglass tokens -->
             <button
-              v-if="settingsStore.gameSettings.hourglassEnabled"
+              v-if="settingsStore.gameSettings.hourglassEnabled && !gameStore.currentGame?.chessClock"
               class="card-badge pointer-events-auto ring-1 btn-press"
               :class="[
                 player.hourglassTokens >= settingsStore.gameSettings.hourglassLossThreshold
@@ -275,16 +302,25 @@
           class="life-tracker-timer-zone pointer-events-none relative z-[3] flex items-center justify-center rounded-lg"
           :class="[
             hasTimerFlashEffect ? 'timer-aggressive-flash' : '',
+            isChessClockMode ? 'life-tracker-timer-zone--chess' : '',
+            isGlobalOvertime ? 'life-tracker-timer-zone--overtime' : '',
           ]"
+          :style="chessClockProgressStyle"
+          role="timer"
+          :aria-label="timerZoneAriaLabel"
         >
-          <!-- Total play time (always visible) -->
-          <div class="flex items-center gap-1">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" class="text-white/50">
+          <!-- Aggregate player time / remaining chess budget -->
+          <div class="relative flex items-center gap-1">
+            <span v-if="isChessClockMode && isClockOwner" class="chess-clock-live-dot" aria-hidden="true" />
+            <svg v-if="isChessClockMode" width="12" height="12" viewBox="0 0 24 24" fill="none" class="text-arena-gold-light/70">
+              <path d="M7 3h10M7 21h10M8 3c0 4 1.2 6.3 4 9-2.8 2.7-4 5-4 9M16 3c0 4-1.2 6.3-4 9 2.8 2.7 4 5 4 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" class="text-white/50">
               <circle cx="12" cy="13" r="9" stroke="currentColor" stroke-width="2.5" />
               <path d="M12 9v4l2.5 2.5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
               <path d="M9 2h6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
             </svg>
-            <span class="font-mono font-bold tabular-nums" :class="hasActiveTurn ? 'text-white/50' : 'text-white/30'">{{ formattedTotalPlayTime }}</span>
+            <span class="font-mono font-bold tabular-nums" :class="globalTimeDisplayClass">{{ formattedTotalPlayTime }}</span>
           </div>
 
           <div class="timer-divider h-3 w-px bg-white/10" />
@@ -302,6 +338,10 @@
               {{ formattedRoundTime }}
             </span>
           </div>
+
+          <span v-if="isChessClockMode" class="chess-budget-track" aria-hidden="true">
+            <span class="chess-budget-track__fill" />
+          </span>
         </div>
 
         <!-- Commander damage — pinned to outer corner (varies with card rotation) -->
@@ -480,10 +520,16 @@
       </div>
 
       <!-- ═══════ CARD BACK ═══════ -->
-      <div class="card-face card-back border border-white/[0.04]" :class="playerBgClass" :style="cardBackTransform">
+      <div
+        class="card-face card-back border border-white/[0.04]"
+        :class="[playerBgClass, { 'card-face--active': isFlipped }]"
+        :style="cardBackTransform"
+        :aria-hidden="!isFlipped"
+        :inert="!isFlipped"
+      >
         <!-- Swipe zones for flipping back (same pattern as front face) -->
         <div
-          class="life-tap-zone absolute inset-y-0 left-0 z-[2] w-1/2"
+          class="life-tap-zone absolute inset-y-0 left-0 z-[1] w-1/2"
           data-sound="none"
           @touchstart="(e: TouchEvent) => onSwipeTouchStart(e, 'left')"
           @touchmove="onSwipeTouchMove"
@@ -491,7 +537,7 @@
           @touchcancel.passive="onSwipeTouchCancel"
         />
         <div
-          class="life-tap-zone absolute inset-y-0 right-0 z-[2] w-1/2"
+          class="life-tap-zone absolute inset-y-0 right-0 z-[1] w-1/2"
           data-sound="none"
           @touchstart="(e: TouchEvent) => onSwipeTouchStart(e, 'right')"
           @touchmove="onSwipeTouchMove"
@@ -499,11 +545,10 @@
           @touchcancel.passive="onSwipeTouchCancel"
         />
 
-        <PlayerTokenPanel
-          class="pointer-events-none relative z-[1]"
+        <PlayerCardBack
+          class="relative z-[2]"
           :player="player"
-          :player-bg-class="playerBgClass"
-          @close="isFlipped = false"
+          @close="flipToFront"
           @add-commander="openCommanderPicker"
           @state-changed="emit('stateChanged')"
           @show-game-result="handleGameResultFromBack"
@@ -543,14 +588,12 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import gsap from 'gsap'
 import type { PlayerState } from '@/types/game'
 import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { tapFeedback, lifeFeedback, heavyFeedback } from '@/services/haptics'
 import { playLifeChange, playPoisonChange, playPlayerDeath, playMonarchCrown } from '@/services/sounds'
 import { LOW_LIFE_WARNING_THRESHOLD, LONG_PRESS_DURATION_MS, FLOAT_ANIMATION_DELAY_MS } from '@/config/gameConstants'
-import { prefersReducedMotion } from '@/utils/motion'
 import { useAnimatedNumber } from '@/composables/useAnimatedNumber'
 import { useCelebration } from '@/composables/useCelebration'
 import { useFloatingNumbers } from '@/composables/useFloatingNumbers'
@@ -561,11 +604,12 @@ import { usePlayerTimerDisplay } from '@/composables/usePlayerTimerDisplay'
 import { useTurnActions } from '@/composables/useTurnActions'
 import { useLongPress } from '@/composables/useLongPress'
 import { useCardSwipeGesture } from '@/composables/useCardSwipeGesture'
+import { useCardFlip3D } from '@/composables/useCardFlip3D'
 import { useCardRotationContext } from '@/composables/useCardRotationContext'
 import { useDamageShake } from '@/composables/useDamageShake'
 import { useLifeFeedback, type LifeChangeSource } from '@/composables/useLifeFeedback'
 import LifeNumpad from './LifeNumpad.vue'
-import PlayerTokenPanel from './PlayerTokenPanel.vue'
+import PlayerCardBack from './PlayerCardBack.vue'
 import GameResultOverlay from './GameResultOverlay.vue'
 import TokenPickerSheet from './TokenPickerSheet.vue'
 import CommanderDamageSheet from './CommanderDamageSheet.vue'
@@ -612,69 +656,6 @@ const flashType = ref<'positive' | 'negative' | null>(null)
 const holdFlashType = ref<'positive' | 'negative' | null>(null)
 const hourglassAnimating = ref(false)
 
-// --- Flip axis: rotate in the swipe direction, accounting for card CSS rotation ---
-
-/**
- * Lookup table for CSS 3D rotation axis and angle sign based on card rotation
- * and swipe direction. Replaces trig-based computation — the card only ever has
- * 4 discrete orientations (0/90/180/270°).
- *
- * Each entry maps a swipe direction to the correct CSS rotation axis/sign so the
- * card visually "follows the finger" regardless of card rotation.
- */
-const FLIP_AXIS_MAP: Record<string, Record<string, { axis: 'rotateX' | 'rotateY'; sign: number }>> = {
-  '0':   { up: { axis: 'rotateX', sign: 1 },  down: { axis: 'rotateX', sign: -1 }, left: { axis: 'rotateY', sign: -1 }, right: { axis: 'rotateY', sign: 1 } },
-  '90':  { up: { axis: 'rotateY', sign: -1 }, down: { axis: 'rotateY', sign: 1 },  left: { axis: 'rotateX', sign: -1 }, right: { axis: 'rotateX', sign: 1 } },
-  '180': { up: { axis: 'rotateX', sign: -1 }, down: { axis: 'rotateX', sign: 1 },  left: { axis: 'rotateY', sign: 1 },  right: { axis: 'rotateY', sign: -1 } },
-  '270': { up: { axis: 'rotateY', sign: 1 },  down: { axis: 'rotateY', sign: -1 }, left: { axis: 'rotateX', sign: 1 },  right: { axis: 'rotateX', sign: -1 } },
-}
-
-const flipAxisAndSign = computed(() => {
-  const rotation = String(cardRotation.value)
-  const direction = flipDirection.value ?? 'down'
-  return FLIP_AXIS_MAP[rotation]?.[direction] ?? { axis: 'rotateX' as const, sign: -1 }
-})
-
-/** Stored axis/sign — set on each flip, used for resting state */
-const storedFlipAxis = ref<'rotateX' | 'rotateY'>('rotateX')
-const storedFlipSign = ref(-1)
-
-const flipInlineStyle = computed(() => {
-  const { axis, sign } = flipAxisAndSign.value
-
-  // During active drag: use live swipe axis for interactive feedback
-  if (isGestureActive.value && flipDragProgress.value > 0) {
-    // Forward: sign as-is. Flip-back: invert sign so the card follows the finger.
-    const effectiveSign = isFlipped.value ? -sign : sign
-    const angle = isFlipped.value
-      ? (1 - flipDragProgress.value) * 180 * effectiveSign
-      : flipDragProgress.value * 180 * effectiveSign
-    return { transform: `${axis}(${angle}deg)`, transition: 'none' }
-  }
-
-  // Resting flipped state
-  if (isFlipped.value) {
-    return { transform: `${storedFlipAxis.value}(${180 * storedFlipSign.value}deg)` }
-  }
-
-  return {}
-})
-
-/** Card back pre-rotation — matches whichever axis is active */
-const cardBackTransform = computed(() => {
-  // During drag, use live axis so both inner+back switch together (no jump at 180°)
-  if (isGestureActive.value && flipDragProgress.value > 0) {
-    const { axis, sign } = flipAxisAndSign.value
-    const effectiveSign = isFlipped.value ? -sign : sign
-    return { transform: `${axis}(${180 * effectiveSign}deg)` }
-  }
-  if (isFlipped.value) {
-    return { transform: `${storedFlipAxis.value}(${180 * storedFlipSign.value}deg)` }
-  }
-  const { axis, sign } = flipAxisAndSign.value
-  return { transform: `${axis}(${180 * sign}deg)` }
-})
-
 const { monarchCrown, playerEliminated } = useCelebration()
 
 const { addFloat } = useFloatingNumbers({
@@ -716,23 +697,68 @@ const {
     onFlip() {
       if (!isFlipped.value) {
         // Forward flip: store the axis/sign for this swipe direction + card rotation
-        storedFlipAxis.value = flipAxisAndSign.value.axis
-        storedFlipSign.value = flipAxisAndSign.value.sign
+        commitFlipAxis()
       }
       isFlipped.value = !isFlipped.value
+      if (settingsStore.hapticFeedback) tapFeedback()
     },
   },
 )
+
+// --- 3D flip styling (axis/sign per card rotation × swipe direction) ---
+
+const { flipInlineStyle, cardBackTransform, commitFlipAxis } = useCardFlip3D({
+  cardRotation: () => cardRotation.value,
+  isFlipped,
+  isGestureActive,
+  flipDragProgress,
+  flipDirection,
+})
+
+/** Explicit control for users who prefer a button to the directional swipe. */
+function flipToBack() {
+  if (isFlipped.value) return
+  flipDirection.value = 'down'
+  commitFlipAxis()
+  isFlipped.value = true
+  if (settingsStore.hapticFeedback) tapFeedback()
+}
+
+function flipToFront() {
+  if (!isFlipped.value) return
+  isFlipped.value = false
+  if (settingsStore.hapticFeedback) tapFeedback()
+}
 
 // --- Composables ---
 
 const {
   formattedTotalPlayTime, formattedRoundTime, hasActiveTurn,
+  isChessClockMode, isClockOwner, isGlobalOvertime,
+  globalTimeDisplayClass, globalBudgetRemainingRatio,
   roundTimeDisplayClass, hasTimerFlashEffect,
 } = usePlayerTimerDisplay({
   playerId: () => props.player.id,
   isCurrentTurn: () => props.isCurrentTurn,
 })
+
+const chessClockProgressStyle = computed(() => isChessClockMode.value
+  ? { '--chess-clock-progress': `${globalBudgetRemainingRatio.value * 100}%` }
+  : undefined,
+)
+
+const timerZoneAriaLabel = computed(() => isChessClockMode.value
+  ? t('game.chessPlayerClockAria', {
+      name: props.player.name,
+      budget: formattedTotalPlayTime.value,
+      turn: formattedRoundTime.value,
+    })
+  : t('game.playerClockAria', {
+      name: props.player.name,
+      total: formattedTotalPlayTime.value,
+      turn: formattedRoundTime.value,
+    }),
+)
 
 const {
   isActivePlayer, isPriorityTaken,
@@ -877,7 +903,7 @@ const visibleBadgeKeys = computed(() => {
   if (props.player.cityBlessing) keys.push('cityBlessing')
   if (props.player.ringLevel > 0) keys.push('ring')
   if (props.player.radCounters > 0) keys.push('rad')
-  if (settingsStore.gameSettings.hourglassEnabled) keys.push('hourglass')
+  if (settingsStore.gameSettings.hourglassEnabled && !gameStore.currentGame?.chessClock) keys.push('hourglass')
   props.player.commanders.forEach((_, commanderIndex) => keys.push(`commander-${commanderIndex}`))
   return keys
 })
@@ -959,15 +985,8 @@ watch(deathReason, (newValue, oldValue) => {
     deathConfirmationState.value = 'pending'
     playPlayerDeath()
 
-    // Death screen shake
-    if (!prefersReducedMotion.value && panelRef.value) {
-      gsap.fromTo(panelRef.value,
-        { x: -4 },
-        { x: 4, duration: 0.05, repeat: 5, yoyo: true, ease: 'none',
-          onComplete: () => { if (panelRef.value) gsap.set(panelRef.value, { x: 0 }) },
-        },
-      )
-    }
+    // Death screen shake — heaviest tier (organic decay, reduced-motion aware)
+    triggerDamageShake(15)
   } else if (newValue && oldValue && newValue !== oldValue && deathConfirmationState.value === 'alive') {
     // A different death condition appeared after dismissal — re-prompt
     deathConfirmationState.value = 'pending'
@@ -1209,6 +1228,8 @@ function revertDeath() {
 .card-flip-inner {
   transform-style: preserve-3d;
   transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: center center;
+  will-change: transform;
   height: 100%;
   width: 100%;
 }
@@ -1219,6 +1240,12 @@ function revertDeath() {
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   border-radius: inherit;
+  pointer-events: none;
+  transform-style: preserve-3d;
+}
+
+.card-face--active {
+  pointer-events: auto;
 }
 
 .card-front {
@@ -1246,6 +1273,44 @@ function revertDeath() {
   z-index: 0;
 }
 
+.card-flip-trigger {
+  position: relative;
+  display: grid;
+  width: clamp(22px, 7cqmin, 30px);
+  height: clamp(22px, 7cqmin, 30px);
+  place-items: center;
+  border: 1px solid rgba(214, 176, 94, 0.2);
+  border-radius: 999px;
+  color: rgba(239, 210, 145, 0.72);
+  background: linear-gradient(145deg, rgba(214, 176, 94, 0.13), rgba(7, 10, 15, 0.38));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 2px 7px rgba(0, 0, 0, 0.24);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+.card-flip-trigger::after {
+  content: '';
+  position: absolute;
+  width: 44px;
+  height: 44px;
+}
+
+.card-flip-trigger svg {
+  width: 60%;
+  height: 60%;
+}
+
+.card-flip-trigger:active {
+  color: #ffe7ad;
+  border-color: rgba(240, 202, 119, 0.46);
+  transform: scale(0.9) rotate(14deg);
+}
+
+.card-flip-trigger:focus-visible {
+  outline: 2px solid rgba(110, 202, 194, 0.9);
+  outline-offset: 2px;
+}
+
 /* Player name — Beleren font */
 .life-tracker-player-name {
   font-family: var(--font-beleren);
@@ -1261,13 +1326,24 @@ function revertDeath() {
     0 0 4px rgba(0, 0, 0, 0.5);
 }
 
-/* Active turn — card breathing (subtle box-shadow pulse) */
-@keyframes card-breathe {
-  0%, 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 2px 8px rgba(0, 0, 0, 0.3); }
-  50% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 3px 14px rgba(0, 0, 0, 0.35), 0 0 8px rgba(232, 96, 10, 0.06); }
+/* Active turn — card breathing.
+   The breathe shadow is painted ONCE on an ::after overlay and only its
+   opacity animates (GPU-composited) — animating box-shadow directly would
+   repaint the card every frame for the whole game. */
+@keyframes overlay-breathe {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
 }
-.card-front-active-turn {
-  animation: card-breathe 3s ease-in-out infinite;
+.card-front-active-turn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 3px 14px rgba(0, 0, 0, 0.35), 0 0 8px rgba(232, 96, 10, 0.06);
+  opacity: 0;
+  animation: overlay-breathe 3s ease-in-out infinite;
+  will-change: opacity;
 }
 
 /* Active turn — rotating light along the border */
@@ -1344,21 +1420,109 @@ function revertDeath() {
 
 /* Timer zone — dark inset panel */
 .life-tracker-timer-zone {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-/* Aggressive flash — triggered by rules engine */
-@keyframes timer-aggressive-flash {
-  0%, 100% { border-color: rgba(239, 68, 68, 0.3); }
-  25% { border-color: rgba(239, 68, 68, 0.9); }
-  50% { border-color: rgba(239, 68, 68, 0.3); }
-  75% { border-color: rgba(239, 68, 68, 0.9); }
+.life-tracker-timer-zone > div {
+  min-width: 0;
+}
+
+.life-tracker-timer-zone span {
+  white-space: nowrap;
+}
+
+.life-tracker-timer-zone--chess {
+  border-color: rgba(203, 170, 99, 0.2);
+  background:
+    linear-gradient(90deg, rgba(203, 170, 99, 0.08), transparent 45%),
+    rgba(0, 0, 0, 0.32);
+}
+
+.life-tracker-timer-zone--overtime {
+  border-color: rgba(239, 68, 68, 0.42);
+  background:
+    linear-gradient(90deg, rgba(239, 68, 68, 0.14), transparent 55%),
+    rgba(0, 0, 0, 0.34);
+}
+
+.chess-budget-track {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  left: 4px;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.chess-budget-track__fill {
+  display: block;
+  width: var(--chess-clock-progress, 100%);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #b98532, #efd9a0);
+  box-shadow: 0 0 7px rgba(239, 217, 160, 0.55);
+  transition: width 0.35s linear;
+}
+
+.life-tracker-timer-zone--overtime .chess-budget-track__fill {
+  width: 100%;
+  background: #ef4444;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.7);
+}
+
+.chess-clock-live-dot {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #efd9a0;
+  box-shadow: 0 0 8px rgba(239, 217, 160, 0.9);
+  animation: chess-clock-live 1.4s ease-in-out infinite;
+}
+
+@keyframes chess-clock-live {
+  0%, 100% { opacity: 0.45; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chess-clock-live-dot {
+    animation: none;
+  }
+
+  .chess-budget-track__fill {
+    transition: none;
+  }
+}
+
+/* Aggressive flash — triggered by rules engine.
+   Bright border lives on an ::after overlay; only opacity animates
+   (border-color animation would repaint every frame). */
+@keyframes overlay-flash {
+  0%, 50%, 100% { opacity: 0; }
+  25%, 75% { opacity: 1; }
 }
 .timer-aggressive-flash {
-  animation: timer-aggressive-flash 0.6s ease-in-out infinite;
   border: 2px solid rgba(239, 68, 68, 0.3);
+  position: relative;
+}
+.timer-aggressive-flash::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  border: 2px solid rgba(239, 68, 68, 0.9);
+  pointer-events: none;
+  opacity: 0;
+  animation: overlay-flash 0.6s ease-in-out infinite;
+  will-change: opacity;
 }
 
 /* Full-card life tap zones */
@@ -1374,13 +1538,27 @@ function revertDeath() {
   background: rgba(255, 255, 255, 0.04);
 }
 
-/* Behavior rule — player card flash (red glow border) */
-@keyframes behavior-rule-flash {
-  0%, 100% { box-shadow: inset 0 0 0 2px rgba(239, 68, 68, 0.2), 0 0 12px rgba(239, 68, 68, 0.1); }
-  50% { box-shadow: inset 0 0 0 2px rgba(239, 68, 68, 0.7), 0 0 20px rgba(239, 68, 68, 0.3); }
+/* Behavior rule — player card flash (red glow border).
+   Painted once on an ::after overlay, only opacity animates (GPU-composited).
+   Base (faint) state stays on the container; the bright state fades in/out. */
+@keyframes overlay-breathe-full {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
 }
 .behavior-rule-flash {
-  animation: behavior-rule-flash 1.2s ease-in-out infinite;
+  box-shadow: inset 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+.behavior-rule-flash::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 5;
+  box-shadow: inset 0 0 0 2px rgba(239, 68, 68, 0.7), inset 0 0 20px rgba(239, 68, 68, 0.25);
+  opacity: 0;
+  animation: overlay-breathe-full 1.2s ease-in-out infinite;
+  will-change: opacity;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1534,6 +1712,25 @@ button.card-badge::after {
    HEIGHT BREAKPOINTS — discrete layout changes
    Timer is ALWAYS visible (user's primary element).
    ═══════════════════════════════════════════════════════════════ */
+
+/* NARROW: phone grids place two cards side by side. Keep both clocks
+   readable without letting their iconography consume the number width. */
+@container card (max-width: 240px) {
+  .life-tracker-timer-zone {
+    padding: 4px 6px;
+    gap: 6px;
+    font-size: clamp(0.72rem, 7cqmin, 0.95rem);
+  }
+
+  .life-tracker-timer-zone svg {
+    display: none;
+  }
+
+  .chess-clock-live-dot {
+    width: 4px;
+    height: 4px;
+  }
+}
 
 /* COMPACT: card under 200px — hide timer icons, keep numbers */
 @container card (max-height: 200px) {

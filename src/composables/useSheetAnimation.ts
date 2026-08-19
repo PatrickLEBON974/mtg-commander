@@ -1,5 +1,6 @@
-import { computed } from 'vue'
+import { computed, getCurrentInstance, onUnmounted } from 'vue'
 import gsap from 'gsap'
+import { prefersReducedMotion } from '@/utils/motion'
 
 interface UseSheetAnimationOptions {
   /** Reactive getter for the current rotation in degrees (0, 90, 180, 270). */
@@ -30,6 +31,22 @@ export function useSheetAnimation(options: UseSheetAnimationOptions) {
   const verticalOffset = options.verticalOffset ?? 0
   const leaveEase = options.leaveEase ?? 'power3.in'
 
+  // Tweens currently animating the overlay/popup; killed before any new
+  // enter/leave run and on unmount so they never write to detached nodes.
+  let activeTweens: gsap.core.Tween[] = []
+
+  function killActiveTweens() {
+    for (const activeTween of activeTweens) {
+      activeTween.kill()
+    }
+    activeTweens = []
+  }
+
+  // Only register lifecycle cleanup when called inside a component setup.
+  if (getCurrentInstance()) {
+    onUnmounted(killActiveTweens)
+  }
+
   const isSideways = computed(() => {
     const rotationValue = options.rotation()
     return rotationValue === 90 || rotationValue === 270
@@ -47,13 +64,29 @@ export function useSheetAnimation(options: UseSheetAnimationOptions) {
   })
 
   function onEnter(element: Element, done: () => void) {
-    const overlayElement = element as HTMLElement
-    overlayElement.style.pointerEvents = 'none'
+    killActiveTweens()
 
+    const overlayElement = element as HTMLElement
     const popupElement = options.getFrameElement()
     const rotationValue = options.rotation()
 
-    gsap.fromTo(overlayElement, { opacity: 0 }, { opacity: 1, duration: 0.2 })
+    if (prefersReducedMotion.value) {
+      // No motion: snap straight to the resting state (also clears any
+      // inline values left over from a previously killed tween).
+      overlayElement.style.pointerEvents = ''
+      gsap.set(overlayElement, { opacity: 1 })
+      if (popupElement) {
+        gsap.set(popupElement, { scale: 1, opacity: 1, rotation: rotationValue, y: 0 })
+      }
+      done()
+      return
+    }
+
+    overlayElement.style.pointerEvents = 'none'
+
+    activeTweens.push(
+      gsap.fromTo(overlayElement, { opacity: 0 }, { opacity: 1, duration: 0.2 }),
+    )
 
     if (popupElement) {
       const fromProps: gsap.TweenVars = { scale: 0.85, opacity: 0, rotation: rotationValue }
@@ -74,7 +107,7 @@ export function useSheetAnimation(options: UseSheetAnimationOptions) {
         toProps.y = 0
       }
 
-      gsap.fromTo(popupElement, fromProps, toProps)
+      activeTweens.push(gsap.fromTo(popupElement, fromProps, toProps))
     } else {
       overlayElement.style.pointerEvents = ''
       done()
@@ -82,8 +115,16 @@ export function useSheetAnimation(options: UseSheetAnimationOptions) {
   }
 
   function onLeave(element: Element, done: () => void) {
+    killActiveTweens()
+
     const popupElement = options.getFrameElement()
     const rotationValue = options.rotation()
+
+    if (prefersReducedMotion.value) {
+      // No motion: remove the sheet immediately.
+      done()
+      return
+    }
 
     if (popupElement) {
       const leaveProps: gsap.TweenVars = {
@@ -98,10 +139,10 @@ export function useSheetAnimation(options: UseSheetAnimationOptions) {
         leaveProps.y = verticalOffset / 2
       }
 
-      gsap.to(popupElement, leaveProps)
+      activeTweens.push(gsap.to(popupElement, leaveProps))
     }
 
-    gsap.to(element, { opacity: 0, duration: 0.2, onComplete: done })
+    activeTweens.push(gsap.to(element, { opacity: 0, duration: 0.2, onComplete: done }))
   }
 
   return { popupRotationStyle, isSideways, onEnter, onLeave }

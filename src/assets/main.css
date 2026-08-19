@@ -42,21 +42,21 @@
   --color-mana-gold: #d4a843;
 
   /* Arena surfaces — very dark blue-black like the game */
-  --color-surface: #0a0e17;
-  --color-surface-light: #111827;
-  --color-surface-card: #1a1f35;
-  --color-surface-elevated: #222842;
+  --color-surface: #070b0d;
+  --color-surface-light: #0e1518;
+  --color-surface-card: #141c1f;
+  --color-surface-elevated: #1b2529;
 
   /* Arena accents */
-  --color-arena-orange: #e8600a;
-  --color-arena-gold: #d4a843;
-  --color-arena-gold-light: #f0d078;
-  --color-arena-blue: #4a90e2;
-  --color-accent: #e8600a;
+  --color-arena-orange: #d96820;
+  --color-arena-gold: #cbaa63;
+  --color-arena-gold-light: #efd9a0;
+  --color-arena-blue: #4f9b98;
+  --color-accent: #df7428;
 
   /* Text */
-  --color-text-primary: #e8e8e8;
-  --color-text-secondary: #8a92a8;
+  --color-text-primary: #ede9df;
+  --color-text-secondary: #aeb8b5;
 
   /* Game state */
   --color-life-positive: #22c55e;
@@ -84,7 +84,14 @@
   --ion-safe-area-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
   --ion-safe-area-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
 
-  --modal-background: #111827;
+  --modal-background: #0e1518;
+
+  /* Mobile-first foundations */
+  --mobile-hit-target: 48px;
+  --mobile-hit-target-min: 44px;
+  --mobile-page-gutter: clamp(16px, 4vw, 24px);
+  --mobile-content-max: 960px;
+  --focus-ring-color: #f3c86f;
 
   /* Z-index scale */
   --z-game-flash: 10;
@@ -96,28 +103,28 @@
   --z-splash: 9999;
 
   /* Primary: Mythic Orange — main CTA, active elements */
-  --ion-color-primary: #e8600a;
-  --ion-color-primary-rgb: 232, 96, 10;
+  --ion-color-primary: #d96820;
+  --ion-color-primary-rgb: 217, 104, 32;
   --ion-color-primary-contrast: #ffffff;
   --ion-color-primary-contrast-rgb: 255, 255, 255;
-  --ion-color-primary-shade: #cc5409;
-  --ion-color-primary-tint: #ea7023;
+  --ion-color-primary-shade: #bf5b1c;
+  --ion-color-primary-tint: #dd7736;
 
   /* Secondary: Arena Blue — info, secondary actions */
-  --ion-color-secondary: #4a90e2;
-  --ion-color-secondary-rgb: 74, 144, 226;
+  --ion-color-secondary: #4f9b98;
+  --ion-color-secondary-rgb: 79, 155, 152;
   --ion-color-secondary-contrast: #ffffff;
   --ion-color-secondary-contrast-rgb: 255, 255, 255;
-  --ion-color-secondary-shade: #417fc7;
-  --ion-color-secondary-tint: #5c9be5;
+  --ion-color-secondary-shade: #468885;
+  --ion-color-secondary-tint: #61a5a2;
 
   /* Tertiary: Arena Gold — premium elements, ornaments */
-  --ion-color-tertiary: #d4a843;
-  --ion-color-tertiary-rgb: 212, 168, 67;
-  --ion-color-tertiary-contrast: #0a0e17;
-  --ion-color-tertiary-contrast-rgb: 10, 14, 23;
-  --ion-color-tertiary-shade: #bb943b;
-  --ion-color-tertiary-tint: #d8b156;
+  --ion-color-tertiary: #cbaa63;
+  --ion-color-tertiary-rgb: 203, 170, 99;
+  --ion-color-tertiary-contrast: #070b0d;
+  --ion-color-tertiary-contrast-rgb: 7, 11, 13;
+  --ion-color-tertiary-shade: #b39657;
+  --ion-color-tertiary-tint: #d0b372;
 
   /* Success: life gain green */
   --ion-color-success: #22c55e;
@@ -168,12 +175,19 @@
   --ion-color-light-tint: #313649;
 }
 
+html {
+  min-width: 320px;
+  color-scheme: dark;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   /* Arena dark surfaces */
-  --ion-background-color: #0a0e17;
-  --ion-background-color-rgb: 10, 14, 23;
-  --ion-text-color: #e8e8e8;
-  --ion-text-color-rgb: 232, 232, 232;
+  --ion-background-color: #070b0d;
+  --ion-background-color-rgb: 7, 11, 13;
+  --ion-text-color: #ede9df;
+  --ion-text-color-rgb: 237, 233, 223;
 
   /* Stepped backgrounds — Arena dark-to-dark tonal scale */
   --ion-background-color-step-50: #0e1220;
@@ -197,19 +211,21 @@ body {
   --ion-background-color-step-950: #9da2f8;
 
   /* Component surfaces */
-  --ion-toolbar-background: linear-gradient(180deg, #111827 0%, #0d1220 100%);
-  --ion-toolbar-color: #e8e8e8;
-  --ion-tab-bar-background: #0d1220;
-  --ion-tab-bar-color: #5a6280;
-  --ion-tab-bar-color-selected: #e8600a;
-  --ion-item-background: #141a2e;
-  --ion-card-background: #141a2e;
+  --ion-toolbar-background: linear-gradient(180deg, #11181b 0%, #080d0f 100%);
+  --ion-toolbar-color: #ede9df;
+  --ion-tab-bar-background: #080d0f;
+  --ion-tab-bar-color: #697572;
+  --ion-tab-bar-color-selected: #e7b85f;
+  --ion-item-background: #131b1e;
+  --ion-card-background: #131b1e;
   --ion-overlay-background-color: rgba(0, 0, 0, 0.7);
 
   /* Font stack: Roboto for body, Beleren for headings */
   --ion-font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-beleren: 'Beleren', 'Georgia', serif;
+  min-width: 320px;
   font-family: var(--ion-font-family);
+  text-rendering: optimizeLegibility;
 }
 
 /* =============================================
@@ -218,7 +234,7 @@ body {
 
 ion-toolbar {
   --border-width: 0;
-  --min-height: 44px;
+  --min-height: 48px;
 }
 
 ion-header ion-toolbar:last-of-type {
@@ -303,7 +319,7 @@ ion-list[inset="true"] {
 
 ion-list-header {
   --color: var(--ion-color-tertiary);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -341,10 +357,12 @@ ion-searchbar {
   --border-radius: 12px;
   --box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
   --icon-color: var(--ion-color-tertiary);
-  --placeholder-color: var(--ion-color-medium);
+  --placeholder-color: #b8c2be;
+  --placeholder-opacity: 0.82;
   --color: var(--ion-text-color);
   padding: 8px 12px;
-  font-size: 15px;
+  min-height: 52px;
+  font-size: 16px;
   transition: box-shadow 0.2s ease;
 }
 
@@ -354,7 +372,8 @@ ion-searchbar.searchbar-has-focus {
 
 ion-select {
   --placeholder-color: var(--ion-color-medium);
-  font-size: 15px;
+  min-height: var(--mobile-hit-target);
+  font-size: 16px;
   color: var(--ion-color-tertiary);
   font-weight: 600;
 }
@@ -474,6 +493,7 @@ ion-chip {
   --background: rgba(212, 168, 67, 0.08);
   --color: var(--ion-color-tertiary);
   border: 1px solid rgba(212, 168, 67, 0.2);
+  min-height: 36px;
   font-size: 13px;
 }
 
@@ -501,9 +521,10 @@ ion-toggle {
   --handle-border-radius: 4px;
   --border-radius: 6px;
   --handle-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 2px 4px rgba(0, 0, 0, 0.4), 0 1px 1px rgba(0, 0, 0, 0.2);
-  height: 28px;
-  width: 48px;
-  padding: 3px 0;
+  width: 52px;
+  min-width: 52px;
+  min-height: var(--mobile-hit-target-min);
+  padding: 8px 0;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
   border-radius: 6px;
 }
@@ -738,6 +759,72 @@ ion-content::part(scroll) {
 }
 
 /* =============================================
+   SANCTUM APP SHELL — production background
+   ============================================= */
+
+.app-screen {
+  background: #070b0d;
+}
+
+.app-screen :where(button, [role='button']) {
+  min-height: var(--mobile-hit-target-min);
+  touch-action: manipulation;
+}
+
+.app-screen :where(p, small, ion-label, ion-note) {
+  overflow-wrap: anywhere;
+}
+
+ion-content.sanctum-content {
+  --background:
+    linear-gradient(180deg, rgba(5, 9, 11, 0.68) 0%, rgba(5, 9, 11, 0.84) 52%, rgba(5, 9, 11, 0.95) 100%),
+    radial-gradient(circle at 78% 12%, rgba(208, 105, 31, 0.1), transparent 34%),
+    url('./art/command-sanctum.webp') center top / cover no-repeat;
+}
+
+ion-content.sanctum-content::part(scroll) {
+  isolation: isolate;
+}
+
+ion-content.sanctum-content::part(scroll)::before {
+  content: '';
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  background:
+    repeating-linear-gradient(116deg, transparent 0 36px, rgba(255, 255, 255, 0.006) 37px 38px),
+    radial-gradient(circle at 50% 18%, rgba(229, 160, 62, 0.045), transparent 34%);
+  pointer-events: none;
+}
+
+ion-content.sanctum-content ion-list[inset='true'] {
+  border-color: rgba(206, 173, 99, 0.2);
+  background: linear-gradient(150deg, rgba(20, 29, 32, 0.96), rgba(8, 13, 15, 0.97));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    inset 0 -20px 34px rgba(0, 0, 0, 0.14),
+    0 12px 30px rgba(0, 0, 0, 0.38);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+ion-content.sanctum-content ion-item {
+  --background: rgba(15, 22, 25, 0.86);
+  --background-activated: rgba(203, 170, 99, 0.09);
+  --background-hover: rgba(203, 170, 99, 0.05);
+}
+
+ion-content.sanctum-content ion-card {
+  --background: rgba(16, 24, 27, 0.94);
+  border-color: rgba(204, 171, 99, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 16px 38px rgba(0, 0, 0, 0.46);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+/* =============================================
    GAME UI — Button press states
    ============================================= */
 
@@ -808,6 +895,7 @@ ion-content::part(scroll) {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -816,14 +904,50 @@ ion-content::part(scroll) {
    ============================================= */
 
 :focus-visible {
-  outline: 2px solid rgba(232, 96, 10, 0.85);
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: 3px;
+}
+
+:where(ion-button, ion-item[button], ion-select, ion-toggle, ion-searchbar).ion-focused {
+  outline: 2px solid var(--focus-ring-color);
   outline-offset: 2px;
 }
 
 /* NumberStepper and custom buttons need explicit focus rings */
 .stepper-input:focus-visible {
-  outline: 2px solid var(--color-arena-orange);
-  outline-offset: 2px;
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: 3px;
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --color-text-secondary: #d0d7d4;
+  }
+
+  ion-content.sanctum-content ion-list[inset='true'],
+  ion-content.sanctum-content ion-card {
+    border-color: rgba(239, 217, 165, 0.52);
+  }
+}
+
+/* =============================================
+   SAFE AREA — notch / home-indicator insets
+   Additive padding utilities for full-bleed game
+   containers (apply to unpadded edge wrappers so
+   they add space instead of overriding paddings).
+   ============================================= */
+
+.safe-area-top {
+  padding-top: var(--ion-safe-area-top, env(safe-area-inset-top, 0px));
+}
+
+.safe-area-bottom {
+  padding-bottom: var(--ion-safe-area-bottom, env(safe-area-inset-bottom, 0px));
+}
+
+.safe-area-x {
+  padding-left: var(--ion-safe-area-left, env(safe-area-inset-left, 0px));
+  padding-right: var(--ion-safe-area-right, env(safe-area-inset-right, 0px));
 }
 
 /* =============================================

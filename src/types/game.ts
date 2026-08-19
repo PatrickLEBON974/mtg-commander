@@ -26,6 +26,20 @@ export interface PlayerState {
 
 export type GamePhase = 'seating' | 'initiative' | 'playing'
 
+export type TimerMode = 'elapsed' | 'turn' | 'chess'
+
+/**
+ * Immutable clock contract captured when a game starts.
+ * Keeping the allocation on the game prevents later settings changes from
+ * silently moving a player's time limit mid-match.
+ */
+export interface ChessClockState {
+  totalGameDurationMs: number
+  playerBudgetMs: number
+  theoreticalTurnMs: number
+  expectedRounds: number
+}
+
 export interface GameState {
   id: string
   players: PlayerState[]
@@ -43,6 +57,7 @@ export interface GameState {
   customPositionMap: number[] | null
   dayNightState: 'day' | 'night' | null // null = not yet established
   hourglassTimeBankRemainingMs: Record<string, number>
+  chessClock: ChessClockState | null
 }
 
 export interface GameAction {
@@ -90,8 +105,10 @@ export interface GameSettings {
   poisonThreshold: number
   playerCount: number
   enableTimer: boolean
-  enableTurnTimer: boolean
+  timerMode: TimerMode
   turnTimerSeconds: number
+  chessGameDurationMinutes: number
+  chessExpectedRounds: number
   activeBehaviorRuleIds: string[]
   selectedBehaviorProfileId: string
   hourglassEnabled: boolean
@@ -268,8 +285,10 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   poisonThreshold: 10,
   playerCount: 4,
   enableTimer: true,
-  enableTurnTimer: false,
+  timerMode: 'elapsed',
   turnTimerSeconds: 120,
+  chessGameDurationMinutes: 120,
+  chessExpectedRounds: 10,
   activeBehaviorRuleIds: [],
   selectedBehaviorProfileId: 'default',
   hourglassEnabled: false,

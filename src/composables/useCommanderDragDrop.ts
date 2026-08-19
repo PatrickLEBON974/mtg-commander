@@ -5,6 +5,7 @@ import { tapFeedback, heavyFeedback } from '@/services/haptics'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { prefersReducedMotion } from '@/utils/motion'
 import { DRAG_MOVEMENT_THRESHOLD_PX } from '@/config/gameConstants'
+import { findTouchById } from '@/utils/trackedTouch'
 import { usePlayerDropTarget } from '@/composables/usePlayerDropTarget'
 
 const GHOST_INTERVAL = 3
@@ -36,6 +37,7 @@ export function useCommanderDragDrop(options: UseCommanderDragDropOptions) {
   let commanderDragActive = false
   let commanderDragStartX = 0
   let commanderDragStartY = 0
+  let trackedTouchId: number | null = null
   let commanderDragIndicator: HTMLElement | null = null
   let ghostFrameCounter = 0
   const activeGhosts: HTMLElement[] = []
@@ -56,8 +58,11 @@ export function useCommanderDragDrop(options: UseCommanderDragDropOptions) {
   }
 
   function onCommanderTouchStart(event: TouchEvent) {
-    const touch = event.touches[0]
+    // Ignore additional fingers while a drag is in progress (multi-player safety)
+    if (trackedTouchId !== null) return
+    const touch = event.changedTouches[0]
     if (!touch) return
+    trackedTouchId = touch.identifier
     commanderDragActive = false
     commanderDragStartX = touch.clientX
     commanderDragStartY = touch.clientY
@@ -65,7 +70,8 @@ export function useCommanderDragDrop(options: UseCommanderDragDropOptions) {
   }
 
   function onCommanderTouchMove(event: TouchEvent) {
-    const touch = event.touches[0]
+    if (trackedTouchId === null) return
+    const touch = findTouchById(event.touches, trackedTouchId)
     if (!touch) return
 
     const deltaX = touch.clientX - commanderDragStartX
@@ -94,28 +100,30 @@ export function useCommanderDragDrop(options: UseCommanderDragDropOptions) {
   }
 
   function onCommanderTouchEnd(event: TouchEvent) {
+    if (trackedTouchId === null) return
+    // Only conclude the drag when OUR finger lifts, not another player's
+    const trackedTouch = findTouchById(event.changedTouches, trackedTouchId)
+    if (!trackedTouch) return
+    trackedTouchId = null
     if (commanderDragActive) {
-      const touch = event.changedTouches[0]
-      if (touch) {
-        const targetPlayerId = findDropTarget(touch.clientX, touch.clientY)
-        if (targetPlayerId && targetPlayerId !== playerId()) {
-          onDragDrop(targetPlayerId)
+      const targetPlayerId = findDropTarget(trackedTouch.clientX, trackedTouch.clientY)
+      if (targetPlayerId && targetPlayerId !== playerId()) {
+        onDragDrop(targetPlayerId)
 
-          // Impact flash on the drop target
-          if (!prefersReducedMotion.value) {
-            const targetElement = document.querySelector(
-              `[data-commander-player="${targetPlayerId}"]`,
-            ) as HTMLElement | null
-            if (targetElement) {
-              gsap.fromTo(targetElement,
-                { boxShadow: '0 0 30px rgba(245, 158, 11, 0.6), inset 0 0 20px rgba(245, 158, 11, 0.3)' },
-                { boxShadow: '', duration: 0.6, ease: 'power2.out' },
-              )
-            }
+        // Impact flash on the drop target
+        if (!prefersReducedMotion.value) {
+          const targetElement = document.querySelector(
+            `[data-commander-player="${targetPlayerId}"]`,
+          ) as HTMLElement | null
+          if (targetElement) {
+            gsap.fromTo(targetElement,
+              { boxShadow: '0 0 30px rgba(245, 158, 11, 0.6), inset 0 0 20px rgba(245, 158, 11, 0.3)' },
+              { boxShadow: '', duration: 0.6, ease: 'power2.out' },
+            )
           }
-
-          if (settingsStore.hapticFeedback) heavyFeedback()
         }
+
+        if (settingsStore.hapticFeedback) heavyFeedback()
       }
       clearDropHighlights()
       removeCommanderDragIndicator()
@@ -130,6 +138,7 @@ export function useCommanderDragDrop(options: UseCommanderDragDropOptions) {
     clearDropHighlights()
     removeCommanderDragIndicator()
     commanderDragActive = false
+    trackedTouchId = null
     isDragLocked.value = false
   }
 

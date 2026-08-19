@@ -1,14 +1,26 @@
 <template>
-  <ion-page>
-    <ion-content>
-      <div v-if="!gameStore.isGameActive" class="flex h-full flex-col items-center justify-center gap-4">
-        <IllustrationEmptyGame :size="120" data-animate />
-        <div class="text-center" data-animate>
-          <p class="text-text-secondary">{{ t('game.noActiveGame') }}</p>
-          <ion-button class="mt-4" @click="router.push('/home')">
+  <ion-page :class="{ 'app-screen': !gameStore.isGameActive }">
+    <SanctumHeader
+      v-if="!gameStore.isGameActive"
+      :title="t('game.title')"
+      :eyebrow="t('game.headerEyebrow')"
+      badge="01"
+    />
+    <ion-content :class="{ 'sanctum-content game-idle-content': !gameStore.isGameActive }">
+      <div v-if="!gameStore.isGameActive" class="game-idle-wrap">
+        <section class="game-idle-panel" data-animate>
+          <p class="game-idle-panel__eyebrow">{{ t('game.emptyEyebrow') }}</p>
+          <div class="game-idle-panel__crest">
+            <span aria-hidden="true" />
+            <img src="@/assets/icons/ui/logo.svg" alt="" />
+          </div>
+          <h2>{{ t('game.noActiveGame') }}</h2>
+          <p class="game-idle-panel__hint">{{ t('game.noActiveHint') }}</p>
+          <ion-button class="game-idle-panel__cta" @click="router.push('/home')">
+            <ion-icon :icon="playOutline" slot="start" />
             {{ t('game.startGame') }}
           </ion-button>
-        </div>
+        </section>
       </div>
 
       <div v-else-if="gameStore.currentGame?.gamePhase === 'seating'" class="relative flex h-full flex-col">
@@ -19,7 +31,9 @@
         <InitiativePhase />
       </div>
 
-      <div v-else class="relative flex h-full flex-col">
+      <!-- safe-area-* : additive padding so the topbar (top edge) and player
+           grid (bottom edge) stay clear of notches / home indicator -->
+      <div v-else class="safe-area-top safe-area-bottom safe-area-x relative flex h-full flex-col">
         <!-- Game content wrapper — desaturates when paused -->
         <div
           class="game-content-wrapper flex min-h-0 flex-1 flex-col"
@@ -49,7 +63,7 @@
 
           <!-- Inline game timer -->
           <span
-            v-if="settingsStore.gameSettings.enableTimer"
+            v-if="settingsStore.gameSettings.enableTimer && !isChessClockActive"
             class="font-mono text-xs tabular-nums"
             :class="isTimerRunning ? 'text-text-secondary' : 'text-life-negative animate-pulse'"
           >
@@ -89,6 +103,18 @@
               <ion-icon :icon="menuOutline" :style="iconRotationStyle" />
             </button>
           </div>
+        </div>
+
+        <div v-if="chessClockState" class="px-3 pb-1.5">
+          <ChessClockHud
+            :turn-player-name="gameStore.currentTurnPlayer?.name ?? ''"
+            :clock-owner-name="gameStore.effectivePriorityPlayer?.name ?? ''"
+            :turn-elapsed-ms="chessTurnElapsedMs"
+            :clock-used-ms="chessClockUsedMs"
+            :player-budget-ms="chessClockState.playerBudgetMs"
+            :theoretical-turn-ms="chessClockState.theoreticalTurnMs"
+            :is-running="isTimerRunning"
+          />
         </div>
 
         <!-- Behavior rule announce messages -->
@@ -200,7 +226,7 @@ import {
   alertController,
   toastController,
 } from '@ionic/vue'
-import { menuOutline } from 'ionicons/icons'
+import { menuOutline, playOutline } from 'ionicons/icons'
 import { useGameStore } from '@/stores/gameStore'
 import { useMultiplayerStore } from '@/stores/multiplayerStore'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -213,11 +239,12 @@ import { formatMsToTimer } from '@/utils/time'
 import { usePlayerGridLayout } from '@/composables/usePlayerGridLayout'
 import { presentModal } from '@/composables/useControllerModal'
 import GameMenuContent from '@/components/game/GameMenuContent.vue'
-import IllustrationEmptyGame from '@/components/icons/illustrations/IllustrationEmptyGame.vue'
+import SanctumHeader from '@/components/ui/SanctumHeader.vue'
 import IconDie from '@/components/icons/dice/IconDie.vue'
 import DiceRollerSheet from '@/components/dice/DiceRollerSheet.vue'
 import SeatingPhase from '@/components/game/SeatingPhase.vue'
 import InitiativePhase from '@/components/game/InitiativePhase.vue'
+import ChessClockHud from '@/components/game-timer/ChessClockHud.vue'
 import { prefersReducedMotion } from '@/utils/motion'
 import { playTurnAdvance, playUndo, playEndGame } from '@/services/sounds'
 import { gameDisplayModeKey, type GameDisplayMode } from '@/types/injectionKeys'
@@ -235,6 +262,16 @@ const { flashingPlayerIds, flashTimerZone, announceMessages } = useBehaviorRuleE
 
 // Game clock (singleton — starts the RAF tick loop)
 const { isRunning: isTimerRunning, toggleTimer } = useGameClock()
+const chessClockState = computed(() => gameStore.currentGame?.chessClock ?? null)
+const isChessClockActive = computed(() => chessClockState.value !== null)
+const chessTurnElapsedMs = computed(() => {
+  const playerId = gameStore.currentTurnPlayer?.id
+  return playerId ? gameStore.currentGame?.playerRoundTimeMs?.[playerId] ?? 0 : 0
+})
+const chessClockUsedMs = computed(() => {
+  const playerId = gameStore.effectivePriorityPlayer?.id
+  return playerId ? gameStore.currentGame?.playerPlayTimeMs?.[playerId] ?? 0 : 0
+})
 const formattedGameTime = computed(() =>
   formatMsToTimer(gameStore.currentGame?.elapsedMs ?? 0),
 )
@@ -717,6 +754,161 @@ function onTurnAdvanced() {
 </script>
 
 <style scoped>
+.game-idle-content {
+  --padding-start: max(16px, var(--ion-safe-area-left, 0px));
+  --padding-end: max(16px, var(--ion-safe-area-right, 0px));
+  --padding-top: 16px;
+  --padding-bottom: 28px;
+}
+
+.game-idle-wrap {
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+}
+
+.game-idle-panel {
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  width: min(100%, 430px);
+  padding: 28px 22px 24px;
+  align-items: center;
+  flex-direction: column;
+  border: 1px solid rgba(205, 172, 99, 0.24);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 26%, rgba(209, 127, 33, 0.14), transparent 31%),
+    linear-gradient(145deg, rgba(20, 29, 32, 0.96), rgba(7, 12, 14, 0.97));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    inset 0 -28px 45px rgba(0, 0, 0, 0.18),
+    0 18px 42px rgba(0, 0, 0, 0.44);
+  text-align: center;
+}
+
+.game-idle-panel::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 19%;
+  left: 19%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(235, 190, 94, 0.64), transparent);
+  box-shadow: 0 0 12px rgba(217, 124, 35, 0.34);
+}
+
+.game-idle-panel__eyebrow {
+  margin: 0;
+  color: rgba(233, 204, 140, 0.82);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.game-idle-panel__crest {
+  position: relative;
+  display: grid;
+  width: 144px;
+  height: 144px;
+  margin: 9px 0 4px;
+  place-items: center;
+}
+
+.game-idle-panel__crest > span {
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(211, 175, 96, 0.17);
+  border-radius: 50%;
+  background:
+    repeating-radial-gradient(circle, transparent 0 22px, rgba(205, 171, 95, 0.045) 23px 24px),
+    radial-gradient(circle, rgba(210, 128, 32, 0.08), transparent 64%);
+  box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.34);
+}
+
+.game-idle-panel__crest > span::before,
+.game-idle-panel__crest > span::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border: 1px solid rgba(218, 180, 99, 0.48);
+  background: #11181a;
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.game-idle-panel__crest > span::before { left: -4px; }
+.game-idle-panel__crest > span::after { right: -4px; }
+
+.game-idle-panel__crest img {
+  position: relative;
+  z-index: 1;
+  width: 88px;
+  height: 88px;
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.62)) drop-shadow(0 0 18px rgba(217, 146, 43, 0.2));
+}
+
+.game-idle-panel h2 {
+  margin: 0;
+  color: rgba(242, 231, 204, 0.9);
+  font-family: var(--font-beleren);
+  font-size: 21px;
+  letter-spacing: 0.25px;
+}
+
+.game-idle-panel__hint {
+  max-width: 300px;
+  margin: 7px 0 17px;
+  color: rgba(214, 225, 219, 0.72);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.game-idle-panel__cta {
+  --border-radius: 10px;
+  width: 100%;
+  max-width: 290px;
+  margin: 0;
+}
+
+@media (min-width: 700px) {
+  .game-idle-content {
+    --padding-start: 28px;
+    --padding-end: 28px;
+    --padding-top: 28px;
+  }
+
+  .game-idle-panel {
+    width: min(100%, 540px);
+    padding: 38px 38px 34px;
+  }
+
+  .game-idle-panel__crest {
+    width: 168px;
+    height: 168px;
+  }
+
+  .game-idle-panel__crest img {
+    width: 100px;
+    height: 100px;
+  }
+
+  .game-idle-panel h2 {
+    font-size: 25px;
+  }
+
+  .game-idle-panel__hint {
+    max-width: 360px;
+    font-size: 15px;
+  }
+
+  .game-idle-panel__cta {
+    max-width: 330px;
+  }
+}
+
 .topbar-action-btn {
   display: flex;
   align-items: center;
@@ -748,8 +940,8 @@ function onTurnAdvanced() {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.12);
   -webkit-backdrop-filter: blur(8px);

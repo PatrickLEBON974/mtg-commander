@@ -1,10 +1,41 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
-import type { GameSettings, BehaviorRuleProfile, BehaviorRule, BehaviorRuleInProfile } from '@/types/game'
+import type { GameSettings, TimerMode, BehaviorRuleProfile, BehaviorRule, BehaviorRuleInProfile } from '@/types/game'
 import { DEFAULT_GAME_SETTINGS } from '@/types/game'
 import { saveSettings, loadSettings, savePreferences, loadPreferences, saveBehaviorProfiles, loadBehaviorProfiles } from '@/services/persistence'
 import { DEFAULT_PROFILES, BEHAVIOR_RULE_TEMPLATES } from '@/rules/behaviorRulePresets'
 import type { LayoutMode } from '@/services/persistence'
+
+type StoredGameSettings = Partial<GameSettings> & {
+  /** Pre timer-mode migration, kept only while reading persisted settings. */
+  enableTurnTimer?: boolean
+}
+
+const TIMER_MODES: TimerMode[] = ['elapsed', 'turn', 'chess']
+
+function normalizeGameSettings(stored: StoredGameSettings): GameSettings {
+  const { enableTurnTimer, ...currentSettings } = stored
+  const storedMode = currentSettings.timerMode
+  const timerMode: TimerMode = storedMode && TIMER_MODES.includes(storedMode)
+    ? storedMode
+    : enableTurnTimer
+      ? 'turn'
+      : 'elapsed'
+  const duration = Number(currentSettings.chessGameDurationMinutes)
+  const rounds = Number(currentSettings.chessExpectedRounds)
+
+  return {
+    ...DEFAULT_GAME_SETTINGS,
+    ...currentSettings,
+    timerMode,
+    chessGameDurationMinutes: Number.isFinite(duration)
+      ? Math.min(720, Math.max(15, Math.round(duration / 15) * 15))
+      : DEFAULT_GAME_SETTINGS.chessGameDurationMinutes,
+    chessExpectedRounds: Number.isFinite(rounds)
+      ? Math.min(30, Math.max(4, Math.round(rounds)))
+      : DEFAULT_GAME_SETTINGS.chessExpectedRounds,
+  }
+}
 
 export const useSettingsStore = defineStore('settings', () => {
   const gameSettings = ref<GameSettings>({ ...DEFAULT_GAME_SETTINGS })
@@ -34,7 +65,7 @@ export const useSettingsStore = defineStore('settings', () => {
   // Load persisted game settings on init
   const savedSettings = loadSettings()
   if (savedSettings) {
-    gameSettings.value = { ...DEFAULT_GAME_SETTINGS, ...savedSettings }
+    gameSettings.value = normalizeGameSettings(savedSettings as StoredGameSettings)
   }
 
   // Load persisted preferences on init

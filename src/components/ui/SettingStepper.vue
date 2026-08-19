@@ -1,7 +1,8 @@
 <template>
-  <div class="flex items-center gap-3">
+  <div class="flex items-center gap-1.5">
     <button
-      class="setting-stepper-btn flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold"
+      type="button"
+      class="setting-stepper-btn flex h-11 w-11 items-center justify-center rounded-full text-lg font-bold"
       :disabled="currentIndex <= 0"
       :class="currentIndex <= 0 ? 'opacity-30' : ''"
       :aria-label="t('common.decrease', { label })"
@@ -10,12 +11,13 @@
       -
     </button>
 
-    <span class="setting-stepper-value min-w-[4rem] text-center text-lg font-bold tabular-nums text-text-primary">
+    <span class="setting-stepper-value min-w-10 text-center text-base font-bold tabular-nums text-text-primary">
       {{ displayValue }}
     </span>
 
     <button
-      class="setting-stepper-btn flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold"
+      type="button"
+      class="setting-stepper-btn flex h-11 w-11 items-center justify-center rounded-full text-lg font-bold"
       :disabled="currentIndex >= options.length - 1"
       :class="currentIndex >= options.length - 1 ? 'opacity-30' : ''"
       :aria-label="t('common.increase', { label })"

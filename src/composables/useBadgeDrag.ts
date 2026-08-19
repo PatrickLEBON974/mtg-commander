@@ -6,6 +6,7 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { prefersReducedMotion } from '@/utils/motion'
 import { DRAG_MOVEMENT_THRESHOLD_PX } from '@/config/gameConstants'
 import { rotateScreenDeltaToLocal } from '@/utils/rotateScreenDeltaToLocal'
+import { findTouchById } from '@/utils/trackedTouch'
 import { usePlayerDropTarget } from '@/composables/usePlayerDropTarget'
 
 interface UseBadgeDragOptions {
@@ -66,12 +67,16 @@ export function useBadgeDrag(options: UseBadgeDragOptions) {
   let startX = 0
   let startY = 0
   let dragActive = false
+  let trackedTouchId: number | null = null
   let badgeElement: HTMLElement | null = null
 
   function onBadgeTouchStart(event: TouchEvent, badgeKey: string) {
-    const touch = event.touches[0]
+    // Ignore additional fingers while a drag is in progress (multi-player safety)
+    if (trackedTouchId !== null) return
+    const touch = event.changedTouches[0]
     if (!touch) return
 
+    trackedTouchId = touch.identifier
     startX = touch.clientX
     startY = touch.clientY
     dragActive = false
@@ -85,7 +90,8 @@ export function useBadgeDrag(options: UseBadgeDragOptions) {
   }
 
   function onWindowTouchMove(event: TouchEvent) {
-    const touch = event.touches[0]
+    if (trackedTouchId === null) return
+    const touch = findTouchById(event.touches, trackedTouchId)
     if (!touch) return
 
     const screenDeltaX = touch.clientX - startX
@@ -108,43 +114,44 @@ export function useBadgeDrag(options: UseBadgeDragOptions) {
   }
 
   function onWindowTouchEnd(event: TouchEvent) {
+    if (trackedTouchId === null) return
+    // Another player's finger lifting must not conclude OUR drag
+    const trackedTouch = findTouchById(event.changedTouches, trackedTouchId)
+    if (!trackedTouch) return
     removeWindowListeners()
 
     if (dragActive && draggedBadgeKey.value) {
-      const touch = event.changedTouches[0]
-      if (touch) {
-        const targetId = findDropTarget(touch.clientX, touch.clientY)
+      const targetId = findDropTarget(trackedTouch.clientX, trackedTouch.clientY)
 
-        if (targetId && targetId !== playerId()) {
-          // Dropped on another player → transfer
-          onTransfer(draggedBadgeKey.value, targetId)
+      if (targetId && targetId !== playerId()) {
+        // Dropped on another player → transfer
+        onTransfer(draggedBadgeKey.value, targetId)
 
-          if (!prefersReducedMotion.value) {
-            const targetElement = document.querySelector(
-              `[data-commander-player="${targetId}"]`,
-            ) as HTMLElement | null
-            if (targetElement) {
-              gsap.fromTo(targetElement,
-                { boxShadow: '0 0 30px rgba(212, 168, 67, 0.6), inset 0 0 20px rgba(212, 168, 67, 0.3)' },
-                { boxShadow: '', duration: 0.6, ease: 'power2.out' },
-              )
-            }
-          }
-          const settingsStore = useSettingsStore()
-          if (settingsStore.hapticFeedback) heavyFeedback()
-        } else {
-          // Dropped on same card (or no target) → reposition
-          // Use badge element's visual center (includes drag transform) for exact drop position
-          const container = cardElement()
-          if (container && badgeElement) {
-            const badgeRect = badgeElement.getBoundingClientRect()
-            const badgeCenterX = badgeRect.left + badgeRect.width / 2
-            const badgeCenterY = badgeRect.top + badgeRect.height / 2
-            const { left, top } = screenToLocalPercent(
-              badgeCenterX, badgeCenterY, container, cardRotation(),
+        if (!prefersReducedMotion.value) {
+          const targetElement = document.querySelector(
+            `[data-commander-player="${targetId}"]`,
+          ) as HTMLElement | null
+          if (targetElement) {
+            gsap.fromTo(targetElement,
+              { boxShadow: '0 0 30px rgba(212, 168, 67, 0.6), inset 0 0 20px rgba(212, 168, 67, 0.3)' },
+              { boxShadow: '', duration: 0.6, ease: 'power2.out' },
             )
-            onReposition(draggedBadgeKey.value, left, top)
           }
+        }
+        const settingsStore = useSettingsStore()
+        if (settingsStore.hapticFeedback) heavyFeedback()
+      } else {
+        // Dropped on same card (or no target) → reposition
+        // Use badge element's visual center (includes drag transform) for exact drop position
+        const container = cardElement()
+        if (container && badgeElement) {
+          const badgeRect = badgeElement.getBoundingClientRect()
+          const badgeCenterX = badgeRect.left + badgeRect.width / 2
+          const badgeCenterY = badgeRect.top + badgeRect.height / 2
+          const { left, top } = screenToLocalPercent(
+            badgeCenterX, badgeCenterY, container, cardRotation(),
+          )
+          onReposition(draggedBadgeKey.value, left, top)
         }
       }
     }
@@ -170,6 +177,7 @@ export function useBadgeDrag(options: UseBadgeDragOptions) {
   function cleanup() {
     clearDropHighlights()
     dragActive = false
+    trackedTouchId = null
     badgeElement = null
     draggedBadgeKey.value = null
     dragOffset.value = { x: 0, y: 0 }

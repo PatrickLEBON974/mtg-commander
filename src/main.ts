@@ -40,8 +40,9 @@ router.isReady().then(async () => {
   // Hide native splash — web SplashOverlay takes over
   await SplashScreen.hide({ fadeOutDuration: 300 }).catch(() => {})
 
-  // Lock screen to portrait
-  await ScreenOrientation.lock({ orientation: 'portrait' }).catch(() => {})
+  // Follow the device orientation on phones and tablets. Every screen is
+  // responsive, including split-screen and landscape windows.
+  await ScreenOrientation.unlock().catch(() => {})
 
   // Sync i18n locale with user settings
   const settingsStore = useSettingsStore()

@@ -212,6 +212,6 @@ async function confirmDeleteDeck(deckId: string) {
 }
 
 .deck-stats-item {
-  --min-height: 28px;
+  --min-height: 44px;
 }
 </style>

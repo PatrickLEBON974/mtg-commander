@@ -15,6 +15,7 @@
 import { ref, computed, watch, type WatchStopHandle } from 'vue'
 import { useGameStore } from '@/stores/gameStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { accrueGameClockDelta } from '@/utils/gameClock'
 
 // --- Singleton state (shared across all consumers) ---
 const TICK_THROTTLE_MS = 250
@@ -93,20 +94,19 @@ function tick() {
   if (!game.playerPlayTimeMs) game.playerPlayTimeMs = {}
   if (!game.playerRoundTimeMs) game.playerRoundTimeMs = {}
 
-  // Both timers accrue to the clock owner (effective priority player)
+  // The aggregate clock follows priority. In chess mode, the informational
+  // turn clock remains attached to the active turn player.
   const clockOwner = gameStore.effectivePriorityPlayer
-  if (clockOwner) {
-    // Total play time: cumulative across the entire game (never resets)
-    game.playerPlayTimeMs[clockOwner.id] =
-      (game.playerPlayTimeMs[clockOwner.id] ?? 0) + actualDeltaMs
-
-    // Round time: per-turn timer (resets on turn change, follows priority)
-    game.playerRoundTimeMs[clockOwner.id] =
-      (game.playerRoundTimeMs[clockOwner.id] ?? 0) + actualDeltaMs
-  }
+  accrueGameClockDelta(
+    game,
+    clockOwner?.id ?? null,
+    gameStore.currentTurnPlayer?.id ?? null,
+    actualDeltaMs,
+    game.chessClock !== null,
+  )
 
   // Hourglass token accumulation
-  if (settingsStore.gameSettings.hourglassEnabled && clockOwner) {
+  if (!game.chessClock && settingsStore.gameSettings.hourglassEnabled && clockOwner) {
     const roundTimeMs = game.playerRoundTimeMs[clockOwner.id] ?? 0
 
     let allowanceMs: number
@@ -180,6 +180,7 @@ export function useGameClock() {
         if (newId && newId !== oldId) {
           accumulatedBeforePause.value = gameStore.currentGame?.elapsedMs ?? 0
           lastResumedAt.value = performance.now()
+          lastTickTimestamp = performance.now()
         }
       },
     ))
@@ -197,7 +198,7 @@ export function useGameClock() {
           const newTurnPlayer = game.players[newIndex]
           if (newTurnPlayer) {
             const totalMs = game.playerPlayTimeMs?.[newTurnPlayer.id] ?? 0
-            game.playerRoundTimeMs[newTurnPlayer.id] = totalMs % 1000
+            game.playerRoundTimeMs[newTurnPlayer.id] = game.chessClock ? 0 : totalMs % 1000
           }
         }
       },

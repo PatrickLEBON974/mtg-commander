@@ -14,17 +14,22 @@
         />
       </ion-item>
 
-      <ion-item>
-        <ion-label>{{ t('players.preferredColor') }}</ion-label>
-        <div slot="end" class="flex gap-2">
+      <ion-item class="color-picker-item">
+        <div class="color-picker-layout">
+          <ion-label>{{ t('players.preferredColor') }}</ion-label>
+          <div class="color-picker-controls" role="group" :aria-label="t('players.preferredColor')">
           <button
             v-for="color in PLAYER_COLORS"
             :key="color"
+            type="button"
             class="mana-dot-button"
             :class="{ 'mana-dot-selected': selectedColor === color }"
-            :style="{ background: `var(--color-mana-${color})` }"
+            :style="{ '--mana-color': `var(--color-mana-${color})` }"
+            :aria-label="t(`players.colors.${color}`)"
+            :aria-pressed="selectedColor === color"
             @click="selectedColor = color"
           />
+          </div>
         </div>
       </ion-item>
     </ion-list>
@@ -122,14 +127,40 @@ function handleSave() {
 </script>
 
 <style scoped>
+.color-picker-layout {
+  display: grid;
+  width: 100%;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+.color-picker-controls {
+  display: grid;
+  grid-template-columns: repeat(6, 44px);
+  justify-content: space-between;
+  gap: 3px;
+}
+
 .mana-dot-button {
-  width: 24px;
-  height: 24px;
+  position: relative;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  border: 2px solid transparent;
+  border: 1px solid rgba(236, 224, 193, 0.16);
+  background: rgba(255, 255, 255, 0.035);
   cursor: pointer;
   transition: border-color 150ms ease, transform 150ms ease;
   -webkit-tap-highlight-color: transparent;
+}
+
+.mana-dot-button::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  border-radius: 50%;
+  background: var(--mana-color);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
 }
 
 @media (hover: hover) {
@@ -143,8 +174,16 @@ function handleSave() {
 }
 
 .mana-dot-selected {
-  border-color: var(--ion-color-primary);
+  border-color: var(--color-arena-gold-light);
+  background: rgba(212, 168, 67, 0.1);
   box-shadow: 0 0 8px rgba(232, 96, 10, 0.5);
-  transform: scale(1.15);
+}
+
+@media (max-width: 359px) {
+  .color-picker-controls {
+    grid-template-columns: repeat(3, 44px);
+    justify-content: start;
+    gap: 8px;
+  }
 }
 </style>

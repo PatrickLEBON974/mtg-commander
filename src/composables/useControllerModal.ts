@@ -27,7 +27,13 @@ export async function presentModal(options: ControllerModalOptions) {
 
   if (options.onDismiss) {
     const dismissCallback = options.onDismiss
-    modal.onDidDismiss().then((detail) => dismissCallback({ data: detail.data, role: detail.role }))
+    modal
+      .onDidDismiss()
+      .then((detail) => dismissCallback({ data: detail.data, role: detail.role }))
+      .catch(() => {
+        // Modal was destroyed without a regular dismissal (e.g. page teardown):
+        // nothing to report to the caller, swallow the rejection silently.
+      })
   }
 
   await modal.present()

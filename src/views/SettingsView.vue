@@ -1,12 +1,13 @@
 <template>
-  <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>{{ t('settings.title') }}</ion-title>
-      </ion-toolbar>
-    </ion-header>
+  <ion-page class="app-screen">
+    <SanctumHeader
+      :title="t('settings.title')"
+      :eyebrow="t('settings.headerEyebrow')"
+      badge="CFG"
+    />
 
-    <ion-content class="ion-padding">
+    <ion-content class="sanctum-content settings-sanctum-content">
+      <div class="settings-layout">
       <!-- App Section -->
       <ion-list :inset="true" data-animate>
         <ion-list-header>
@@ -163,8 +164,9 @@
       </ion-list>
 
       <!-- Wizards of the Coast fan content disclaimer -->
-      <div class="ion-padding ion-text-center" style="opacity: 0.55; font-size: 12px; line-height: 1.5; color: var(--ion-color-medium)">
+      <div class="settings-disclaimer ion-padding ion-text-center">
         <p>{{ t('settings.disclaimer') }}</p>
+      </div>
       </div>
     </ion-content>
   </ion-page>
@@ -174,9 +176,6 @@
 import { useI18n } from 'vue-i18n'
 import {
   IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
   IonContent,
   IonList,
   IonListHeader,
@@ -209,6 +208,7 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { useOfflineStore } from '@/stores/offlineStore'
 import { usePageEnterAnimation } from '@/composables/usePageEnterAnimation'
 import { toLocaleCode } from '@/utils/i18nHelpers'
+import SanctumHeader from '@/components/ui/SanctumHeader.vue'
 const { t, locale } = useI18n()
 const settingsStore = useSettingsStore()
 const offlineStore = useOfflineStore()
@@ -255,3 +255,83 @@ async function confirmClearCache() {
   await alert.present()
 }
 </script>
+
+<style scoped>
+.settings-sanctum-content {
+  --padding-start: var(--ion-safe-area-left, 0px);
+  --padding-end: var(--ion-safe-area-right, 0px);
+  --padding-top: 8px;
+  --padding-bottom: 24px;
+}
+
+.settings-layout {
+  width: min(100%, 920px);
+  margin: 0 auto;
+}
+
+.settings-sanctum-content ion-list {
+  margin-top: 12px;
+}
+
+.settings-sanctum-content ion-list-header {
+  min-height: 48px;
+  padding-top: 8px;
+  background:
+    linear-gradient(90deg, rgba(206, 145, 53, 0.075), transparent 72%);
+  border-bottom: 1px solid rgba(205, 171, 98, 0.08);
+}
+
+.settings-sanctum-content ion-list-header ion-label::before {
+  content: '◆';
+  margin-right: 9px;
+  color: rgba(217, 172, 80, 0.58);
+  font-size: 7px;
+  vertical-align: 1px;
+}
+
+.settings-sanctum-content ion-item ion-icon[slot='start'] {
+  padding: 8px;
+  border: 1px solid rgba(204, 171, 99, 0.11);
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.settings-sanctum-content ion-select {
+  max-width: 52%;
+  min-height: 48px;
+  font-size: 16px;
+}
+
+.settings-sanctum-content ion-select::part(text) {
+  overflow: visible;
+  line-height: 1.25;
+  text-align: right;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.settings-disclaimer {
+  color: rgba(207, 217, 212, 0.7);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+@media (min-width: 700px) {
+  .settings-layout {
+    display: grid;
+    padding: 12px 20px 32px;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    align-items: start;
+    gap: 16px;
+  }
+
+  .settings-layout > ion-list {
+    height: fit-content;
+    margin: 0;
+  }
+
+  .settings-layout > div:last-child {
+    grid-column: 1 / -1;
+  }
+}
+</style>

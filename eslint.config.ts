@@ -21,6 +21,16 @@ export default defineConfigWithVueTs(
   vueTsConfigs.recommended,
 
   {
+    name: 'app/ionic-web-component-slots',
+    files: ['src/**/*.vue'],
+    rules: {
+      // Ionic exposes native Web Component slots (slot="start", slot="end").
+      // They are not Vue 2 named-slot syntax and remain required by Ionic.
+      'vue/no-deprecated-slot-attribute': 'off',
+    },
+  },
+
+  {
     ...pluginVitest.configs.recommended,
     files: ['src/**/__tests__/*'],
   },

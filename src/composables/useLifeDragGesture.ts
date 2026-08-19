@@ -2,6 +2,7 @@ import { ref, onBeforeUnmount } from 'vue'
 import { isDragLocked } from '@/composables/useDragLock'
 import { DRAG_MOVEMENT_THRESHOLD_PX } from '@/config/gameConstants'
 import { rotateScreenDeltaToLocal } from '@/utils/rotateScreenDeltaToLocal'
+import { findTouchById } from '@/utils/trackedTouch'
 
 const LIFE_DRAG_PIXELS_PER_POINT = 25
 
@@ -17,11 +18,15 @@ export function useLifeDragGesture(options: UseLifeDragGestureOptions) {
   let dragActive = false
   let dragStartX = 0
   let dragStartY = 0
+  let trackedTouchId: number | null = null
   const pendingAmount = ref(0)
 
   function onTouchStart(event: TouchEvent) {
-    const touch = event.touches[0]
+    // Ignore additional fingers while a drag is in progress (multi-player safety)
+    if (trackedTouchId !== null) return
+    const touch = event.changedTouches[0]
     if (!touch) return
+    trackedTouchId = touch.identifier
     dragActive = false
     dragStartX = touch.clientX
     dragStartY = touch.clientY
@@ -29,7 +34,8 @@ export function useLifeDragGesture(options: UseLifeDragGestureOptions) {
   }
 
   function onTouchMove(event: TouchEvent) {
-    const touch = event.touches[0]
+    if (trackedTouchId === null) return
+    const touch = findTouchById(event.touches, trackedTouchId)
     if (!touch) return
 
     const deltaX = touch.clientX - dragStartX
@@ -53,17 +59,23 @@ export function useLifeDragGesture(options: UseLifeDragGestureOptions) {
     }
   }
 
-  function onTouchEnd() {
+  function onTouchEnd(event: TouchEvent) {
+    if (trackedTouchId === null) return
+    // Only conclude the drag when OUR finger lifts, not another player's
+    if (!findTouchById(event.changedTouches, trackedTouchId)) return
     if (dragActive && pendingAmount.value !== 0) {
       onLifeChange(pendingAmount.value)
     }
-    dragActive = false
-    isDragLocked.value = false
-    pendingAmount.value = 0
+    resetDragState()
   }
 
   function onTouchCancel() {
+    resetDragState()
+  }
+
+  function resetDragState() {
     dragActive = false
+    trackedTouchId = null
     isDragLocked.value = false
     pendingAmount.value = 0
   }
@@ -74,9 +86,7 @@ export function useLifeDragGesture(options: UseLifeDragGestureOptions) {
   }
 
   onBeforeUnmount(() => {
-    isDragLocked.value = false
-    dragActive = false
-    pendingAmount.value = 0
+    resetDragState()
   })
 
   return {

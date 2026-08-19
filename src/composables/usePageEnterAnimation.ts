@@ -12,6 +12,7 @@ import { prefersReducedMotion } from '@/utils/motion'
  */
 export function usePageEnterAnimation(rootSelector = 'ion-content') {
   let timeline: gsap.core.Timeline | null = null
+  let pendingEnterFrameId: number | null = null
 
   function play(root?: Element | null) {
     const container = root ?? document.querySelector(rootSelector)
@@ -28,6 +29,7 @@ export function usePageEnterAnimation(rootSelector = 'ion-content') {
     // Reset before playing
     gsap.set(targets, { opacity: 0, y: 20, scale: 0.97 })
 
+    timeline?.kill()
     timeline = gsap.timeline()
     timeline.to(targets, {
       opacity: 1,
@@ -46,10 +48,19 @@ export function usePageEnterAnimation(rootSelector = 'ion-content') {
 
   onMounted(() => {
     // Small delay to let DOM settle after Ionic page transitions
-    requestAnimationFrame(() => play())
+    pendingEnterFrameId = requestAnimationFrame(() => {
+      pendingEnterFrameId = null
+      play()
+    })
   })
 
   onUnmounted(() => {
+    // Cancel the deferred mount animation so it cannot start (and tween
+    // detached nodes) after the component is gone, then kill any live tween.
+    if (pendingEnterFrameId !== null) {
+      cancelAnimationFrame(pendingEnterFrameId)
+      pendingEnterFrameId = null
+    }
     timeline?.kill()
     timeline = null
   })
